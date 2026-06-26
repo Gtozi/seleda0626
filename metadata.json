@@ -1,0 +1,8 @@
+{
+  "name": "Grand Hotel ERP",
+  "description": "Integrated enterprise resource planning suite for hospitality management, featuring front desk operations, finance, procurement, expense management, HR, engineering, and executive BI dashboards.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

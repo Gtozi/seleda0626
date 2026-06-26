@@ -1,0 +1,312 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --animate-fade-in-up: fade-in-up 0.4s ease-out both;
+  --animate-scale-in: scale-in 0.3s ease-out both;
+  --animate-slide-in-right: slide-in-right 0.35s ease-out both;
+  --animate-float: float 3s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-bounce-subtle: bounce-subtle 0.6s ease-in-out;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Modern glassmorphism utilities */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Modern card shadows */
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.card-shadow-hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12), 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* Modern focus states */
+.focus-ring {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Smooth transitions */
+.smooth-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ───────────────────────────────────────────
+   GLOBAL DARK MODE OVERRIDES
+   Forces every module, card, and table into
+   dark mode when <html> has .dark class.
+   EXCLUDES: /booking route (public portal)
+   ─────────────────────────────────────────── */
+/* Exclude booking page from dark mode */
+body:not([data-route*="booking"]) .dark .bg-white,
+body:not([data-route*="booking"]) .dark .bg-white\/95,
+body:not([data-route*="booking"]) .dark .bg-white\/80,
+body:not([data-route*="booking"]) .dark .bg-white\/70,
+body:not([data-route*="booking"]) .dark .bg-white\/50 {
+  background-color: #0f172a !important;
+}
+body:not([data-route*="booking"]) .dark .bg-slate-50,
+body:not([data-route*="booking"]) .dark .bg-slate-100,
+body:not([data-route*="booking"]) .dark .bg-slate-200 {
+  background-color: #1e293b !important;
+}
+body:not([data-route*="booking"]) .dark .bg-slate-300 {
+  background-color: #334155 !important;
+}
+body:not([data-route*="booking"]) .dark .text-slate-900,
+body:not([data-route*="booking"]) .dark .text-slate-800,
+body:not([data-route*="booking"]) .dark .text-slate-700,
+body:not([data-route*="booking"]) .dark .text-slate-600 {
+  color: #f1f5f9 !important;
+}
+body:not([data-route*="booking"]) .dark .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+body:not([data-route*="booking"]) .dark .text-slate-400 {
+  color: #94a3b8 !important;
+}
+body:not([data-route*="booking"]) .dark .border-slate-200,
+body:not([data-route*="booking"]) .dark .border-slate-100,
+body:not([data-route*="booking"]) .dark .border-slate-300 {
+  border-color: #334155 !important;
+}
+body:not([data-route*="booking"]) .dark .border-slate-400 {
+  border-color: #475569 !important;
+}
+
+/* Inputs & selects */
+body:not([data-route*="booking"]) .dark input,
+body:not([data-route*="booking"]) .dark select,
+body:not([data-route*="booking"]) .dark textarea {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-color: #475569 !important;
+}
+body:not([data-route*="booking"]) .dark input::placeholder,
+body:not([data-route*="booking"]) .dark textarea::placeholder {
+  color: #94a3b8 !important;
+}
+
+/* Tables */
+body:not([data-route*="booking"]) .dark table thead th {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border-bottom-color: #475569 !important;
+}
+body:not([data-route*="booking"]) .dark table tbody td {
+  background-color: #0f172a !important;
+  color: #e2e8f0 !important;
+  border-color: #334155 !important;
+}
+body:not([data-route*="booking"]) .dark table tbody tr:nth-child(even) td {
+  background-color: #1e293b !important;
+}
+body:not([data-route*="booking"]) .dark table tbody tr:hover td {
+  background-color: #334155 !important;
+}
+
+/* Scrollbars */
+body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-thumb {
+  background: #475569;
+}
+body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* Recharts / chart tooltips */
+.dark .recharts-tooltip-wrapper .recharts-default-tooltip {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+.dark .recharts-legend-item-text {
+  fill: #e2e8f0 !important;
+}
+.dark .recharts-text {
+  fill: #94a3b8 !important;
+}
+
+/* Glassmorphism override */
+.dark .glass {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Gray palette (used in some components) */
+body:not([data-route*="booking"]) .dark .bg-gray-50,
+body:not([data-route*="booking"]) .dark .bg-gray-100,
+body:not([data-route*="booking"]) .dark .bg-gray-200 {
+  background-color: #1e293b !important;
+}
+body:not([data-route*="booking"]) .dark .bg-gray-300 {
+  background-color: #334155 !important;
+}
+body:not([data-route*="booking"]) .dark .text-gray-900,
+body:not([data-route*="booking"]) .dark .text-gray-800,
+body:not([data-route*="booking"]) .dark .text-gray-700,
+body:not([data-route*="booking"]) .dark .text-gray-600 {
+  color: #f1f5f9 !important;
+}
+body:not([data-route*="booking"]) .dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+body:not([data-route*="booking"]) .dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+body:not([data-route*="booking"]) .dark .border-gray-200,
+body:not([data-route*="booking"]) .dark .border-gray-100,
+body:not([data-route*="booking"]) .dark .border-gray-300 {
+  border-color: #475569 !important;
+}
+
+/* Hover state overrides */
+body:not([data-route*="booking"]) .dark .hover\:bg-slate-100:hover,
+body:not([data-route*="booking"]) .dark .hover\:bg-slate-50:hover,
+body:not([data-route*="booking"]) .dark .hover\:bg-gray-100:hover,
+body:not([data-route*="booking"]) .dark .hover\:bg-gray-50:hover {
+  background-color: #334155 !important;
+}
+body:not([data-route*="booking"]) .dark .hover\:bg-white:hover {
+  background-color: #1e293b !important;
+}
+body:not([data-route*="booking"]) .dark .hover\:text-slate-900:hover,
+body:not([data-route*="booking"]) .dark .hover\:text-gray-900:hover {
+  color: #f1f5f9 !important;
+}
+
+/* Status tint backgrounds */
+.dark .bg-emerald-50,
+.dark .bg-rose-50,
+.dark .bg-amber-50,
+.dark .bg-blue-50,
+.dark .bg-indigo-50,
+.dark .bg-purple-50,
+.dark .bg-teal-50,
+.dark .bg-orange-50,
+.dark .bg-cyan-50,
+.dark .bg-pink-50,
+.dark .bg-lime-50,
+.dark .bg-sky-50,
+.dark .bg-red-50,
+.dark .bg-yellow-50,
+.dark .bg-green-50 {
+  background-color: #1e293b !important;
+}
+
+/* Modal / dialog backdrops */
+.dark [class*="backdrop"],
+.dark [class*="overlay"],
+.dark [class*="modal-bg"] {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Indigo accent preserved, just ensuring text on it stays white */
+.dark .bg-indigo-600,
+.dark .bg-indigo-500,
+.dark .bg-indigo-700 {
+  color: #ffffff !important;
+}
+
+/* Public portal (Grand Vista) custom utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.stripe-signature {
+  background: repeating-linear-gradient(
+    45deg,
+    #e4e4e7,
+    #e4e4e7 10px,
+    #f4f4f5 10px,
+    #f4f4f5 20px
+  );
+}
