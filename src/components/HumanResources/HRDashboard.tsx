@@ -38,11 +38,11 @@ const HRDashboard = () => {
   ];
 
   const deptDistribution = [
-    { name: 'Front Office', value: 45, color: '#6366f1' },
-    { name: 'Housekeeping', value: 68, color: '#10b981' },
-    { name: 'F&B', value: 72, color: '#f59e0b' },
-    { name: 'Engineering', value: 24, color: '#ec4899' },
-    { name: 'Admin/Other', value: 39, color: '#94a3b8' },
+    { name: 'Front Office', value: 45, color: '#B5563C' },
+    { name: 'Housekeeping', value: 68, color: '#5F7A4F' },
+    { name: 'F&B', value: 72, color: '#C18A3B' },
+    { name: 'Engineering', value: 24, color: '#9C4A36' },
+    { name: 'Admin/Other', value: 39, color: '#6B5C4D' },
   ];
 
   const attendanceTrend = [
@@ -59,7 +59,7 @@ const HRDashboard = () => {
     <div className="space-y-6">
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-3xl transition-all hover:shadow-sm">
+          <div key={i} className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-4 rounded-3xl transition-all hover:shadow-sm dark:shadow-slate-900/20">
             <div className={`p-2 w-fit rounded-xl ${kpi.bg} ${kpi.color} mb-3`}>
               <kpi.icon size={18} />
             </div>
@@ -72,7 +72,7 @@ const HRDashboard = () => {
 
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Attendance Trend */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Attendance Analysis</h3>
@@ -92,18 +92,18 @@ const HRDashboard = () => {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={attendanceTrend}>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
-                <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
+                <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
                 <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', fontSize: '10px' }} />
-                <Bar dataKey="present" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={20} />
-                <Bar dataKey="absent" fill="#f43f5e" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="present" fill="#B5563C" radius={[4, 4, 0, 0]} barSize={20} />
+                <Bar dataKey="absent" fill="#9C4A36" radius={[4, 4, 0, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Dept Distribution */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Staff by Dept.</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -129,7 +129,7 @@ const HRDashboard = () => {
         </div>
 
         {/* Onboarding Pipeline */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">Recruitment Funnel</h3>
            <div className="space-y-5">
               {[

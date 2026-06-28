@@ -98,7 +98,7 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (saved === 'light' || saved === 'dark') return saved;
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
     }
-    return 'dark';
+    return 'dark'; // Default to dark mode
   });
   const [currentSystemDate, setCurrentSystemDate] = useState<string>(() => {
     const today = new Date();
@@ -196,11 +196,22 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setCustomRoles(dbRoles);
         }
       }).catch(console.error),
-      supabaseService.fetchAuditEvents().then(dbLogs => {
-        if (active && dbLogs && dbLogs.length > 0) {
-          setStructuredAuditLogs(dbLogs);
-        }
-      }).catch(console.error),
+      // Only fetch audit events if user is authenticated (requires auth)
+      fetch('/api/audit/events?limit=500', { credentials: 'include' })
+        .then(r => {
+          if (r.ok) return r.json();
+          // Handle any non-2xx status gracefully
+          console.warn(`Audit events fetch returned status ${r.status}`);
+          return [];
+        })
+        .then((data: SystemAuditLog[]) => {
+          if (active && Array.isArray(data) && data.length > 0) {
+            setStructuredAuditLogs(data);
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to fetch audit events:', err);
+        }),
     ]).finally(() => {
       if (active) setIsSystemLoading(false);
     });
@@ -267,7 +278,11 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Load pending admin changes from DB on mount
   useEffect(() => {
     fetch('/api/admin/pending-changes', { credentials: 'include' })
-      .then(r => r.ok ? r.json() : [])
+      .then(r => {
+        if (r.ok) return r.json();
+        if (r.status === 401) return []; // Not authenticated, return empty array
+        throw new Error(`Failed to fetch pending changes: ${r.status}`);
+      })
       .then((data: PendingAdminChange[]) => {
         if (Array.isArray(data)) setPendingAdminChanges(data);
       })

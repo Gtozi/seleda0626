@@ -147,8 +147,8 @@ export default function HousekeepingInventoryModule() {
             </div>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[2rem] overflow-hidden shadow-3xs">
-            <table className="w-full text-left border-collapse font-sans">
+          <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-[2rem] overflow-hidden shadow-3xs dark:shadow-slate-900/20">
+            <table className="w-full text-left border-collapse font-sans dark:text-slate-200">
               <thead>
                 <tr className="bg-slate-50 dark:bg-slate-850 font-bold text-slate-400 text-[10px] uppercase tracking-widest h-12 border-b dark:border-slate-800">
                   <th className="px-6">Item Description</th>
@@ -158,7 +158,7 @@ export default function HousekeepingInventoryModule() {
                   <th className="px-6 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-850">
+              <tbody className="divide-y divide-slate-50 dark:divide-slate-700/40">
                 {filteredInventory.map(item => {
                   const isLow = item.stockInHand <= item.reorderLevel;
                   return (

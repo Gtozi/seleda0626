@@ -271,10 +271,10 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
 
       // Simulate OCR extraction
       setTimeout(() => {
-        if (!newGName) setNewGName('Jane Scanned Doe');
-        if (!newGEmail) setNewGEmail('jane.doe@scanned.com');
-        if (!newGPassport) setNewGPassport('P' + Math.random().toString(36).substring(2, 10).toUpperCase());
-        
+        if (!newGName) setNewGName('');
+        if (!newGEmail) setNewGEmail('');
+        if (!newGPassport) setNewGPassport('');
+
         // Store document metadata in guest profile for now
         // In production: This would be stored in id_documents table
         console.log('ID Document uploaded:', documentData);
@@ -1843,7 +1843,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white shadow-lg shadow-slate-200/50">
             <table className="w-full text-left text-xs text-slate-600 border-collapse font-sans">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 font-mono text-slate-500 text-3xs uppercase">
+                <tr className="bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-700 font-mono text-slate-500 dark:text-slate-300 text-3xs uppercase">
                   <th className="py-2.5 px-4">Corporate Company Name</th>
                   <th className="py-2.5 px-4">Contact Info</th>
                   <th className="py-2.5 px-4 text-center">Discount Index</th>
@@ -1851,9 +1851,9 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   <th className="py-2.5 px-4 text-right">Unpaid Balance Invoice</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-sans">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40 font-sans">
                 {corporateAccounts.map(corp => (
-                  <tr key={corp.id} className="hover:bg-slate-50 transition-colors duration-150">
+                  <tr key={corp.id} className="hover:bg-slate-50 dark:hover:bg-slate-900/10 transition-colors duration-150">
                     <td className="py-3 px-4 font-semibold text-slate-800">
                       {corp.companyName}
                       <span className="block font-mono text-3xs text-slate-400">Account: {corp.id}</span>

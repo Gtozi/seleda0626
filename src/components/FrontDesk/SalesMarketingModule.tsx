@@ -87,7 +87,7 @@ export default function SalesMarketingModule() {
       companyName: corpName,
       contactPerson: corpContact,
       contactEmail: corpEmail,
-      contactPhone: '+1 (555) 012-4411',
+      contactPhone: '',
       discountPercent: corpDiscount,
       activeBookings: 0,
       unpaidBalance: 0

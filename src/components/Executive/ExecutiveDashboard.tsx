@@ -179,7 +179,7 @@ const ExecutiveDashboard = () => {
         const dept = t.module || 'Other';
         deptMap[dept] = (deptMap[dept] || 0) + t.total;
       });
-    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#94a3b8'];
+    const colors = ['#B5563C', '#5F7A4F', '#C18A3B', '#9C4A36', '#6B5C4D'];
     return Object.entries(deptMap)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5)
@@ -270,18 +270,18 @@ const ExecutiveDashboard = () => {
               </button>
             </div>
             <div className="space-y-4">
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Current Value</p>
                 <p className="text-2xl font-black text-slate-900 dark:text-white">{selectedKPI.value}</p>
               </div>
-              <div className="p-4 bg-slate-50 dark:bg-slate-950/40 rounded-2xl">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/20 rounded-2xl border border-slate-200/60 dark:border-slate-700/60">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Trend</p>
                 <div className={`flex items-center gap-2 text-sm font-bold ${selectedKPI.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                   {selectedKPI.isPositive ? <ArrowUpRight size={14} /> : <ArrowDownRight size={14} />}
                   {selectedKPI.trend}
                 </div>
               </div>
-              <div className="p-4 bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl border border-indigo-100 dark:border-indigo-500/20">
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl border border-indigo-100 dark:border-indigo-700/50">
                 <p className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-2">Performance Insight</p>
                 <p className="text-xs text-slate-600 dark:text-slate-400">
                   {selectedKPI.isPositive
@@ -328,16 +328,16 @@ const ExecutiveDashboard = () => {
               <AreaChart data={occupancyTrend}>
                 <defs>
                   <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#B5563C" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#B5563C" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
-                <YAxis yAxisId="left" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} tickFormatter={(v) => `$${v/1000}k`} />
-                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} tickFormatter={(v) => `${v}%`} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
+                <YAxis yAxisId="left" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} tickFormatter={(v) => `$${v/1000}k`} />
+                <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} tickFormatter={(v) => `${v}%`} />
                 <Tooltip contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                <Area yAxisId="left" type="monotone" dataKey="rev" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                <Area yAxisId="right" type="monotone" dataKey="occ" stroke="#cbd5e1" strokeWidth={2} strokeDasharray="5 5" fill="none" />
+                <Area yAxisId="left" type="monotone" dataKey="rev" stroke="#B5563C" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                <Area yAxisId="right" type="monotone" dataKey="occ" stroke="#C9BBA8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
               </AreaChart>
             </ResponsiveContainer>
           </div>

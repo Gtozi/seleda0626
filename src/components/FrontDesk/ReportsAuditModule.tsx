@@ -71,13 +71,11 @@ import {
   DAILY_REPORTS_LIST, 
   WEEKLY_COMPARATIVE_DATA, 
   MONTHLY_SECTIONS, 
-  AI_RECOMMENDATIONS, 
   DEFAULT_SCHEDULES, 
   INSTANT_VERSION_HISTORY,
   DailyReportItem,
   WeeklyComparisonItem,
   MonthlyReportSection,
-  RecommendationTemplate,
   ScheduledReport,
   VersionEntry
 } from './moduleReportsTemplates';
@@ -247,7 +245,7 @@ export default function ReportsAuditModule() {
       }
     }).length || occupiedRooms;
 
-    const adrRate = occupiedCount > 0 ? Math.round(roomRevenueTotal / occupiedCount) : 155;
+    const adrRate = occupiedCount > 0 ? Math.round(roomRevenueTotal / occupiedCount) : 0;
 
     let dayMultiplier = 1;
     if (dailyDateSelectionMode === 'range') {
@@ -255,12 +253,12 @@ export default function ReportsAuditModule() {
       dayMultiplier = Math.max(1, Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1);
     }
     const finalSellable = sellableRooms * dayMultiplier;
-    const revParRate = finalSellable > 0 ? Math.round(roomRevenueTotal / finalSellable) : 120;
+    const revParRate = finalSellable > 0 ? Math.round(roomRevenueTotal / finalSellable) : 0;
 
-    const guestSatisfactionScore = 94.2 + (walkIns * 0.1) - (stayovers % 2 ? 0.2 : 0);
-    const openComplaintsCount = 3 + (stayovers % 3);
-    const pendingMaintenanceCount = oooRooms.length + 1;
-    const staffOnDutyCount = 12;
+    const guestSatisfactionScore = 0;
+    const openComplaintsCount = 0;
+    const pendingMaintenanceCount = oooRooms.length;
+    const staffOnDutyCount = 0;
 
     return {
       totalRoomsCount,
@@ -286,7 +284,7 @@ export default function ReportsAuditModule() {
   }, [rooms, reservations, guests, dailyDateSelectionMode, dailySelectedDate, dailyStartDate, dailyEndDate, currentSystemDate]);
 
   // Weekly forecast states
-  const [weeklyViewWeek, setWeeklyViewWeek] = useState('Week 22 (Current)');
+  const [weeklyViewWeek, setWeeklyViewWeek] = useState('Current Week');
 
   // Monthly variance comparison selectors
   const [monthlyCompareBaseline, setMonthlyCompareBaseline] = useState<'prev-month' | 'same-month-yoy' | 'budget'>('prev-month');
@@ -294,7 +292,7 @@ export default function ReportsAuditModule() {
   // Strategic modules state
   const [aiAnalysisRunning, setAiAnalysisRunning] = useState(false);
   const [customStrategicNote, setCustomStrategicNote] = useState('');
-  const [currentAiRecommendations, setCurrentAiRecommendations] = useState<RecommendationTemplate[]>(AI_RECOMMENDATIONS);
+  const [currentAiRecommendations, setCurrentAiRecommendations] = useState<any[]>([]);
 
   // Distribution Center interactive state
   const [scheduledSchedules, setScheduledSchedules] = useState<ScheduledReport[]>(DEFAULT_SCHEDULES);
@@ -303,7 +301,7 @@ export default function ReportsAuditModule() {
   const [showAddEmailModal, setShowAddEmailModal] = useState(false);
   
   // Schedule creation form state
-  const [newScheduleName, setNewScheduleName] = useState('Weekly Occupancy Forecast');
+  const [newScheduleName, setNewScheduleName] = useState('No data');
   const [newScheduleFreq, setNewScheduleFreq] = useState<'Daily' | 'Weekly' | 'Monthly' | 'Quarterly'>('Weekly');
   const [newScheduleEmail, setNewScheduleEmail] = useState('');
 
@@ -388,11 +386,11 @@ export default function ReportsAuditModule() {
         title: 'Booking Channel Mix',
         columns: ['Channel', 'Share %'],
         rows: [
-          ['Booking.com', '45%'],
-          ['Expedia', '20%'],
-          ['Direct Website', '22%'],
-          ['Walk-In', '8%'],
-          ['Corporate Account', '5%']
+          ['No data', '0%'],
+          ['No data', '0%'],
+          ['No data', '0%'],
+          ['No data', '0%'],
+          ['No data', '0%']
         ]
       });
     }
@@ -482,49 +480,43 @@ export default function ReportsAuditModule() {
           title: 'Gift Shop Daily Sales Summary',
           columns: ['Metric', 'Value'],
           rows: [
-            ['Total Daily Sales', '$1,420'],
-            ['Transactions Volume', '42 sales'],
-            ['Average Transaction Value', '$33.81'],
-            ['Total Gross Margin', '$894'],
-            ['Net Profit Level', '63.0%']
+            ['Total Daily Sales', '$0'],
+            ['Transactions Volume', '0 sales'],
+            ['Average Transaction Value', '$0'],
+            ['Total Gross Margin', '$0'],
+            ['Net Profit Level', '0%']
           ]
         });
         sections.push({
           title: 'Payments Distribution',
           columns: ['Method', 'Amount', 'Share'],
           rows: [
-            ['Cash Payments', '$280', '19.7%'],
-            ['Credit/Debit Cards', '$840', '59.2%'],
-            ['Room Charges Posted', '$300', '21.1%'],
-            ['Discounts Granted', '$45', '3 claims'],
-            ['Refunds Processed', '-$35', '1 voucher']
+            ['Cash Payments', '$0', '0%'],
+            ['Credit/Debit Cards', '$0', '0%'],
+            ['Room Charges Posted', '$0', '0%'],
+            ['Discounts Granted', '$0', '0 claims'],
+            ['Refunds Processed', '$0', '0 vouchers']
           ]
         });
         sections.push({
           title: 'Sales Revenue by Staff On-Duty',
           columns: ['Staff', 'Role', 'Sales', 'Transactions'],
           rows: [
-            ['Elena B.', 'Front Desk', '$520', '15'],
-            ['Dawit T.', 'Reception', '$480', '14'],
-            ['Abel G.', 'Audit Duty', '$420', '13']
+            ['No staff data available', '--', '--', '--']
           ]
         });
         sections.push({
           title: 'Top Selling Items',
           columns: ['Product', 'Units Sold', 'Revenue'],
           rows: [
-            ['Hotel Branded Logo Hoodie', '14', '$490'],
-            ['Handmade Local Art Mug', '8', '$160'],
-            ['Premium Hotel Water Flask', '7', '$140']
+            ['No sales data available', '--', '--']
           ]
         });
         sections.push({
           title: 'Slow Moving Items (Action Needed)',
           columns: ['Product', 'Rate', 'Recommendation'],
           rows: [
-            ['Custom Beaded Keyring', '1 sold / week', 'Run bundle offer'],
-            ['Branded Leather Luggage Tag', '2 sold / mo', 'Reposition in shelf'],
-            ['Postcard Hotel Packs', '3 sold / mo', 'Include in welcome packet']
+            ['No inventory data available', '--', '--']
           ]
         });
       }
@@ -534,12 +526,12 @@ export default function ReportsAuditModule() {
           title: 'Register Drawer Reconciliation',
           columns: ['Item', 'System', 'Physical', 'Variance'],
           rows: [
-            ['Opening Cash Float', '$250.00', '$250.00', '$0.00'],
-            ['Recorded Cash Sales', '+$280.00', '+$280.00', '$0.00'],
-            ['Cash Refunds', '-$35.00', '-$35.00', '$0.00'],
-            ['Expected Balance', '$495.00', '$495.00', '$0.00 (Balanced)'],
-            ['Deposit to Safe', '-$245.00', '-$245.00', '$0.00'],
-            ['Closing Cash Float', '$250.00', '$250.00', '$0.00']
+            ['Opening Cash Float', '$0.00', '$0.00', '$0.00'],
+            ['Recorded Cash Sales', '$0.00', '$0.00', '$0.00'],
+            ['Cash Refunds', '$0.00', '$0.00', '$0.00'],
+            ['Expected Balance', '$0.00', '$0.00', '$0.00 (Balanced)'],
+            ['Deposit to Safe', '$0.00', '$0.00', '$0.00'],
+            ['Closing Cash Float', '$0.00', '$0.00', '$0.00']
           ]
         });
       }
@@ -549,11 +541,7 @@ export default function ReportsAuditModule() {
           title: 'Gift Shop Inventory Movement',
           columns: ['Product', 'Opening', 'Sold', 'Damaged', 'Closing'],
           rows: [
-            ['Soapstone Cross', '6 units', '-0 units', '0 units', '6 units'],
-            ['Clay Coffee Pot (Jebena)', '9 units', '-0 units', '0 units', '9 units'],
-            ['Cotton Handwoven Scarf', '12 units', '-0 units', '0 units', '12 units'],
-            ['Organic White Honey 500g', '18 jars', '-0 jars', '0 jars', '18 jars'],
-            ['Teff Bean Coffee 250g', '15 bags', '-0 bags', '0 bags', '15 bags']
+            ['No inventory data available', '--', '--', '--', '--']
           ]
         });
       }
@@ -563,21 +551,17 @@ export default function ReportsAuditModule() {
           title: 'Office Supplies Consumption',
           columns: ['Item', 'Staff', 'Department', 'Qty', 'Cost', 'Remaining'],
           rows: [
-            ['A4 Paper Ream', 'Elena B.', 'Front Desk', '2', '$12.00', '18'],
-            ['Printer Ink Cartridge', 'Dawit T.', 'Reception', '1', '$45.00', '3'],
-            ['Ballpoint Pens (Box)', 'Abel G.', 'Audit', '1', '$8.50', '5'],
-            ['Cleaning Spray', 'Elena B.', 'Front Desk', '3', '$15.00', '7'],
-            ['Stapler Refill', 'Dawit T.', 'Reception', '1', '$3.00', '12']
+            ['No supplies data available', '--', '--', '--', '--', '--']
           ]
         });
         sections.push({
           title: 'Consumption Summary',
           columns: ['Metric', 'Value'],
           rows: [
-            ['Total Daily Consumption Cost', '$128.50'],
-            ['Departments Active', '3'],
-            ['Staff Members Issued', '3'],
-            ['Total Items Consumed', '8']
+            ['Total Daily Consumption Cost', '$0'],
+            ['Departments Active', '0'],
+            ['Staff Members Issued', '0'],
+            ['Total Items Consumed', '0']
           ]
         });
       }
@@ -605,10 +589,10 @@ export default function ReportsAuditModule() {
         title: '30-Day Occupancy Forecast',
         columns: ['Period', 'Occupancy %', 'Status'],
         rows: [
-          ['Next 1-7 Days', `${Math.max(76, metrics.occupancyRate + 2)}%`, 'Peak Demand'],
-          ['Next 8-14 Days', `${Math.max(68, metrics.occupancyRate - 5)}%`, 'Medium Occupancy'],
-          ['Next 15-21 Days', '64%', 'Low Midweek load'],
-          ['Next 22-30 Days', '71%', 'Corporate Block Pickup']
+          ['Next 1-7 Days', '0%', 'No data'],
+          ['Next 8-14 Days', '0%', 'No data'],
+          ['Next 15-21 Days', '0%', 'No data'],
+          ['Next 22-30 Days', '0%', 'No data']
         ]
       });
       sections.push({
@@ -620,12 +604,12 @@ export default function ReportsAuditModule() {
         title: 'Staff Productivity & Attendance',
         columns: ['Metric', 'Value'],
         rows: [
-          ['Attendance Rate', '98.4%'],
-          ['Average Check-in Duration', '2.4 min'],
-          ['Average Check-out Duration', '1.8 min'],
+          ['Attendance Rate', '0%'],
+          ['Average Check-in Duration', '0 min'],
+          ['Average Check-out Duration', '0 min'],
           ['Overtime Incidents', '0'],
-          ['Front Desk Shifts', 'Completed'],
-          ['Staff Deficits', 'None']
+          ['Front Desk Shifts', 'No data'],
+          ['Staff Deficits', 'No data']
         ]
       });
     }
@@ -636,10 +620,10 @@ export default function ReportsAuditModule() {
         title: 'Monthly KPI Overview',
         columns: ['Metric', 'Value', 'Context'],
         rows: [
-          ['Monthly Occupancy', '81.3%', '+6.3% vs Budget'],
-          ['Average Daily Rate', '$188.50', '+$8.30 vs Target'],
-          ['Revenue Per Room', '$153.25', '+16.6% YoY growth'],
-          ['Direct Bookings', '34.0%', '-6.0% OTA commissions']
+          ['Monthly Occupancy', '0%', 'No data'],
+          ['Average Daily Rate', '$0', 'No data'],
+          ['Revenue Per Room', '$0', 'No data'],
+          ['Direct Bookings', '0%', 'No data']
         ]
       });
       sections.push({
@@ -691,7 +675,7 @@ export default function ReportsAuditModule() {
       sections.push({
         title: 'Strategic Recommendations',
         columns: ['Category', 'Title', 'Impact', 'Recommendation'],
-        rows: AI_RECOMMENDATIONS.map(r => [r.category, r.title, r.impact, r.recommendation])
+        rows: currentAiRecommendations.map((r: any) => [r.category, r.title, r.impact, r.recommendation])
       });
     }
 
@@ -754,7 +738,7 @@ export default function ReportsAuditModule() {
       reportName: `${name} (${currentSystemDate})`,
       generatedBy: generatedBy || 'Front Office Export',
       timestamp: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      fileSize: status === 'Sent' ? '0.9 MB' : '0.8 MB',
+      fileSize: '0 KB',
       status
     };
     setVersionHistory(prev => [entry, ...prev]);
@@ -775,17 +759,17 @@ export default function ReportsAuditModule() {
     if (type === 'Excel') {
       exportReportToExcel(doc);
       addLocalVersion(name, 'Draft');
-      recordReportVersion({ reportName: `${name} (XLSX)`, fileSize: '0.8 MB', status: 'Draft' });
+      recordReportVersion({ reportName: `${name} (XLSX)`, fileSize: '0 KB', status: 'Draft' });
     } else if (type === 'PDF') {
       exportReportToPDF(doc);
       addLocalVersion(name, 'Draft');
-      recordReportVersion({ reportName: `${name} (PDF)`, fileSize: '0.9 MB', status: 'Draft' });
+      recordReportVersion({ reportName: `${name} (PDF)`, fileSize: '0 KB', status: 'Draft' });
     } else if (type === 'Email') {
       const recipients = resolveRecipients(name);
       const summary = doc.sections
         .map(s => `${s.title}: ${s.rows.length} rows`)
         .join(' | ');
-      const result = await emailReport({ reportName: name, recipients, fileSize: '0.9 MB', summary });
+      const result = await emailReport({ reportName: name, recipients, fileSize: '0 KB', summary });
       addLocalVersion(name, 'Sent');
       setExportFeedback({
         ok: result.success,
@@ -923,16 +907,16 @@ export default function ReportsAuditModule() {
       .reduce((sum, r) => sum + r.rate, 0);
 
     // ADR
-    const adrRate = occupiedRooms > 0 ? Math.round(roomRevenueTotal / occupiedRooms) : 155;
+    const adrRate = occupiedRooms > 0 ? Math.round(roomRevenueTotal / occupiedRooms) : 0;
 
     // RevPAR
-    const revParRate = sellableRooms > 0 ? Math.round(roomRevenueTotal / sellableRooms) : 120;
+    const revParRate = sellableRooms > 0 ? Math.round(roomRevenueTotal / sellableRooms) : 0;
 
     // Guest Experience static indexes with variable micro drifts
-    const guestSatisfactionScore = 94.2 + (walkIns * 0.1) - (stayovers % 2 ? 0.2 : 0);
-    const openComplaintsCount = 3 + (stayovers % 3);
-    const pendingMaintenanceCount = oooRooms.length + 1;
-    const staffOnDutyCount = 12;
+    const guestSatisfactionScore = 0;
+    const openComplaintsCount = 0;
+    const pendingMaintenanceCount = oooRooms.length;
+    const staffOnDutyCount = 0;
 
     return {
       totalRoomsCount,
@@ -1011,35 +995,16 @@ export default function ReportsAuditModule() {
         });
       });
 
-      // Include others in the db (e.g. Chen Corp or Verona, in case they aren't in corporateAccounts)
-      const otherCorps = ['Chen Corp', 'Meta Platforms', 'Amazon Inc.'];
-      otherCorps.forEach((corp, idx) => {
-        if (!corpStatsMap.has(corp)) {
-          const discountPercent = 10 + (idx * 2);
-          const bookings = Math.round((3 + idx) * multiplier * randomDrift);
-          const nights = Math.round(bookings * 2.4);
-          const revenue = Math.round(nights * 175 * (1 - discountPercent / 100));
-          corpStatsMap.set(corp, {
-            companyName: corp,
-            bookings,
-            roomNights: nights,
-            revenue,
-            discountPercent
-          });
-        }
-      });
 
       const sortedCorps = Array.from(corpStatsMap.values()).sort((a, b) => b.revenue - a.revenue);
 
       // 2. Nationalities
       const natCounts = new Map<string, { guestCount: number; roomNights: number; revenue: number }>();
-      const defaultNats = ['American', 'Local', 'British', 'Canadian', 'German', 'Singaporean', 'Italian'];
 
       reservations.forEach(r => {
         let nat = nameToNationality.get(r.guestName) || emailToNationality.get(r.guestEmail.toLowerCase());
         if (!nat) {
-          const hash = Math.abs(r.guestName.split('').reduce((h, c) => h + c.charCodeAt(0), 0));
-          nat = defaultNats[hash % defaultNats.length];
+          nat = 'Unknown';
         }
 
         const nights = Math.max(1, Math.round((new Date(r.checkOutDate).getTime() - new Date(r.checkInDate).getTime()) / (1000 * 60 * 60 * 24)));
@@ -1053,8 +1018,7 @@ export default function ReportsAuditModule() {
       });
 
       // Scale and add nationalities
-      const finalNationalities = defaultNats.map((nat, i) => {
-        const statsObj = natCounts.get(nat) || { guestCount: 2 + i, roomNights: 6 + i * 2, revenue: (6 + i * 2) * 160 };
+      const finalNationalities = Array.from(natCounts.entries()).map(([nat, statsObj]) => {
         const guestCount = Math.round(statsObj.guestCount * multiplier * randomDrift);
         const roomNights = Math.round(statsObj.roomNights * multiplier * randomDrift);
         const revenue = Math.round(statsObj.revenue * multiplier * randomDrift);
@@ -1124,87 +1088,87 @@ export default function ReportsAuditModule() {
       }
 
       // 1. Occupancy Rate
-      const occCurrent = activeOccupancy || 78;
-      const occPrev = Math.round(occCurrent * driftOcc);
-      const occVar = (occCurrent - occPrev).toFixed(1);
-      const occVarStr = parseFloat(occVar) >= 0 ? `+${occVar}%` : `${occVar}%`;
+      const occCurrent = activeOccupancy || 0;
+      const occPrev = 0;
+      const occVar = 0;
+      const occVarStr = '0%';
 
       // 2. Room Revenue
-      const revCurrent = activeRevenue ? Math.round(activeRevenue * mult) : Math.round(34923 * mult);
-      const revPrev = Math.round(revCurrent * driftRev);
-      const revVarPct = (((revCurrent - revPrev) / Math.max(1, revPrev)) * 100).toFixed(2);
-      const revVarStr = parseFloat(revVarPct) >= 0 ? `+${revVarPct}%` : `${revVarPct}%`;
+      const revCurrent = activeRevenue ? Math.round(activeRevenue * mult) : 0;
+      const revPrev = 0;
+      const revVarPct = 0;
+      const revVarStr = '0%';
 
       // 3. Ancillary Revenue
-      const ancCurrent = Math.round(12410 * mult);
-      const ancPrev = Math.round(ancCurrent * 0.85);
-      const ancVarPct = (((ancCurrent - ancPrev) / Math.max(1, ancPrev)) * 100).toFixed(2);
-      const ancVarStr = `+${ancVarPct}%`;
+      const ancCurrent = 0;
+      const ancPrev = 0;
+      const ancVarPct = 0;
+      const ancVarStr = '0%';
 
       // 4. Average Daily Rate (ADR)
-      const adrCurrent = activeADR || 180;
-      const adrPrev = Math.round(adrCurrent * 1.01); 
-      const adrVarPct = (((adrCurrent - adrPrev) / adrPrev) * 100).toFixed(2);
-      const adrVarStr = parseFloat(adrVarPct) >= 0 ? `+${adrVarPct}%` : `${adrVarPct}%`;
+      const adrCurrent = activeADR || 0;
+      const adrPrev = 0; 
+      const adrVarPct = 0;
+      const adrVarStr = '0%';
 
       // 5. Revenue Per Available Room (RevPAR)
-      const revparCurrent = activeRevPAR || 141;
-      const revparPrev = Math.round(revparCurrent * 0.96);
-      const revparVarPct = (((revparCurrent - revparPrev) / revparPrev) * 100).toFixed(2);
-      const revparVarStr = `+${revparVarPct}%`;
+      const revparCurrent = activeRevPAR || 0;
+      const revparPrev = 0;
+      const revparVarPct = 0;
+      const revparVarStr = '0%';
 
       // 6. Booking Source (OTA Share)
-      const otaCurrent = Math.max(10, Math.round(42 - (currentGuests % 3)));
-      const otaPrev = 46;
-      const otaVar = (otaCurrent - otaPrev).toFixed(1);
-      const otaVarStr = `${otaVar}%`; 
+      const otaCurrent = 0;
+      const otaPrev = 0;
+      const otaVar = 0;
+      const otaVarStr = '0%'; 
 
       // 7. Direct Website Share
-      const dirCurrent = Math.round(38 + (currentGuests % 3));
-      const dirPrev = 33;
-      const dirVar = (dirCurrent - dirPrev).toFixed(1);
-      const dirVarStr = `+${dirVar}%`;
+      const dirCurrent = 0;
+      const dirPrev = 0;
+      const dirVar = 0;
+      const dirVarStr = '0%';
 
       // 8. Corporate Account Volume
-      const corpCurrent = 20;
-      const corpPrev = 21;
-      const corpVar = '-1.0%';
+      const corpCurrent = 0;
+      const corpPrev = 0;
+      const corpVar = '0%';
 
       // 9. Guest Satisfaction Score
-      const satCurrent = activeSatisfaction || 94.2;
-      const satPrev = 91.5;
-      const satVar = (satCurrent - satPrev).toFixed(1);
-      const satVarStr = `+${satVar}%`;
+      const satCurrent = activeSatisfaction || 0;
+      const satPrev = 0;
+      const satVar = 0;
+      const satVarStr = '0%';
 
       // 10. Total Guests
       const guestsCurrent = Math.round(currentGuests * mult);
-      const guestsPrev = Math.round(guestsCurrent * 0.90);
-      const guestsVarPct = (((guestsCurrent - guestsPrev) / Math.max(1, guestsPrev)) * 100).toFixed(1);
-      const guestsVarStr = `+${guestsVarPct}%`;
+      const guestsPrev = 0;
+      const guestsVarPct = 0;
+      const guestsVarStr = '0%';
 
       // 11. Total Available Rooms
       const availCurrent = currentSellable;
-      const availPrev = timeframe === 'weekly' ? currentSellable - 1 : timeframe === 'monthly' ? currentSellable : currentSellable - 2;
-      const availVar = availCurrent - availPrev;
-      const availVarStr = availVar >= 0 ? `+${availVar}` : `${availVar}`;
+      const availPrev = currentSellable;
+      const availVar = 0;
+      const availVarStr = '0';
 
       // 12. Out Of Order (OOO) Rooms
       const oooCurrent = currentOOO;
-      const oooPrev = timeframe === 'weekly' ? Math.max(0, currentOOO - 1) : timeframe === 'monthly' ? Math.max(0, currentOOO - 2) : Math.max(0, currentOOO - 4);
-      const oooVar = oooCurrent - oooPrev;
-      const oooVarStr = oooVar >= 0 ? `+${oooVar}` : `${oooVar}`; 
+      const oooPrev = currentOOO;
+      const oooVar = 0;
+      const oooVarStr = '0'; 
 
       // 13. Out of Service (OOS) Rooms
       const oosCurrent = currentDirty;
-      const oosPrev = timeframe === 'weekly' ? Math.max(0, currentDirty - 1) : timeframe === 'monthly' ? Math.max(1, currentDirty - 3) : Math.max(2, currentDirty - 6);
-      const oosVar = oosCurrent - oosPrev;
-      const oosVarStr = oosVar >= 0 ? `+${oosVar}` : `${oosVar}`; 
+      const oosPrev = currentDirty;
+      const oosVar = 0;
+      const oosVarStr = '0'; 
 
       return [
-        { metric: 'Occupancy Rate', current: `${occCurrent}%`, previous: `${occPrev}%`, variance: occVarStr, isPositive: parseFloat(occVar) >= 0 },
-        { metric: 'Room Revenue', current: formatAmount(revCurrent), previous: formatAmount(revPrev), variance: revVarStr, isPositive: parseFloat(revVarPct) >= 0 },
+        { metric: 'Occupancy Rate', current: `${occCurrent}%`, previous: `${occPrev}%`, variance: occVarStr, isPositive: Number(occVar) >= 0 },
+        { metric: 'Room Revenue', current: formatAmount(revCurrent), previous: formatAmount(revPrev), variance: revVarStr, isPositive: Number(revVarPct) >= 0 },
         { metric: 'Ancillary Revenue', current: formatAmount(ancCurrent), previous: formatAmount(ancPrev), variance: ancVarStr, isPositive: true },
-        { metric: 'Average Daily Rate (ADR)', current: formatAmount(adrCurrent), previous: formatAmount(adrPrev), variance: adrVarStr, isPositive: parseFloat(adrVarPct) >= 0 },
+        { metric: 'Average Daily Rate (ADR)', current: formatAmount(adrCurrent), previous: formatAmount(adrPrev), variance: adrVarStr, isPositive: Number(adrVarPct) >= 0 },
         { metric: 'Revenue Per Available Room (RevPAR)', current: formatAmount(revparCurrent), previous: formatAmount(revparPrev), variance: revparVarStr, isPositive: true },
         
         { metric: 'Total Guests', current: `${guestsCurrent} guests`, previous: `${guestsPrev} guests`, variance: guestsVarStr, isPositive: true },
@@ -1212,10 +1176,10 @@ export default function ReportsAuditModule() {
         { metric: 'Out of Order (OOO) Rooms', current: `${oooCurrent} rooms`, previous: `${oooPrev} rooms`, variance: oooVarStr, isPositive: oooVar <= 0 },
         { metric: 'Out of Service (OOS) Rooms', current: `${oosCurrent} rooms`, previous: `${oosPrev} rooms`, variance: oosVarStr, isPositive: oosVar <= 0 },
         
-        { metric: 'Gift Shop Sales', current: formatAmount(timeframe === 'weekly' ? 1420 * 7 : timeframe === 'monthly' ? 34920 : 112650), previous: formatAmount(timeframe === 'weekly' ? 1280 * 7 : timeframe === 'monthly' ? 32040 : 96500), variance: timeframe === 'weekly' ? '+10.9%' : timeframe === 'monthly' ? '+9.0%' : '+16.7%', isPositive: true },
-        { metric: 'Front Office Supplies Cost', current: formatAmount(timeframe === 'weekly' ? 1240 : timeframe === 'monthly' ? 4920 : 15410), previous: formatAmount(timeframe === 'weekly' ? 1380 : timeframe === 'monthly' ? 5500 : 17200), variance: timeframe === 'weekly' ? '-10.1%' : timeframe === 'monthly' ? '-10.5%' : '-10.4%', isPositive: true },
+        { metric: 'Gift Shop Sales', current: formatAmount(0), previous: formatAmount(0), variance: '0%', isPositive: true },
+        { metric: 'Front Office Supplies Cost', current: formatAmount(0), previous: formatAmount(0), variance: '0%', isPositive: true },
 
-        { metric: 'Booking Source (OTA Share)', current: `${otaCurrent}%`, previous: `${otaPrev}%`, variance: otaVarStr, isPositive: parseFloat(otaVar) <= 0 }, 
+        { metric: 'Booking Source (OTA Share)', current: `${otaCurrent}%`, previous: `${otaPrev}%`, variance: otaVarStr, isPositive: Number(otaVar) <= 0 }, 
         { metric: 'Direct Website Share', current: `${dirCurrent}%`, previous: `${dirPrev}%`, variance: dirVarStr, isPositive: true },
         { metric: 'Corporate Account Volume', current: `${corpCurrent}%`, previous: `${corpPrev}%`, variance: corpVar, isPositive: false },
         { metric: 'Guest Satisfaction Score', current: `${satCurrent} / 100`, previous: `${satPrev} / 100`, variance: satVarStr, isPositive: true }
@@ -1301,7 +1265,7 @@ export default function ReportsAuditModule() {
         id: 'alt-target-occ',
         title: 'Occupancy falls below target',
         triggered: metrics.occupancyRate < 60,
-        description: `Current occupancy rate of ${metrics.occupancyRate}% is below the target threshold of 60%.`,
+        description: `No data`,
         severity: 'Medium'
       },
       {
@@ -1329,7 +1293,7 @@ export default function ReportsAuditModule() {
         id: 'alt-cash-variance',
         title: 'Cash variance exceeds threshold',
         triggered: false, // Reconciled in real-time, can toggle to test
-        description: 'Front Desk shift drawer matches ledger audits. Real-time cash variance represents $0.00 drift.',
+        description: 'No data',
         severity: 'Low'
       },
       {
@@ -1379,27 +1343,20 @@ export default function ReportsAuditModule() {
 
     const generated = Array.from({ length: 10 }).map((_, i) => {
       const day = i + 1;
-      const baseOcc = [68, 72, 75, 81, 79, 85, 91, 88, 82, metrics.occupancyRate];
-      const occPercentVal = Math.min(100, baseOcc[i]);
-      const baseRev = [1800, 2100, 2250, 2400, 2200, 2600, 2900, 2800, 2500, Math.max(1500, metrics.roomRevenueTotal)];
-      const roomRevVal = baseRev[i];
-      const ancillaryRevVal = Math.round(roomRevVal * 0.28);
-      const guestSatisfaction = [92, 93, 89, 94, 95, 94, 91, 93, 94, metrics.guestSatisfactionScore];
-      const adr = Math.round(roomRevVal / (Math.round((rooms.length * occPercentVal) / 100) || 1));
       
       return {
         dateLabel: `Day ${day}`,
-        Occupancy: occPercentVal,
-        RoomRevenue: roomRevVal,
-        AncillaryRevenue: ancillaryRevVal,
-        TotalRevenue: roomRevVal + ancillaryRevVal,
-        ADR: adr || 155,
-        RevPAR: Math.round((roomRevVal + ancillaryRevVal) / rooms.length),
-        Satisfaction: guestSatisfaction[i],
-        NoiseComplaints: i % 3 === 0 ? 1 : 2,
-        WifiComplaints: i % 2 === 0 ? 0 : 1,
-        HvacComplaints: i % 4 === 0 ? 2 : 0,
-        Cancellations: i % 3 === 0 ? 1 : 0
+        Occupancy: 0,
+        RoomRevenue: 0,
+        AncillaryRevenue: 0,
+        TotalRevenue: 0,
+        ADR: 0,
+        RevPAR: 0,
+        Satisfaction: 0,
+        NoiseComplaints: 0,
+        WifiComplaints: 0,
+        HvacComplaints: 0,
+        Cancellations: 0
       };
     });
 
@@ -1416,9 +1373,9 @@ export default function ReportsAuditModule() {
       
       {/* Alert Top Strip if unresolved critical flags are active */}
       {activeAlertsCount > 0 && (
-        <div className="bg-amber-500/10 dark:bg-amber-400/5 border border-amber-500/20 text-amber-800 dark:text-amber-400 p-3 rounded-2xl flex items-center justify-between gap-4 animate-pulse">
+        <div className="bg-slate-500/10 dark:bg-slate-400/5 border border-slate-500/20 text-slate-800 dark:text-slate-400 p-3 rounded-2xl flex items-center justify-between gap-4 animate-pulse">
           <div className="flex items-center gap-2 text-xs">
-            <BadgeAlert size={16} className="text-amber-600 dark:text-amber-400 shrink-0" />
+            <BadgeAlert size={16} className="text-slate-600 dark:text-slate-400 shrink-0" />
             <span className="font-bold uppercase tracking-wider">Manager System Warnings Triggered</span>
             <span className="opacity-80">•</span>
             <span className="font-medium font-sans">
@@ -1427,7 +1384,7 @@ export default function ReportsAuditModule() {
           </div>
           <button 
             onClick={() => setActiveTab('alerts')}
-            className="text-[10px] font-mono font-black uppercase text-amber-700 hover:text-white dark:text-amber-400 dark:hover:text-amber-300 hover:bg-amber-600/20 px-3 py-1 rounded-lg transition"
+            className="text-[10px] font-mono font-black uppercase text-slate-700 hover:text-white dark:text-slate-400 dark:hover:text-slate-300 hover:bg-slate-600/20 px-3 py-1 rounded-lg transition"
           >
             Review SLA Board →
           </button>
@@ -1437,7 +1394,7 @@ export default function ReportsAuditModule() {
       {/* Primary Navigation Breadcrumb Hub */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-3xs">
         <div>
-          <span className="bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-400 text-[10px] font-mono font-black px-2.5 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900 uppercase tracking-widest inline-block">
+          <span className="bg-slate-100 dark:bg-slate-950/60 text-slate-800 dark:text-slate-400 text-[10px] font-mono font-black px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-900 uppercase tracking-widest inline-block">
             Hotel Reporting & Audit Suite
           </span>
           <h3 className="text-xl font-sans font-black text-slate-900 dark:text-white flex items-center gap-2 mt-1.5 leading-none">
@@ -1450,7 +1407,7 @@ export default function ReportsAuditModule() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowAuditConfirm(true)}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-2xl text-[11px] flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-2xl text-[11px] flex items-center gap-1.5 transition shadow-xs cursor-pointer"
           >
             <Moon size={13} fill="currentColor" />
             <span>Overnight Night Audit</span>
@@ -1464,10 +1421,10 @@ export default function ReportsAuditModule() {
                 // Shift or supplement recommendations
                 setCurrentAiRecommendations(prev => [
                   {
-                    category: 'Revenue Optimization',
-                    title: 'Live dynamic tariff adjustment trigger',
-                    impact: 'High',
-                    recommendation: `Operational Day ${currentSystemDate} shows high VIP density. Recommend boostingSuite rates by 12% temporarily to capitalize on elite arrivals.`
+                    category: 'No data',
+                    title: 'No data',
+                    impact: 'Low',
+                    recommendation: `No data`
                   },
                   ...prev
                 ]);
@@ -1476,21 +1433,21 @@ export default function ReportsAuditModule() {
             disabled={aiAnalysisRunning}
             className="px-4 py-2 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-sans font-black rounded-2xl text-[11px] flex items-center gap-1.5 hover:bg-slate-800 dark:hover:bg-slate-100 transition duration-150 cursor-pointer"
           >
-            <BrainCircuit size={13} className={aiAnalysisRunning ? "animate-spin text-emerald-500" : "text-amber-400 dark:text-emerald-600"} />
+            <BrainCircuit size={13} className={aiAnalysisRunning ? "animate-spin text-slate-500" : "text-slate-400 dark:text-slate-600"} />
             <span>Generate Strategic AI Plan</span>
           </button>
         </div>
       </div>
 
       {auditFeedback && (
-        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-start gap-3 animate-slide-in">
-          <CheckCircle className="text-emerald-600 dark:text-emerald-400 shrink-0 p-1 bg-emerald-100 dark:bg-emerald-900 rounded-full" size={24} />
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-start gap-3 animate-slide-in">
+          <CheckCircle className="text-slate-600 dark:text-slate-400 shrink-0 p-1 bg-slate-100 dark:bg-slate-900 rounded-full" size={24} />
           <div>
-            <strong className="text-emerald-900 dark:text-white font-sans text-xs flex items-center gap-1.5">
+            <strong className="text-slate-900 dark:text-white font-sans text-xs flex items-center gap-1.5">
               Night Audit Closed Operational Cycle
             </strong>
-            <p className="text-emerald-700 dark:text-emerald-300 font-mono text-3xs mt-1">
-              {auditFeedback.message} Reconciled Room Revenues posted: <strong className="text-emerald-900 dark:text-emerald-200">{formatAmount(auditFeedback.revenuePosted)}</strong>.
+            <p className="text-slate-700 dark:text-slate-300 font-mono text-3xs mt-1">
+              {auditFeedback.message} Reconciled Room Revenues posted: <strong className="text-slate-900 dark:text-slate-200">{formatAmount(auditFeedback.revenuePosted)}</strong>.
             </p>
           </div>
         </div>
@@ -1498,7 +1455,7 @@ export default function ReportsAuditModule() {
 
       {exportTrigger && (
         <div className="fixed bottom-6 right-6 p-4 bg-slate-950 text-white dark:bg-white dark:text-slate-950 border border-slate-800 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-bounce">
-          <Activity size={16} className="text-emerald-400 animate-spin" />
+          <Activity size={16} className="text-slate-400 animate-spin" />
           <span className="text-3xs font-mono font-bold uppercase tracking-wider">
             {exportTrigger.type === 'PDF' && `Generating PDF Download for ${exportTrigger.reportName}...`}
             {exportTrigger.type === 'Excel' && `Compiling XLSX Workbook for ${exportTrigger.reportName}...`}
@@ -1511,8 +1468,8 @@ export default function ReportsAuditModule() {
       {exportFeedback && (
         <div className={`fixed bottom-6 right-6 p-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-fade-in max-w-md border ${
           exportFeedback.ok
-            ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-200'
-            : 'bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-200'
+            ? 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-900 text-slate-800 dark:text-slate-200'
+            : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-900 text-slate-800 dark:text-slate-200'
         }`}>
           {exportFeedback.ok ? <CheckCircle2 size={16} /> : <AlertTriangle size={16} />}
           <span className="text-3xs font-mono font-bold tracking-wide">{exportFeedback.message}</span>
@@ -1601,10 +1558,10 @@ export default function ReportsAuditModule() {
               : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'
           }`}
         >
-          <ShieldAlert size={12} className={activeAlertsCount > 0 ? "text-amber-500" : ""} />
+          <ShieldAlert size={12} className={activeAlertsCount > 0 ? "text-slate-500" : ""} />
           <span>SLA Warnings Board</span>
           {activeAlertsCount > 0 && (
-            <span className="absolute -top-1 -right-1 bg-rose-500 text-white font-mono text-4xs font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
+            <span className="absolute -top-1 -right-1 bg-slate-500 text-white font-mono text-4xs font-black w-4 h-4 rounded-full flex items-center justify-center animate-bounce">
               {activeAlertsCount}
             </span>
           )}
@@ -1623,7 +1580,7 @@ export default function ReportsAuditModule() {
             </div>
             <div className="flex items-center gap-2">
               <div className="text-3xs font-mono font-extrabold text-slate-400 flex items-center gap-1 mr-2">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                <span className="w-1.5 h-1.5 bg-slate-500 rounded-full animate-ping"></span>
                 <span>LIVE DATA ENGINE SYNCED</span>
               </div>
               <button
@@ -1642,14 +1599,14 @@ export default function ReportsAuditModule() {
                 onClick={() => triggerExport('Excel', 'Manager Dashboard')}
                 className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
-                <Sliders size={11} className="text-emerald-500" /> Excel
+                <Sliders size={11} className="text-slate-500" /> Excel
               </button>
             </div>
           </div>
 
           {/* KPI BENTO GRID - 17 DYNAMIC METRICS FOR ENTERPRISE TRACKING */}
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 summary-section" id="dashboard-summary-section">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Dashboard KPI Summary</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Real-time operational metrics and performance indicators</p>
@@ -1673,28 +1630,28 @@ export default function ReportsAuditModule() {
             {/* Occupancy card */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Occupancy Rate</span>
-              <strong className="text-2xl font-sans font-black block text-indigo-650 dark:text-indigo-400 mt-2">{metrics.occupancyRate}%</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.occupancyRate}%</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Of {metrics.sellableRooms} Active Rooms</span>
             </div>
 
             {/* Rooms Available */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Rooms Available</span>
-              <strong className="text-2xl font-sans font-black block text-emerald-600 mt-2">{metrics.availableRooms}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.availableRooms}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Vacant Clean Beds</span>
             </div>
 
             {/* Rooms Occupied */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Rooms Occupied</span>
-              <strong className="text-2xl font-sans font-black block text-indigo-950 dark:text-white mt-2">{metrics.occupiedRooms}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-900 dark:text-white mt-2">{metrics.occupiedRooms}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Registered In-House</span>
             </div>
 
             {/* Out Of Order */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Out Of Order</span>
-              <strong className="text-2xl font-sans font-black block text-rose-600 mt-2">{metrics.oooRoomsCount}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.oooRoomsCount}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Maintenance Hold</span>
             </div>
 
@@ -1708,21 +1665,21 @@ export default function ReportsAuditModule() {
             {/* Departures Today */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Departures today</span>
-              <strong className="text-2xl font-sans font-black block text-orange-600 mt-2">{metrics.departuresToday}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.departuresToday}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Settle Balances</span>
             </div>
 
             {/* Stayovers */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Stayovers</span>
-              <strong className="text-2xl font-sans font-black block text-indigo-700 dark:text-indigo-400 mt-2">{metrics.stayovers}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.stayovers}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Unchanged rooms</span>
             </div>
 
             {/* VIP Guests */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] bg-gradient-to-tr from-indigo-500/5 to-pink-500/5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] bg-gradient-to-tr from-slate-500/5 to-slate-500/5">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">VIP Guests</span>
-              <strong className="text-2xl font-sans font-black block text-pink-600 mt-2">{metrics.vipGuests}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.vipGuests}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Premium Escort Set</span>
             </div>
 
@@ -1736,7 +1693,7 @@ export default function ReportsAuditModule() {
             {/* Walk-Ins */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Walk-Ins</span>
-              <strong className="text-2xl font-sans font-black block text-emerald-700 dark:text-emerald-400 mt-2">{metrics.walkIns}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.walkIns}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Direct Desk Books</span>
             </div>
 
@@ -1752,36 +1709,36 @@ export default function ReportsAuditModule() {
             {/* ADR */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block font-mono">Average Daily Rate</span>
-              <strong className="text-2xl font-sans font-black block text-indigo-650 mt-2">{formatAmount(metrics.adrRate)}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{formatAmount(metrics.adrRate)}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Rev / Occupied Beds</span>
             </div>
 
             {/* RevPAR */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] xl:col-span-1">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block font-mono">RevPAR</span>
-              <strong className="text-2xl font-sans font-black block text-purple-600 mt-2">{formatAmount(metrics.revParRate)}</strong>
+              <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{formatAmount(metrics.revParRate)}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Rev / Market Beds</span>
             </div>
 
             {/* Guest Satisfaction */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Satisfaction Score</span>
-              <strong className="text-2.5xl font-sans font-black block text-emerald-600 mt-2">{metrics.guestSatisfactionScore}%</strong>
-              <span className="text-4xs text-emerald-500 font-semibold mt-1 block">Target: 95.0%</span>
+              <strong className="text-2.5xl font-sans font-black block text-slate-600 mt-2">{metrics.guestSatisfactionScore}%</strong>
+              <span className="text-4xs text-slate-400 font-semibold mt-1 block">No data</span>
             </div>
 
             {/* Open Complaints */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Open Complaints</span>
-              <strong className="text-2.5xl font-sans font-black block text-amber-500 mt-2">{metrics.openComplaintsCount}</strong>
-              <span className="text-4xs text-amber-600 font-semibold mt-1 block">SLA Response Critical</span>
+              <strong className="text-2.5xl font-sans font-black block text-slate-500 mt-2">{metrics.openComplaintsCount}</strong>
+              <span className="text-4xs text-slate-400 font-semibold mt-1 block">No data</span>
             </div>
 
             {/* Maintenance Requests */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Pending Maintenances</span>
-              <strong className="text-2.5xl font-sans font-black block text-orange-500 mt-2">{metrics.pendingMaintenanceCount}</strong>
-              <span className="text-4xs text-slate-400 font-mono mt-1 block">Assigned to Eng</span>
+              <strong className="text-2.5xl font-sans font-black block text-slate-500 mt-2">{metrics.pendingMaintenanceCount}</strong>
+              <span className="text-4xs text-slate-400 font-mono mt-1 block">No data</span>
             </div>
 
             {/* Staff on Duty */}
@@ -1789,8 +1746,8 @@ export default function ReportsAuditModule() {
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Active Staff on Duty</span>
               <div className="flex items-center gap-3 mt-1.5">
                 <strong className="text-2.5xl font-sans font-black text-slate-900 dark:text-white">{metrics.staffOnDutyCount} Staff</strong>
-                <span className="text-4xs text-emerald-600 dark:text-emerald-400 font-mono font-bold leading-tight uppercase bg-emerald-50 dark:bg-emerald-950 pl-1.5 pr-2 py-1 rounded">
-                  Fully Rostered
+                <span className="text-4xs text-slate-400 dark:text-slate-400 font-mono font-bold leading-tight uppercase bg-slate-50 dark:bg-slate-950 pl-1.5 pr-2 py-1 rounded">
+                  No data
                 </span>
               </div>
             </div>
@@ -1798,7 +1755,7 @@ export default function ReportsAuditModule() {
 
           {/* INTERACTIVE CHARTS & TREND DIAGRAM DISPLAY */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 rounded-3xl p-6 shadow-3xs space-y-4 graph-section" id="dashboard-graph-section">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Dashboard Chart Analytics</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Toggle between the dynamic chart overlays generated from daily operational closes.</p>
@@ -1820,7 +1777,7 @@ export default function ReportsAuditModule() {
                       onClick={() => setActiveChartTab(ct.id as any)}
                       className={`px-3 py-1.5 rounded-lg text-4xs font-mono font-bold uppercase transition block shrink-0 ${
                         activeChartTab === ct.id
-                          ? 'bg-slate-950 dark:bg-slate-850 text-white dark:text-emerald-400 shadow-3xs'
+                          ? 'bg-slate-950 dark:bg-slate-850 text-white dark:text-slate-400 shadow-3xs'
                           : 'text-slate-500 hover:text-slate-850 dark:hover:text-white'
                       }`}
                     >
@@ -1856,7 +1813,7 @@ export default function ReportsAuditModule() {
                     <YAxis stroke="#94a3b8" fontSize={9} domain={[50, 100]} />
                     <Tooltip contentStyle={{ fontSize: '10px', background: '#000', color: '#fff' }} />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Line name="Property Occupancy Rate (%)" type="monotone" dataKey="Occupancy" stroke="#4f46e5" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                    <Line name="Property Occupancy Rate (%)" type="monotone" dataKey="Occupancy" stroke="#94a3b8" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                   </LineChart>
                 )}
 
@@ -1868,8 +1825,8 @@ export default function ReportsAuditModule() {
                     <YAxis stroke="#94a3b8" fontSize={9} />
                     <Tooltip contentStyle={{ fontSize: '10px' }} />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Bar name="Room Tariffs ($)" dataKey="RoomRevenue" fill="#4f46e5" stackId="rev" />
-                    <Bar name="Ancillary Retail ($)" dataKey="AncillaryRevenue" fill="#f59e0b" stackId="rev" />
+                    <Bar name="Room Tariffs ($)" dataKey="RoomRevenue" fill="#94a3b8" stackId="rev" />
+                    <Bar name="Ancillary Retail ($)" dataKey="AncillaryRevenue" fill="#64748b" stackId="rev" />
                   </BarChart>
                 )}
 
@@ -1881,8 +1838,8 @@ export default function ReportsAuditModule() {
                     <YAxis stroke="#94a3b8" fontSize={9} />
                     <Tooltip contentStyle={{ fontSize: '10px' }} />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Line name="Average Daily Rate ($)" type="monotone" dataKey="ADR" stroke="#ec4899" strokeWidth={2} />
-                    <Line name="RevPAR ($)" type="monotone" dataKey="RevPAR" stroke="#10b981" strokeWidth={2} />
+                    <Line name="Average Daily Rate ($)" type="monotone" dataKey="ADR" stroke="#94a3b8" strokeWidth={2} />
+                    <Line name="RevPAR ($)" type="monotone" dataKey="RevPAR" stroke="#64748b" strokeWidth={2} />
                   </LineChart>
                 )}
 
@@ -1891,11 +1848,11 @@ export default function ReportsAuditModule() {
                   <RechartsPie>
                     <Pie
                       data={[
-                        { name: 'Booking.com', value: 45, fill: '#3b82f6' },
-                        { name: 'Expedia', value: 20, fill: '#ef4444' },
-                        { name: 'Direct Website', value: 22, fill: '#10b981' },
-                        { name: 'Walk-In', value: 8, fill: '#f59e0b' },
-                        { name: 'Corporate Account', value: 5, fill: '#6366f1' }
+                        { name: 'No data', value: 0, fill: '#94a3b8' },
+                        { name: 'No data', value: 0, fill: '#94a3b8' },
+                        { name: 'No data', value: 0, fill: '#94a3b8' },
+                        { name: 'No data', value: 0, fill: '#94a3b8' },
+                        { name: 'No data', value: 0, fill: '#94a3b8' }
                       ]}
                       cx="50%"
                       cy="50%"
@@ -1915,19 +1872,12 @@ export default function ReportsAuditModule() {
 
                 {/* 5. GUEST NATIONALITIES HORIZONTAL BAR */}
                 {activeChartTab === 'demographics' && (
-                  <BarChart layout="vertical" data={[
-                    { nationality: 'Domestic (US)', volume: 38 },
-                    { nationality: 'Ethopian / Horn of Africa', volume: 22 },
-                    { nationality: 'United Kingdom', volume: 15 },
-                    { nationality: 'Germany', volume: 12 },
-                    { nationality: 'Italy', volume: 7 },
-                    { nationality: 'Saudi Arabia', volume: 6 }
-                  ].sort((a,b) => b.volume - a.volume)} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
+                  <BarChart layout="vertical" data={[]} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" stroke="#94a3b8" fontSize={9} />
                     <YAxis dataKey="nationality" type="category" stroke="#94a3b8" fontSize={9} />
                     <Tooltip contentStyle={{ fontSize: '10px' }} />
-                    <Bar name="Percentage Share (%)" dataKey="volume" fill="#06b6d4" radius={[0, 4, 4, 0]} />
+                    <Bar name="Percentage Share (%)" dataKey="volume" fill="#94a3b8" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 )}
 
@@ -1939,9 +1889,9 @@ export default function ReportsAuditModule() {
                     <YAxis stroke="#94a3b8" fontSize={9} />
                     <Tooltip contentStyle={{ fontSize: '10px' }} />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Bar name="Noise Disruption" dataKey="NoiseComplaints" fill="#f43f5e" />
-                    <Bar name="HVAC Cooling / AC failures" dataKey="HvacComplaints" fill="#eab308" />
-                    <Bar name="Wi-Fi Dropout" dataKey="WifiComplaints" fill="#3b82f6" />
+                    <Bar name="Noise Disruption" dataKey="NoiseComplaints" fill="#94a3b8" />
+                    <Bar name="HVAC Cooling / AC failures" dataKey="HvacComplaints" fill="#64748b" />
+                    <Bar name="Wi-Fi Dropout" dataKey="WifiComplaints" fill="#cbd5e1" />
                   </BarChart>
                 )}
 
@@ -1953,7 +1903,7 @@ export default function ReportsAuditModule() {
                     <YAxis stroke="#94a3b8" fontSize={9} />
                     <Tooltip contentStyle={{ fontSize: '10px' }} />
                     <Legend wrapperStyle={{ fontSize: '10px' }} />
-                    <Area name="Cancellations Logged" type="monotone" dataKey="Cancellations" fill="#fda4af" stroke="#f43f5e" />
+                    <Area name="Cancellations Logged" type="monotone" dataKey="Cancellations" fill="#cbd5e1" stroke="#94a3b8" />
                   </AreaChart>
                 )}
               </ResponsiveContainer>
@@ -1976,7 +1926,7 @@ export default function ReportsAuditModule() {
           <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
-                <h4 className="text-xs font-mono font-bold text-indigo-650 dark:text-indigo-400 uppercase tracking-widest text-[10px]">Workspace Query Configuration</h4>
+                <h4 className="text-xs font-mono font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest text-[10px]">Workspace Query Configuration</h4>
                 <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight mt-0.5">Hotel Operating Day Selector</h3>
                 <p className="text-xs text-slate-400 font-sans mt-0.5">Query ledger indexes, reception streams, and daily checkout books by a specific day or date range.</p>
               </div>
@@ -2019,7 +1969,7 @@ export default function ReportsAuditModule() {
                         type="date"
                         value={dailySelectedDate}
                         onChange={(e) => setDailySelectedDate(e.target.value)}
-                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-indigo-500"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-slate-500"
                       />
                     </div>
                   </div>
@@ -2054,7 +2004,7 @@ export default function ReportsAuditModule() {
                       type="date"
                       value={dailyStartDate}
                       onChange={(e) => setDailyStartDate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-slate-500"
                     />
                   </div>
 
@@ -2064,7 +2014,7 @@ export default function ReportsAuditModule() {
                       type="date"
                       value={dailyEndDate}
                       onChange={(e) => setDailyEndDate(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-indigo-500"
+                      className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-800 dark:text-white font-mono outline-none focus:border-slate-500"
                     />
                   </div>
 
@@ -2094,9 +2044,9 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* Indicator current report context */}
-            <div className="py-2 px-3 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-150/50 dark:border-indigo-900/40 flex justify-between items-center flex-wrap gap-2 text-3xs font-mono text-indigo-700 dark:text-indigo-400">
+            <div className="py-2 px-3 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-150/50 dark:border-slate-900/40 flex justify-between items-center flex-wrap gap-2 text-3xs font-mono text-slate-700 dark:text-slate-400">
               <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" />
                 <span>Active query range: <strong>{dailyDateSelectionMode === 'single' ? dailySelectedDate || currentSystemDate : `${dailyStartDate || currentSystemDate} to ${dailyEndDate || currentSystemDate}`}</strong></span>
               </span>
               <span className="text-slate-400 uppercase">
@@ -2154,7 +2104,7 @@ export default function ReportsAuditModule() {
                   }}
                   className={`w-full p-3 rounded-2xl text-left border text-xs transition block cursor-pointer ${
                     activeDetailReport?.id === rep.id && !showExecutiveSummary
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-xs'
+                      ? 'bg-slate-600 border-slate-600 text-white shadow-xs'
                       : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-150 dark:border-slate-850 text-slate-800 dark:text-slate-300'
                   }`}
                 >
@@ -2162,7 +2112,7 @@ export default function ReportsAuditModule() {
                     <span className="font-bold tracking-tight">{rep.name}</span>
                     <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${
                       activeDetailReport?.id === rep.id && !showExecutiveSummary
-                        ? 'bg-indigo-700 text-white border-transparent'
+                        ? 'bg-slate-700 text-white border-transparent'
                         : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-200 dark:border-slate-750'
                     }`}>
                       {rep.category}
@@ -2170,7 +2120,7 @@ export default function ReportsAuditModule() {
                   </div>
                   <p className={`text-[10px] mt-1 line-clamp-1 ${
                     activeDetailReport?.id === rep.id && !showExecutiveSummary
-                      ? 'text-indigo-100'
+                      ? 'text-slate-100'
                       : 'text-slate-400'
                   }`}>
                     {rep.description}
@@ -2186,12 +2136,12 @@ export default function ReportsAuditModule() {
                   }}
                   className={`w-full p-4 rounded-3xl text-left border text-xs font-black transition cursor-pointer flex items-center justify-between bg-gradient-to-tr ${
                     showExecutiveSummary
-                      ? 'from-emerald-600 to-indigo-600 border-emerald-600 text-white shadow-md'
-                      : 'from-emerald-400/10 to-indigo-400/10 dark:from-emerald-400/5 dark:to-indigo-400/5 border-emerald-200/50 text-emerald-800 dark:text-emerald-400'
+                      ? 'from-slate-600 to-slate-600 border-slate-600 text-white shadow-md'
+                      : 'from-slate-400/10 to-slate-400/10 dark:from-slate-400/5 dark:to-slate-400/5 border-slate-200/50 text-slate-800 dark:text-slate-400'
                   }`}
                 >
                   <span className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-amber-400" />
+                    <Sparkles size={14} className="text-slate-400" />
                     <span>DAILY EXEC EXECUTIVE SUMMARY SUMMARY</span>
                   </span>
                   <ChevronRight size={14} />
@@ -2208,14 +2158,14 @@ export default function ReportsAuditModule() {
               <div className="space-y-6 animate-fade-in summary-section" id="daily-exec-summary-content">
                 
                 {/* Header Action Strip */}
-                <div className="flex justify-between items-center flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/30 dark:to-yellow-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                      <Sparkles size={16} className="text-amber-400" />
+                      <Sparkles size={16} className="text-slate-400" />
                       <span>Daily Front Office Executive Summary</span>
                     </h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Operational period query: <strong className="text-indigo-650 dark:text-indigo-400">{dailyDateSelectionMode === 'single' ? dailySelectedDate || currentSystemDate : `${dailyStartDate || currentSystemDate} to ${dailyEndDate || currentSystemDate}`}</strong>
+                      Operational period query: <strong className="text-slate-600 dark:text-slate-400">{dailyDateSelectionMode === 'single' ? dailySelectedDate || currentSystemDate : `${dailyStartDate || currentSystemDate} to ${dailyEndDate || currentSystemDate}`}</strong>
                     </p>
                   </div>
 
@@ -2240,7 +2190,7 @@ export default function ReportsAuditModule() {
                     </button>
                     <button 
                       onClick={() => triggerExport('Email', 'Executive Summary')}
-                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="px-4 py-1.5 bg-slate-600 hover:bg-slate-700 text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                     >
                       <Send size={11} /> Dispatch Email
                     </button>
@@ -2254,9 +2204,9 @@ export default function ReportsAuditModule() {
                   <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">1. Occupancy Statistics</h4>
                     <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
-                      <li className="flex justify-between"><span>Live Occupancy Percentage:</span> <strong className="text-indigo-650">{selectedDailyMetrics.occupancyRate}%</strong></li>
+                      <li className="flex justify-between"><span>Live Occupancy Percentage:</span> <strong className="text-slate-600">{selectedDailyMetrics.occupancyRate}%</strong></li>
                       <li className="flex justify-between"><span>Active Occupied Rooms:</span> <strong className="text-slate-800">{selectedDailyMetrics.occupiedRooms}</strong></li>
-                      <li className="flex justify-between"><span>Clean Available Beds:</span> <strong className="text-emerald-600">{selectedDailyMetrics.availableRooms}</strong></li>
+                      <li className="flex justify-between"><span>Clean Available Beds:</span> <strong className="text-slate-600">{formatAmount(selectedDailyMetrics.availableRooms)}</strong></li>
                       <li className="flex justify-between"><span>Out of Order holds:</span> <strong>{selectedDailyMetrics.oooRoomsCount} rooms</strong></li>
                     </ul>
                   </div>
@@ -2265,7 +2215,7 @@ export default function ReportsAuditModule() {
                   <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">2. Revenue Statistics</h4>
                     <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
-                      <li className="flex justify-between"><span>Aggregated Room Revenue:</span> <strong className="text-emerald-600">{formatAmount(selectedDailyMetrics.roomRevenueTotal)}</strong></li>
+                      <li className="flex justify-between"><span>Aggregated Room Revenue:</span> <strong className="text-slate-600">{formatAmount(selectedDailyMetrics.roomRevenueTotal)}</strong></li>
                       <li className="flex justify-between"><span>Average Daily Rate (ADR):</span> <strong>{formatAmount(selectedDailyMetrics.adrRate)}</strong></li>
                       <li className="flex justify-between"><span>RevPAR Indexing today:</span> <strong>{formatAmount(selectedDailyMetrics.revParRate)}</strong></li>
                       <li className="flex justify-between"><span>Collected card settlements:</span> <strong>{formatAmount(Math.round(selectedDailyMetrics.roomRevenueTotal * 0.95))}</strong></li>
@@ -2278,15 +2228,15 @@ export default function ReportsAuditModule() {
                     <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
                       <li className="flex justify-between"><span>Scheduled arrivals:</span> <strong>{selectedDailyMetrics.arrivalsToday} guests</strong></li>
                       <li className="flex justify-between"><span>Expected departures:</span> <strong>{selectedDailyMetrics.departuresToday} guests</strong></li>
-                      <li className="flex justify-between"><span>Current active stayovers:</span> <strong className="text-indigo-600">{selectedDailyMetrics.stayovers}</strong></li>
-                      <li className="flex justify-between"><span>Direct walk-ins booked:</span> <strong className="text-emerald-600">{selectedDailyMetrics.walkIns}</strong></li>
+                      <li className="flex justify-between"><span>Current active stayovers:</span> <strong className="text-slate-600">{selectedDailyMetrics.stayovers}</strong></li>
+                      <li className="flex justify-between"><span>Direct walk-ins booked:</span> <strong className="text-slate-600">{selectedDailyMetrics.walkIns}</strong></li>
                     </ul>
                   </div>
 
                   {/* Operational Risk section */}
                   <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
-                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono text-rose-500">4. Operational Risks & Warnings</h4>
-                    <ul className="text-3xs font-mono space-y-1 text-rose-700 dark:text-rose-400 leading-relaxed">
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono text-slate-500">4. Operational Risks & Warnings</h4>
+                    <ul className="text-3xs font-mono space-y-1 text-slate-700 dark:text-slate-400 leading-relaxed">
                       <li className="flex justify-between"><span>Security incidents:</span> <strong>0 cases</strong></li>
                       <li className="flex justify-between"><span>Cash drawer variances:</span> <strong>$0.00 drift</strong></li>
                       <li className="flex justify-between"><span>Active maintenance tasks:</span> <strong>{selectedDailyMetrics.pendingMaintenanceCount} open</strong></li>
@@ -2309,8 +2259,8 @@ export default function ReportsAuditModule() {
                   </div>
                 </div>
 
-                <div className="py-2.5 px-4 bg-indigo-50 dark:bg-indigo-950 rounded-2xl border border-indigo-150 dark:border-indigo-900 text-3xs font-mono text-indigo-700 dark:text-indigo-300 leading-relaxed">
-                  <strong>Approval Workflow Traceability certificate:</strong> Approved by Front Office Mgr at 23:55 Operational Date Close. Version hash: EUM-98-31
+                <div className="py-2.5 px-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-900 text-3xs font-mono text-slate-700 dark:text-slate-300 leading-relaxed">
+                  <strong>Approval Workflow Traceability certificate:</strong> No data
                 </div>
 
               </div>
@@ -2320,7 +2270,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-5 animate-fade-in table-section" id="daily-table-section">
                   
                   {/* Item header */}
-                  <div className="flex justify-between items-start flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-gray-50 dark:from-slate-800 dark:to-gray-800 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                  <div className="flex justify-between items-start flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-800 dark:to-slate-800 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                     <div>
                       <span className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest block">{activeDetailReport.category} Daily Output</span>
                       <h3 className="text-base font-sans font-bold text-slate-950 dark:text-white uppercase tracking-tight">{activeDetailReport.name}</h3>
@@ -2344,7 +2294,7 @@ export default function ReportsAuditModule() {
                         onClick={() => triggerExport('Excel', activeDetailReport.name)}
                         className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
-                        <SlidersHorizontal size={11} className="text-emerald-500" /> Export XLS
+                        <SlidersHorizontal size={11} className="text-slate-500" /> Export XLS
                       </button>
                     </div>
                   </div>
@@ -2422,7 +2372,7 @@ export default function ReportsAuditModule() {
                 onClick={() => triggerExport('Excel', 'Weekly Sales')}
                 className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
-                <Sliders size={11} className="text-emerald-500" /> Excel Book
+                <Sliders size={11} className="text-slate-500" /> Excel Book
               </button>
             </div>
           </div>
@@ -2431,7 +2381,7 @@ export default function ReportsAuditModule() {
             
             {/* Comparative balance list */}
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 table-section" id="weekly-table-section">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/30 dark:to-blue-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                 <div>
                   <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Metrics Comparison Table</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current Week Ending: {currentSystemDate}</p>
@@ -2453,7 +2403,7 @@ export default function ReportsAuditModule() {
                     onClick={() => triggerExport('Excel', 'Weekly Metrics Table')}
                     className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
-                    <Sliders size={11} className="text-emerald-500" /> Excel
+                    <Sliders size={11} className="text-slate-500" /> Excel
                   </button>
                 </div>
               </div>
@@ -2475,7 +2425,7 @@ export default function ReportsAuditModule() {
                         <td className="py-2.5 px-3 text-center font-mono">{comp.current}</td>
                         <td className="py-2.5 px-3 text-center font-mono text-slate-450">{comp.previous}</td>
                         <td className={`py-2.5 px-4 text-right font-mono font-black ${
-                          comp.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+                          comp.isPositive ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500'
                         }`}>
                           {comp.variance}
                         </td>
@@ -2491,7 +2441,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Weekly Top Corporates</span>
-                    <TrendingUp size={12} className="text-emerald-500" />
+                    <TrendingUp size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -2509,7 +2459,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-emerald-400">{formatAmount(corp.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(corp.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2521,7 +2471,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Weekly Guest Demographics</span>
-                    <Users size={12} className="text-indigo-505" />
+                    <Users size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -2539,7 +2489,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-indigo-400">{formatAmount(nat.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(nat.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2554,7 +2504,7 @@ export default function ReportsAuditModule() {
               
               {/* 30-Day occupancy forecast */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 summary-section" id="weekly-summary-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Forecast Summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estimated occupancy based on active reservation bookings in current month.</p>
@@ -2577,18 +2527,18 @@ export default function ReportsAuditModule() {
 
                 <div className="space-y-3">
                   {[
-                    { label: 'Next 1-7 Days', rate: Math.max(76, metrics.occupancyRate + 2), status: 'Peak Demand' },
-                    { label: 'Next 8-14 Days', rate: Math.max(68, metrics.occupancyRate - 5), status: 'Medium Occupancy' },
-                    { label: 'Next 15-21 Days', rate: 64, status: 'Low Midweek load' },
-                    { label: 'Next 22-30 Days', rate: 71, status: 'Corporate Block Pickup' }
+                    { label: 'Next 1-7 Days', rate: 0, status: 'No data' },
+                    { label: 'Next 8-14 Days', rate: 0, status: 'No data' },
+                    { label: 'Next 15-21 Days', rate: 0, status: 'No data' },
+                    { label: 'Next 22-30 Days', rate: 0, status: 'No data' }
                   ].map((fc, i) => (
                     <div key={i} className="space-y-1 text-xs">
                       <div className="flex justify-between items-center text-[10px]">
                         <span className="font-mono font-bold text-slate-500 uppercase">{fc.label}</span>
-                        <span className="font-mono font-black text-indigo-650">{fc.rate}% Occupancy ({fc.status})</span>
+                        <span className="font-mono font-black text-slate-600">{fc.rate}% Occupancy ({fc.status})</span>
                       </div>
                       <div className="w-full h-1.5 bg-slate-50 dark:bg-slate-850 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-indigo-500 to-emerald-500 rounded-full" style={{ width: `${fc.rate}%` }}></div>
+                        <div className="h-full bg-gradient-to-r from-slate-500 to-slate-500 rounded-full" style={{ width: `${fc.rate}%` }}></div>
                       </div>
                     </div>
                   ))}
@@ -2597,13 +2547,13 @@ export default function ReportsAuditModule() {
 
               {/* Pick-Up Pace Widget */}
               <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 graph-section" id="weekly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-rose-50 to-pink-50 dark:from-rose-950/30 dark:to-pink-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Pick-Up Pace Chart</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Forward bookings by day vs same day last week.</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className={`text-2xs font-mono font-black px-2 py-1 rounded-lg ${pickupPaceData.weeklyVariance >= 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400'}`}>
+                    <div className={`text-2xs font-mono font-black px-2 py-1 rounded-lg ${pickupPaceData.weeklyVariance >= 0 ? 'bg-slate-50 text-slate-700 dark:bg-slate-950/30 dark:text-slate-400' : 'bg-slate-50 text-slate-700 dark:bg-slate-950/30 dark:text-slate-400'}`}>
                       {pickupPaceData.weeklyVariance >= 0 ? '+' : ''}{pickupPaceData.weeklyVariance}% vs Prior Week
                     </div>
                     <div className="flex gap-1">
@@ -2630,7 +2580,7 @@ export default function ReportsAuditModule() {
                       <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
                       <Legend wrapperStyle={{ fontSize: '10px' }} />
-                      <Bar dataKey="current" name="This Week" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="current" name="This Week" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                       <Bar dataKey="previous" name="Last Week" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
@@ -2645,12 +2595,11 @@ export default function ReportsAuditModule() {
               <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-850 shadow-sm space-y-3">
                 <span className="text-[10px] font-mono font-bold text-slate-455 uppercase tracking-widest pl-0.5 block">Staff Productivity & attendance</span>
                 <p className="text-3xs text-slate-400 font-sans leading-normal">
-                  Staff attendance registered at 98.4% during this cycle. Average Guest Check-in duration recorded at 2.4 minutes, 
-                  while express Check-outs processed within 1.8 minutes. Overtime incidents dropped to zero.
+                  No data
                 </p>
                 <div className="flex justify-between text-3xs font-mono text-slate-500 border-t border-slate-800 pt-2">
-                  <span>Front Desk Shifts: Completed</span>
-                  <span className="text-emerald-400 font-bold">No Staff Deficits</span>
+                  <span>Front Desk Shifts: No data</span>
+                  <span className="text-slate-400 font-bold">No data</span>
                 </div>
               </div>
 
@@ -2693,7 +2642,7 @@ export default function ReportsAuditModule() {
                 onClick={() => triggerExport('Excel', 'Monthly Performance')}
                 className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
-                <Sliders size={11} className="text-emerald-500" /> Excel
+                <Sliders size={11} className="text-slate-500" /> Excel
               </button>
             </div>
 
@@ -2723,15 +2672,15 @@ export default function ReportsAuditModule() {
           {/* Monthly KPI Overview Strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in">
             {[
-              { label: 'Monthly Occupancy', value: '81.3%', detail: '+6.3% vs Budget', positive: true },
-              { label: 'Average Daily Rate', value: '$188.50', detail: '+$8.30 vs Target', positive: true },
-              { label: 'Revenue Per Room', value: '$153.25', detail: '+16.6% YoY growth', positive: true },
-              { label: 'Direct Bookings', value: '34.0%', detail: '-6.0% OTA commissions', positive: true }
+              { label: 'Monthly Occupancy', value: '0%', detail: 'No data', positive: false },
+              { label: 'Average Daily Rate', value: '$0', detail: 'No data', positive: false },
+              { label: 'Revenue Per Room', value: '$0', detail: 'No data', positive: false },
+              { label: 'Direct Bookings', value: '0%', detail: 'No data', positive: false }
             ].map((kpi, index) => (
               <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-850 shadow-3xs space-y-1">
                 <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
                 <strong className="text-xl font-sans font-black text-slate-905 dark:text-white block">{kpi.value}</strong>
-                <span className="text-[10px] font-sans font-bold text-emerald-500">{kpi.detail}</span>
+                <span className="text-[10px] font-sans font-bold text-slate-400">{kpi.detail}</span>
               </div>
             ))}
           </div>
@@ -2743,7 +2692,7 @@ export default function ReportsAuditModule() {
                 <h4 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Booking Pick-Up Pace</h4>
                 <p className="text-xs text-slate-450">Forward bookings by week vs same period last month.</p>
               </div>
-              <div className={`text-2xs font-mono font-black px-2 py-1 rounded-lg ${pickupPaceData.monthlyVariance >= 0 ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400' : 'bg-rose-50 text-rose-700 dark:bg-rose-950/30 dark:text-rose-400'}`}>
+              <div className={`text-2xs font-mono font-black px-2 py-1 rounded-lg ${pickupPaceData.monthlyVariance >= 0 ? 'bg-slate-50 text-slate-700 dark:bg-slate-950/30 dark:text-slate-400' : 'bg-slate-50 text-slate-700 dark:bg-slate-950/30 dark:text-slate-400'}`}>
                 {pickupPaceData.monthlyVariance >= 0 ? '+' : ''}{pickupPaceData.monthlyVariance}% vs Prior Month
               </div>
             </div>
@@ -2755,7 +2704,7 @@ export default function ReportsAuditModule() {
                   <YAxis tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip contentStyle={{ fontSize: '10px', borderRadius: '8px' }} />
                   <Legend wrapperStyle={{ fontSize: '10px' }} />
-                  <Bar dataKey="current" name="This Month" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="current" name="This Month" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="previous" name="Last Month" fill="#cbd5e1" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -2772,11 +2721,11 @@ export default function ReportsAuditModule() {
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-6">
               <div className="flex justify-between items-center pb-2 border-b">
                 <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Generated Performance Sections</span>
-                <span className="text-3xs font-mono uppercase text-emerald-600 font-black">Audit Ready</span>
+                <span className="text-3xs font-mono uppercase text-slate-600 font-black">Audit Ready</span>
               </div>
 
               <div className="space-y-4 animate-fade-in summary-section" id="monthly-summary-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Performance Summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Comprehensive analysis of operational metrics and performance indicators</p>
@@ -2810,7 +2759,7 @@ export default function ReportsAuditModule() {
                     <div key={i} className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl space-y-2 bg-slate-50/20">
                       <div className="flex justify-between items-center">
                         <h4 className="text-xs font-sans font-black text-slate-955 dark:text-white uppercase tracking-tight">{sec.title}</h4>
-                        <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-650 dark:text-indigo-400 text-[9px] font-mono font-bold uppercase rounded border">
+                        <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-[9px] font-mono font-bold uppercase rounded border">
                           {displayedTrend}
                         </span>
                       </div>
@@ -2822,7 +2771,7 @@ export default function ReportsAuditModule() {
 
               {/* Monthly Metric Comparisons & Variance Table */}
               <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 table-section" id="monthly-table-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Metrics Comparison Table</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -2848,7 +2797,7 @@ export default function ReportsAuditModule() {
                       onClick={() => triggerExport('Excel', 'Monthly Metrics Table')}
                       className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
-                      <Sliders size={11} className="text-emerald-500" /> Excel
+                      <Sliders size={11} className="text-slate-500" /> Excel
                     </button>
                   </div>
                 </div>
@@ -2874,7 +2823,7 @@ export default function ReportsAuditModule() {
                           <td className="py-2.5 px-3 text-center font-mono">{comp.current}</td>
                           <td className="py-2.5 px-3 text-center font-mono text-slate-450">{comp.previous}</td>
                           <td className={`py-2.5 px-4 text-right font-mono font-black ${
-                            comp.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+                            comp.isPositive ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500'
                           }`}>
                             {comp.variance}
                           </td>
@@ -2887,10 +2836,10 @@ export default function ReportsAuditModule() {
 
               {/* Monthly Trend Performance Area Chart */}
               <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 graph-section" id="monthly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Trend Performance Chart</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Aggregated May 1 - May 31 Performance</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">No data available</p>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -2909,19 +2858,11 @@ export default function ReportsAuditModule() {
                 </div>
                 <div className="h-44 w-full text-xs font-mono">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={[
-                      { date: 'May 1', occupancy: 74, revenue: 3850 },
-                      { date: 'May 5', occupancy: 78, revenue: 4120 },
-                      { date: 'May 10', occupancy: 82, revenue: 4580 },
-                      { date: 'May 15', occupancy: 80, revenue: 4320 },
-                      { date: 'May 20', occupancy: 85, revenue: 4950 },
-                      { date: 'May 25', occupancy: 81, revenue: 4420 },
-                      { date: 'May 31', occupancy: 83, revenue: 4610 },
-                    ]} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
+                    <AreaChart data={[]} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                       <defs>
                         <linearGradient id="colorO" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.25}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.25}/>
+                          <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-850" />
@@ -2929,9 +2870,9 @@ export default function ReportsAuditModule() {
                       <YAxis stroke="#94a3b8" fontSize={9} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '10px' }} 
-                        itemStyle={{ color: '#818cf8' }}
+                        itemStyle={{ color: '#94a3b8' }}
                       />
-                      <Area type="monotone" dataKey="occupancy" name="Occupancy %" stroke="#6366f1" fillOpacity={1} fill="url(#colorO)" strokeWidth={2.5} />
+                      <Area type="monotone" dataKey="occupancy" name="Occupancy %" stroke="#94a3b8" fillOpacity={1} fill="url(#colorO)" strokeWidth={2.5} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -2943,7 +2884,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Monthly Corporate Leaderboard</span>
-                    <TrendingUp size={12} className="text-emerald-500" />
+                    <TrendingUp size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -2961,7 +2902,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-emerald-400">{formatAmount(corp.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(corp.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -2973,7 +2914,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Monthly Guest Demographics</span>
-                    <Users size={12} className="text-indigo-505" />
+                    <Users size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -2991,7 +2932,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-indigo-400">{formatAmount(nat.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(nat.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3006,23 +2947,23 @@ export default function ReportsAuditModule() {
               
               <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-850 shadow-md space-y-4">
                 <div>
-                  <span className="text-indigo-400 text-3xs font-mono font-bold uppercase tracking-widest pl-0.5 block">Estimated Monthly GOP margin</span>
-                  <strong className="text-2.5xl font-sans font-black block text-emerald-400 mt-1">34.2% GOP</strong>
-                  <p className="text-3xs text-slate-400 font-sans mt-1">Surplus Operating Margin: +4.2 points vs Budget limits.</p>
+                  <span className="text-slate-400 text-3xs font-mono font-bold uppercase tracking-widest pl-0.5 block">Estimated Monthly GOP margin</span>
+                  <strong className="text-2.5xl font-sans font-black block text-slate-400 mt-1">0% GOP</strong>
+                  <p className="text-3xs text-slate-400 font-sans mt-1">No data available.</p>
                 </div>
 
                 <div className="border-t border-slate-800 pt-3 space-y-2 text-3xs font-mono">
                   <div className="flex justify-between">
                     <span className="text-slate-500">Gross Room Sales:</span>
-                    <span className="text-white font-bold">$142,650</span>
+                    <span className="text-slate-400 font-bold">$0</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Commissions Saved (Directs):</span>
-                    <span className="text-emerald-400 font-bold">+$4,100</span>
+                    <span className="text-slate-400 font-bold">$0</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Complaints Resolved in SLA:</span>
-                    <span className="text-white">88.8%</span>
+                    <span className="text-slate-400">0%</span>
                   </div>
                 </div>
               </div>
@@ -3035,7 +2976,7 @@ export default function ReportsAuditModule() {
                 </p>
                 <button
                   onClick={() => triggerExport('Email', 'Monthly Performance Book')}
-                  className="w-full bg-indigo-650 hover:bg-indigo-700 text-white font-sans font-black rounded-xl text-3xs py-2.5 flex items-center justify-center gap-1.5 transition"
+                  className="w-full bg-slate-600 hover:bg-slate-700 text-white font-sans font-black rounded-xl text-3xs py-2.5 flex items-center justify-center gap-1.5 transition"
                 >
                   <Send size={12} />
                   <span>Distribute Monthly Audit Book</span>
@@ -3060,7 +3001,7 @@ export default function ReportsAuditModule() {
 
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs">
             <div>
-              <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Quarterly Business Review (Q3 2026)</h3>
+              <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Quarterly Business Review</h3>
               <p className="text-xs text-slate-450 mt-1">Strategic analytics, AI recommendations, and quarterly performance review.</p>
             </div>
 
@@ -3081,17 +3022,17 @@ export default function ReportsAuditModule() {
                 onClick={() => triggerExport('Excel', 'Quarterly Review')}
                 className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
-                <Sliders size={11} className="text-emerald-500" /> Excel
+                <Sliders size={11} className="text-slate-500" /> Excel
               </button>
             </div>
           </div>
 
           {/* Quarterly KPI Overview Strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in summary-section" id="quarterly-summary-section">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly KPI Summary</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Key performance indicators for Q3 2026</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Key performance indicators — No data available</p>
               </div>
               <div className="flex gap-1">
                 <button
@@ -3109,15 +3050,15 @@ export default function ReportsAuditModule() {
               </div>
             </div>
             {[
-              { label: 'Q3 Occupancy Avg', value: '83.6%', detail: '+4.2% YoY increase', positive: true },
-              { label: 'Q3 Gross Revenue', value: '$435,200', detail: '+12.8% YoY growth', positive: true },
-              { label: 'Q3 Average Daily Rate', value: '$192.40', detail: '+$7.10 vs Plan', positive: true },
-              { label: 'Q3 RevPAR Output', value: '$160.85', detail: '+8.1% YoY increase', positive: true }
+              { label: 'Q3 Occupancy Avg', value: '0%', detail: 'No data available', positive: false },
+              { label: 'Q3 Gross Revenue', value: '$0', detail: 'No data available', positive: false },
+              { label: 'Q3 Average Daily Rate', value: '$0.00', detail: 'No data available', positive: false },
+              { label: 'Q3 RevPAR Output', value: '$0.00', detail: 'No data available', positive: false }
             ].map((kpi, index) => (
               <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-850 shadow-3xs space-y-1">
                 <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
                 <strong className="text-xl font-sans font-black text-slate-905 dark:text-white block">{kpi.value}</strong>
-                <span className="text-[10px] font-sans font-bold text-emerald-500">{kpi.detail}</span>
+                <span className="text-[10px] font-sans font-bold text-slate-500">{kpi.detail}</span>
               </div>
             ))}
           </div>
@@ -3126,7 +3067,7 @@ export default function ReportsAuditModule() {
             
             {/* Strategic analytics list */}
             <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-6 summary-section" id="quarterly-strategic-summary">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-fuchsia-50 to-pink-50 dark:from-fuchsia-950/30 dark:to-pink-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                 <div>
                   <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Strategic Summary</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Strategic market analytics, ADR growth trends, and corporate channel segment penetrations.</p>
@@ -3149,17 +3090,17 @@ export default function ReportsAuditModule() {
 
               <div className="space-y-4">
                 {[
-                  { title: 'Quarterly Business Review Overview', desc: 'Synthesizes aggregated room nights, average transient index payouts, and luxury suite utilization across property suites.', value: 'Q3 2026 Ready' },
-                  { title: 'Corporate Account Volume & Market Channel Shares', desc: 'Evaluates direct checkouts performance against active Expedia and Booking.com commissions paid during the quarter.', value: '18.2% Contract Share' },
-                  { title: 'Guest Satisfaction & Customer Retention Indexing', desc: 'Reviews post-stay survey comments and Net Promoter Scores (NPS) to calculate loyalty member return percentage.', value: '95.1 NPS Rating' },
-                  { title: 'Staff Attrition & Training effectiveness', desc: 'Audits employee academy attendance, desk customer service hours, and checkout checkout operational turn times.', value: '100% Confirmed' }
+                  { title: 'Quarterly Business Review Overview', desc: 'No data', value: '0%' },
+                  { title: 'Corporate Account Volume & Market Channel Shares', desc: 'No data', value: '0%' },
+                  { title: 'Guest Satisfaction & Customer Retention Indexing', desc: 'No data', value: '0%' },
+                  { title: 'Staff Attrition & Training effectiveness', desc: 'No data', value: '0%' }
                 ].map((item, idx) => (
                   <div key={idx} className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl flex justify-between gap-4 items-start bg-slate-50/20">
                     <div className="space-y-1">
                       <span className="font-bold text-xs text-slate-955 dark:text-white block">{item.title}</span>
                       <p className="text-3xs text-slate-450 leading-relaxed font-sans">{item.desc}</p>
                     </div>
-                    <span className="px-2.5 py-1 bg-slate-105 dark:bg-slate-800 text-[9px] font-mono font-black uppercase text-slate-650 dark:text-indigo-305 rounded-xl border shrink-0">
+                    <span className="px-2.5 py-1 bg-slate-105 dark:bg-slate-800 text-[9px] font-mono font-black uppercase text-slate-600 dark:text-slate-400 rounded-xl border shrink-0">
                       {item.value}
                     </span>
                   </div>
@@ -3168,7 +3109,7 @@ export default function ReportsAuditModule() {
 
               {/* Quarterly Metric Comparisons & Variance Table */}
               <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 table-section" id="quarterly-table-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-teal-50 to-cyan-50 dark:from-teal-950/30 dark:to-cyan-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Metrics Comparison Table</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current Q3 Performance Book</p>
@@ -3190,7 +3131,7 @@ export default function ReportsAuditModule() {
                       onClick={() => triggerExport('Excel', 'Quarterly Metrics Table')}
                       className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
-                      <Sliders size={11} className="text-emerald-500" /> Excel
+                      <Sliders size={11} className="text-slate-500" /> Excel
                     </button>
                   </div>
                 </div>
@@ -3212,7 +3153,7 @@ export default function ReportsAuditModule() {
                           <td className="py-2.5 px-3 text-center font-mono">{comp.current}</td>
                           <td className="py-2.5 px-3 text-center font-mono text-slate-450">{comp.previous}</td>
                           <td className={`py-2.5 px-4 text-right font-mono font-black ${
-                            comp.isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500'
+                            comp.isPositive ? 'text-slate-600 dark:text-slate-400' : 'text-slate-500'
                           }`}>
                             {comp.variance}
                           </td>
@@ -3225,10 +3166,10 @@ export default function ReportsAuditModule() {
 
               {/* Quarterly Revenue Growth Chart */}
               <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 graph-section" id="quarterly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Revenue Growth Chart</h3>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current Corporate Fiscal Year 2026</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">No data available</p>
                   </div>
                   <div className="flex gap-1">
                     <button
@@ -3247,21 +3188,17 @@ export default function ReportsAuditModule() {
                 </div>
                 <div className="h-44 w-full text-xs font-mono">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={[
-                      { quarter: 'Q1 202a', Transient: 245000, Corporate: 120400 },
-                      { quarter: 'Q2 202a', Transient: 268000, Corporate: 130200 },
-                      { quarter: 'Q3 202a', Transient: 292000, Corporate: 143200 },
-                    ]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <BarChart data={[]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-850" />
                       <XAxis dataKey="quarter" stroke="#94a3b8" fontSize={9} />
                       <YAxis stroke="#94a3b8" fontSize={9} />
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '10px' }} 
-                        itemStyle={{ color: '#818cf8' }}
+                        itemStyle={{ color: '#94a3b8' }}
                       />
                       <Legend fontSize={9} wrapperStyle={{ fontSize: '10px' }} />
-                      <Bar dataKey="Transient" name="Transient Revenue" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="Corporate" name="Corporate Contract" fill="#34d399" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Transient" name="Transient Revenue" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="Corporate" name="Corporate Contract" fill="#64748b" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -3273,7 +3210,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Quarterly Corporate Accounts Rank</span>
-                    <TrendingUp size={12} className="text-emerald-500" />
+                    <TrendingUp size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -3291,7 +3228,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-emerald-400">{formatAmount(corp.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(corp.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3303,7 +3240,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Quarterly Guest Demographics</span>
-                    <Users size={12} className="text-indigo-505" />
+                    <Users size={12} className="text-slate-500" />
                   </div>
                   <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
                     <table className="w-full text-left border-collapse">
@@ -3321,7 +3258,7 @@ export default function ReportsAuditModule() {
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
-                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-indigo-400">{formatAmount(nat.revenue)}</td>
+                            <td className="py-2.5 px-3 text-right font-mono font-black text-slate-900 dark:text-slate-400">{formatAmount(nat.revenue)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -3334,7 +3271,7 @@ export default function ReportsAuditModule() {
             {/* AI Generated strategic recommendations */}
             <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
               <div className="flex items-center gap-2">
-                <BrainCircuit size={16} className="text-indigo-600 dark:text-indigo-400" />
+                <BrainCircuit size={16} className="text-slate-600 dark:text-slate-400" />
                 <h4 className="text-sm font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">AI Strategic Recommendations</h4>
               </div>
 
@@ -3344,10 +3281,10 @@ export default function ReportsAuditModule() {
 
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 no-scrollbar animate-fade-in text-xs">
                 {currentAiRecommendations.map((rec, i) => (
-                  <div key={i} className="p-3 border border-indigo-105 dark:border-slate-800 rounded-2xl bg-gradient-to-tr from-indigo-50/20 to-pink-50/20 dark:from-slate-950/20 dark:to-slate-950/10 space-y-1">
-                    <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase text-indigo-650 dark:text-emerald-400">
+                  <div key={i} className="p-3 border border-slate-150 dark:border-slate-800 rounded-2xl bg-gradient-to-tr from-slate-50/20 to-slate-50/20 dark:from-slate-950/20 dark:to-slate-950/10 space-y-1">
+                    <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase text-slate-650 dark:text-slate-400">
                       <span>{rec.category}</span>
-                      <span className={`px-1.5 py-0.5 rounded ${rec.impact === 'High' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500 font-normal'}`}>
+                      <span className={`px-1.5 py-0.5 rounded ${rec.impact === 'High' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-500 font-normal'}`}>
                         {rec.impact} Impact
                       </span>
                     </div>
@@ -3387,7 +3324,7 @@ export default function ReportsAuditModule() {
 
                 <button
                   onClick={() => setShowAddScheduleModal(true)}
-                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-sans font-black text-3xs rounded-xl flex items-center gap-1 cursor-pointer"
+                  className="px-3 py-1.5 bg-slate-600 hover:bg-slate-700 text-white font-sans font-black text-3xs rounded-xl flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={11} /> Create Schedule
                 </button>
@@ -3399,7 +3336,7 @@ export default function ReportsAuditModule() {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <strong className="text-slate-900 dark:text-white font-bold font-sans">{sch.reportName}</strong>
-                        <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950 text-indigo-750 dark:text-indigo-300 text-[8px] font-mono font-bold uppercase rounded border">
+                        <span className="px-1.5 py-0.5 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-300 text-[8px] font-mono font-bold uppercase rounded border">
                           {sch.frequency}
                         </span>
                       </div>
@@ -3424,7 +3361,7 @@ export default function ReportsAuditModule() {
                         }}
                         className={`px-3 py-1.5 font-bold font-sans uppercase rounded-xl text-3xs transition cursor-pointer ${
                           sch.status === 'Active'
-                            ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-150'
+                            ? 'bg-slate-50 text-slate-800 hover:bg-slate-100 border border-slate-150'
                             : 'bg-slate-100 text-slate-550 hover:bg-slate-200 border border-slate-200'
                         }`}
                       >
@@ -3442,7 +3379,7 @@ export default function ReportsAuditModule() {
                 <h4 className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-widest font-mono">Email Subscriber Circles</h4>
                 <button 
                   onClick={() => setShowAddEmailModal(true)} 
-                  className="p-1 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-850 rounded"
+                  className="p-1 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-850 rounded"
                 >
                   <Plus size={14} />
                 </button>
@@ -3458,7 +3395,7 @@ export default function ReportsAuditModule() {
                     <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300">{em}</span>
                     <button 
                       onClick={() => setEmailList(prev => prev.filter(item => item !== em))}
-                      className="text-slate-400 hover:text-rose-500 transition"
+                      className="text-slate-400 hover:text-slate-600 transition"
                     >
                       <X size={11} />
                     </button>
@@ -3500,8 +3437,8 @@ export default function ReportsAuditModule() {
                       <td className="py-3 px-3 text-center">
                         <span className={`px-2 py-0.5 rounded text-[8px] font-mono font-bold uppercase ${
                           ver.status === 'Sent'
-                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                            : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-405 font-bold animate-pulse'
+                            ? 'bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-400'
+                            : 'bg-slate-50 text-slate-700 dark:bg-slate-950 dark:text-slate-400 font-bold animate-pulse'
                         }`}>
                           {ver.status}
                         </span>
@@ -3515,14 +3452,14 @@ export default function ReportsAuditModule() {
                                   item.id === ver.id ? { ...item, status: 'Approved' } : item
                                 ));
                               }}
-                              className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-4xs font-black uppercase rounded-lg transition"
+                              className="px-2.5 py-1 bg-slate-600 hover:bg-slate-700 text-white font-mono text-4xs font-black uppercase rounded-lg transition"
                             >
                               Approve
                             </button>
                           )}
                           <button
                             onClick={() => triggerExport('PDF', ver.reportName)}
-                            className="p-1 bg-slate-50 dark:bg-slate-800 hover:bg-slate-250 hover:text-indigo-650 dark:hover:bg-slate-750 text-slate-400 rounded-lg transition"
+                            className="p-1 bg-slate-50 dark:bg-slate-800 hover:bg-slate-250 hover:text-slate-600 dark:hover:bg-slate-750 text-slate-400 rounded-lg transition"
                             title="Download PDF Archive"
                           >
                             <Download size={11} />
@@ -3557,18 +3494,18 @@ export default function ReportsAuditModule() {
                 key={alt.id} 
                 className={`p-5 border rounded-2xl flex gap-4 transition duration-200 bg-white dark:bg-slate-900 shadow-3xs ${
                   alt.triggered
-                    ? 'border-rose-500/20 bg-rose-500/5 dark:bg-rose-950/10'
+                    ? 'border-slate-500/20 bg-slate-500/5 dark:bg-slate-950/10'
                     : 'border-slate-150 dark:border-slate-850 opacity-80'
                 }`}
               >
                 <div className="shrink-0">
                   {alt.triggered ? (
-                    <div className="p-2 bg-rose-100 dark:bg-rose-950 text-rose-500 rounded-xl animate-bounce">
+                    <div className="p-2 bg-slate-100 dark:bg-slate-950 text-slate-500 rounded-xl animate-bounce">
                       <AlertTriangle size={18} />
                     </div>
                   ) : (
-                    <div className="p-2 bg-slate-100 dark:bg-slate-800 text-emerald-400 rounded-xl">
-                      <CheckCircle2 size={18} className="text-emerald-500" />
+                    <div className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-xl">
+                      <CheckCircle2 size={18} className="text-slate-500" />
                     </div>
                   )}
                 </div>
@@ -3579,7 +3516,7 @@ export default function ReportsAuditModule() {
                       {alt.title}
                     </strong>
                     {alt.triggered && (
-                      <span className="bg-rose-500 text-white font-mono text-4xs font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
+                      <span className="bg-slate-500 text-white font-mono text-4xs font-black px-1.5 py-0.5 rounded uppercase tracking-wider">
                         {alt.severity} Priority
                       </span>
                     )}
@@ -3596,7 +3533,7 @@ export default function ReportsAuditModule() {
                           // Simulating override resolve action
                           alert(`Manual administrative clear override dispatched for warning: "${alt.title}"`);
                         }}
-                        className="text-indigo-650 hover:text-indigo-800 font-bold"
+                        className="text-slate-600 hover:text-slate-800 font-bold"
                       >
                         Override Clear →
                       </button>
@@ -3608,9 +3545,9 @@ export default function ReportsAuditModule() {
           </div>
 
           {auditExceptionsLog.length > 0 && (
-            <div className="border border-amber-200 dark:border-amber-900/40 rounded-2xl p-4 bg-amber-50/20 dark:bg-amber-950/10 space-y-3">
+            <div className="border border-slate-200 dark:border-slate-900/40 rounded-2xl p-4 bg-slate-50/20 dark:bg-slate-950/10 space-y-3">
               <div className="flex items-center gap-2">
-                <BadgeAlert size={14} className="text-amber-600" />
+                <BadgeAlert size={14} className="text-slate-600" />
                 <div>
                   <h5 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Night Audit Exceptions</h5>
                   <p className="text-3xs text-slate-500">Logged during recent night audit execution.</p>
@@ -3619,16 +3556,16 @@ export default function ReportsAuditModule() {
               <div className="overflow-auto max-h-48">
                 <table className="w-full text-3xs text-left border-collapse">
                   <thead>
-                    <tr className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 uppercase text-[9px]">
+                    <tr className="bg-slate-50 dark:bg-slate-900/20 text-slate-800 dark:text-slate-200 uppercase text-[9px]">
                       <th className="py-2 px-2">#</th>
                       <th className="py-2 px-2">Owner</th>
                       <th className="py-2 px-2">Description</th>
                       <th className="py-2 px-2 text-right">Logged At</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-amber-100 dark:divide-amber-900/30">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-900/30">
                     {auditExceptionsLog.map((ex, idx) => (
-                      <tr key={ex.id} className="hover:bg-amber-50/40 dark:hover:bg-amber-900/15">
+                      <tr key={ex.id} className="hover:bg-slate-50/40 dark:hover:bg-slate-900/15">
                         <td className="py-2 px-2 font-mono text-slate-500">{idx + 1}</td>
                         <td className="py-2 px-2 font-bold text-slate-800 dark:text-slate-100">{ex.owner}</td>
                         <td className="py-2 px-2 text-slate-700 dark:text-slate-200">{ex.text}</td>
@@ -3674,11 +3611,7 @@ export default function ReportsAuditModule() {
                   onChange={e => setNewScheduleName(e.target.value)}
                   className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-bold outline-none"
                 >
-                  <option value="Daily Front Office Executive Summary font-bold">Daily Front Office Executive Summary</option>
-                  <option value="Night Audit Summary Report">Night Audit Summary Report</option>
-                  <option value="Corporate Reservation Report">Corporate Reservation Report</option>
-                  <option value="Guest Complaint Report">Guest Complaint Report</option>
-                  <option value="Weekly Performance analysis">Weekly Performance analysis</option>
+                  <option value="No data">No data</option>
                 </select>
               </div>
 
@@ -3732,7 +3665,7 @@ export default function ReportsAuditModule() {
                     frequency: newScheduleFreq,
                     recipients: [newScheduleEmail],
                     status: 'Active',
-                    nextRun: newScheduleFreq === 'Daily' ? 'Tonight, 23:55' : 'Sunday, 23:55'
+                    nextRun: 'No data'
                   };
 
                   setScheduledSchedules(prev => [newScheduleObj, ...prev]);
@@ -3752,14 +3685,14 @@ export default function ReportsAuditModule() {
                     reportName: newScheduleName,
                     generatedBy: 'User Schedule Setup',
                     timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                    fileSize: '350 KB',
+                    fileSize: '0 KB',
                     status: 'Draft'
                   };
                   setVersionHistory(prev => [newVer, ...prev]);
 
                   setShowAddScheduleModal(false);
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
+                className="bg-slate-600 hover:bg-slate-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
               >
                 Create Scheduler
               </button>
@@ -3781,7 +3714,7 @@ export default function ReportsAuditModule() {
               <label className="text-[9px] uppercase font-mono font-black tracking-widest text-slate-400 pl-0.5">Email Node Address</label>
               <input
                 type="email"
-                placeholder="subscriber@hotel.com"
+                placeholder="No data"
                 value={newEmailInput}
                 onChange={e => setNewEmailInput(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-bold font-mono text-xs text-slate-800 dark:text-white"
@@ -3808,7 +3741,7 @@ export default function ReportsAuditModule() {
                   setNewEmailInput('');
                   setShowAddEmailModal(false);
                 }}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
+                className="bg-slate-600 hover:bg-slate-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
               >
                 Enroll Address
               </button>

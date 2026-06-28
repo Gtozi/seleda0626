@@ -2,19 +2,137 @@
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 @theme {
   --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", ui-serif, Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-white: #FAF6EF;
+  --color-slate-50: #FAF6EF;
+  --color-slate-100: #F3ECE0;
+  --color-slate-200: #E8DDD0;
+  --color-slate-300: #C9BBA8;
+  --color-slate-400: #6B5C4D;
+  --color-slate-500: #6B5C4D;
+  --color-slate-600: #4A3F35;
+  --color-slate-700: #3D342E;
+  --color-slate-800: #2B2420;
+  --color-slate-900: #2B2420;
+}
 
-  --animate-fade-in-up: fade-in-up 0.4s ease-out both;
-  --animate-scale-in: scale-in 0.3s ease-out both;
-  --animate-slide-in-right: slide-in-right 0.35s ease-out both;
-  --animate-float: float 3s ease-in-out infinite;
-  --animate-shimmer: shimmer 2s linear infinite;
-  --animate-bounce-subtle: bounce-subtle 0.6s ease-in-out;
+:root {
+  /* Earthy Luxury Color Tokens - Light Mode */
+  --color-bg-page: #FAF6EF;
+  --color-bg-surface: #F3ECE0;
+  --color-border: #C9BBA8;
+  --color-text-secondary: #6B5C4D;
+  --color-text-primary: #2B2420;
+
+  /* Domain accents */
+  --color-accent-operations: #B5563C;
+  --color-accent-operations-hover: #8C4029;
+  --color-accent-finance: #B08D57;
+  --color-accent-finance-hover: #8A6B3D;
+  --color-accent-guest: #7C8463;
+  --color-accent-guest-hover: #5C6347;
+  --color-accent-admin: #4A3F35;
+  --color-accent-admin-hover: #332B23;
+
+  /* Semantic states */
+  --color-success: #5F7A4F;
+  --color-success-hover: #4A6140;
+  --color-warning: #C18A3B;
+  --color-warning-hover: #9C6F2E;
+  --color-danger: #9C4A36;
+  --color-danger-hover: #7A3A2A;
+  --color-info: #5E7A78;
+  --color-info-hover: #4A6260;
+  
+  /* Tailwind color overrides */
+  --color-white: #FAF6EF;
+  --color-slate-50: #FAF6EF;
+  --color-slate-100: #F3ECE0;
+  --color-slate-200: #E8DDD0;
+  --color-slate-300: #C9BBA8;
+  --color-slate-400: #6B5C4D;
+  --color-slate-500: #6B5C4D;
+  --color-slate-600: #4A3F35;
+  --color-slate-700: #3D342E;
+  --color-slate-800: #2B2420;
+  --color-slate-900: #2B2420;
+}
+
+.dark {
+  /* Earthy Luxury Color Tokens - Dark Mode */
+  --color-bg-page: #1C1714;
+  --color-bg-surface: #2A221C;
+  --color-border: #463C32;
+  --color-text-secondary: #ABA08A;
+  --color-text-primary: #F0E6D8;
+
+  /* Domain accents - brightened and slightly desaturated for dark mode */
+  --color-accent-operations: #D9785A;
+  --color-accent-operations-hover: #E89478;
+  --color-accent-finance: #C9A35C;
+  --color-accent-finance-hover: #DBB877;
+  --color-accent-guest: #94A077;
+  --color-accent-guest-hover: #A8B38C;
+  --color-accent-admin: #9C8F7A;
+  --color-accent-admin-hover: #B0A38C;
+
+  /* Semantic states */
+  --color-success: #7FA068;
+  --color-success-hover: #8FB078;
+  --color-warning: #D9A052;
+  --color-warning-hover: #E3B06C;
+  --color-danger: #C16B52;
+  --color-danger-hover: #CC7E66;
+  --color-info: #7C9C9A;
+  --color-info-hover: #8FACAA;
+  
+  /* Tailwind color overrides for dark mode */
+  --color-white: #1C1714;
+  --color-slate-50: #1C1714;
+  --color-slate-100: #2A221C;
+  --color-slate-200: #463C32;
+  --color-slate-300: #463C32;
+  --color-slate-400: #ABA08A;
+  --color-slate-500: #ABA08A;
+  --color-slate-600: #F0E6D8;
+  --color-slate-700: #F0E6D8;
+  --color-slate-800: #F0E6D8;
+  --color-slate-900: #F0E6D8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Earthy Luxury Color Tokens - Dark Mode */
+    --color-bg-page: #1C1714;
+    --color-bg-surface: #2A221C;
+    --color-border: #463C32;
+    --color-text-secondary: #ABA08A;
+    --color-text-primary: #F0E6D8;
+
+    /* Domain accents - brightened and slightly desaturated for dark mode */
+    --color-accent-operations: #D9785A;
+    --color-accent-operations-hover: #E89478;
+    --color-accent-finance: #C9A35C;
+    --color-accent-finance-hover: #DBB877;
+    --color-accent-guest: #94A077;
+    --color-accent-guest-hover: #A8B38C;
+    --color-accent-admin: #9C8F7A;
+    --color-accent-admin-hover: #B0A38C;
+
+    /* Semantic states */
+    --color-success: #7FA068;
+    --color-success-hover: #8FB078;
+    --color-warning: #D9A052;
+    --color-warning-hover: #E3B06C;
+    --color-danger: #C16B52;
+    --color-danger-hover: #CC7E66;
+    --color-info: #7C9C9A;
+    --color-info-hover: #8FACAA;
+  }
 }
 
 @keyframes fade-in-up {
@@ -113,9 +231,9 @@
 }
 
 /* ───────────────────────────────────────────
-   GLOBAL DARK MODE OVERRIDES
+   GLOBAL DARK MODE OVERRIDES - Earthy Luxury
    Forces every module, card, and table into
-   dark mode when <html> has .dark class.
+   dark mode when <html> has .dark.
    EXCLUDES: /booking route (public portal)
    ─────────────────────────────────────────── */
 /* Exclude booking page from dark mode */
@@ -124,123 +242,123 @@ body:not([data-route*="booking"]) .dark .bg-white\/95,
 body:not([data-route*="booking"]) .dark .bg-white\/80,
 body:not([data-route*="booking"]) .dark .bg-white\/70,
 body:not([data-route*="booking"]) .dark .bg-white\/50 {
-  background-color: #0f172a !important;
+  background-color: var(--color-bg-page) !important;
 }
 body:not([data-route*="booking"]) .dark .bg-slate-50,
 body:not([data-route*="booking"]) .dark .bg-slate-100,
 body:not([data-route*="booking"]) .dark .bg-slate-200 {
-  background-color: #1e293b !important;
+  background-color: var(--color-bg-surface) !important;
 }
 body:not([data-route*="booking"]) .dark .bg-slate-300 {
-  background-color: #334155 !important;
+  background-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark .text-slate-900,
 body:not([data-route*="booking"]) .dark .text-slate-800,
 body:not([data-route*="booking"]) .dark .text-slate-700,
 body:not([data-route*="booking"]) .dark .text-slate-600 {
-  color: #f1f5f9 !important;
+  color: var(--color-text-primary) !important;
 }
 body:not([data-route*="booking"]) .dark .text-slate-500 {
-  color: #cbd5e1 !important;
+  color: var(--color-text-secondary) !important;
 }
 body:not([data-route*="booking"]) .dark .text-slate-400 {
-  color: #94a3b8 !important;
+  color: var(--color-text-secondary) !important;
 }
 body:not([data-route*="booking"]) .dark .border-slate-200,
 body:not([data-route*="booking"]) .dark .border-slate-100,
 body:not([data-route*="booking"]) .dark .border-slate-300 {
-  border-color: #334155 !important;
+  border-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark .border-slate-400 {
-  border-color: #475569 !important;
+  border-color: var(--color-border) !important;
 }
 
 /* Inputs & selects */
 body:not([data-route*="booking"]) .dark input,
 body:not([data-route*="booking"]) .dark select,
 body:not([data-route*="booking"]) .dark textarea {
-  background-color: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-color: #475569 !important;
+  background-color: var(--color-bg-surface) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark input::placeholder,
 body:not([data-route*="booking"]) .dark textarea::placeholder {
-  color: #94a3b8 !important;
+  color: var(--color-text-secondary) !important;
 }
 
 /* Tables */
 body:not([data-route*="booking"]) .dark table thead th {
-  background-color: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-bottom-color: #475569 !important;
+  background-color: var(--color-bg-surface) !important;
+  color: var(--color-text-primary) !important;
+  border-bottom-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark table tbody td {
-  background-color: #0f172a !important;
-  color: #e2e8f0 !important;
-  border-color: #334155 !important;
+  background-color: var(--color-bg-page) !important;
+  color: var(--color-text-primary) !important;
+  border-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark table tbody tr:nth-child(even) td {
-  background-color: #1e293b !important;
+  background-color: var(--color-bg-surface) !important;
 }
 body:not([data-route*="booking"]) .dark table tbody tr:hover td {
-  background-color: #334155 !important;
+  background-color: var(--color-border) !important;
 }
 
 /* Scrollbars */
 body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: var(--color-bg-page);
 }
 body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-thumb {
-  background: #475569;
+  background: var(--color-border);
 }
 body:not([data-route*="booking"]) .dark ::-webkit-scrollbar-thumb:hover {
-  background: #64748b;
+  background: var(--color-text-secondary);
 }
 
 /* Recharts / chart tooltips */
 .dark .recharts-tooltip-wrapper .recharts-default-tooltip {
-  background-color: #1e293b !important;
-  border-color: #334155 !important;
-  color: #f1f5f9 !important;
+  background-color: var(--color-bg-surface) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text-primary) !important;
 }
 .dark .recharts-legend-item-text {
-  fill: #e2e8f0 !important;
+  fill: var(--color-text-primary) !important;
 }
 .dark .recharts-text {
-  fill: #94a3b8 !important;
+  fill: var(--color-text-secondary) !important;
 }
 
 /* Glassmorphism override */
 .dark .glass {
-  background: rgba(15, 23, 42, 0.85) !important;
-  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(28, 23, 20, 0.85) !important;
+  border-color: rgba(70, 60, 50, 0.3) !important;
 }
 
 /* Gray palette (used in some components) */
 body:not([data-route*="booking"]) .dark .bg-gray-50,
 body:not([data-route*="booking"]) .dark .bg-gray-100,
 body:not([data-route*="booking"]) .dark .bg-gray-200 {
-  background-color: #1e293b !important;
+  background-color: var(--color-bg-surface) !important;
 }
 body:not([data-route*="booking"]) .dark .bg-gray-300 {
-  background-color: #334155 !important;
+  background-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark .text-gray-900,
 body:not([data-route*="booking"]) .dark .text-gray-800,
 body:not([data-route*="booking"]) .dark .text-gray-700,
 body:not([data-route*="booking"]) .dark .text-gray-600 {
-  color: #f1f5f9 !important;
+  color: var(--color-text-primary) !important;
 }
 body:not([data-route*="booking"]) .dark .text-gray-500 {
-  color: #cbd5e1 !important;
+  color: var(--color-text-secondary) !important;
 }
 body:not([data-route*="booking"]) .dark .text-gray-400 {
-  color: #94a3b8 !important;
+  color: var(--color-text-secondary) !important;
 }
 body:not([data-route*="booking"]) .dark .border-gray-200,
 body:not([data-route*="booking"]) .dark .border-gray-100,
 body:not([data-route*="booking"]) .dark .border-gray-300 {
-  border-color: #475569 !important;
+  border-color: var(--color-border) !important;
 }
 
 /* Hover state overrides */
@@ -248,14 +366,14 @@ body:not([data-route*="booking"]) .dark .hover\:bg-slate-100:hover,
 body:not([data-route*="booking"]) .dark .hover\:bg-slate-50:hover,
 body:not([data-route*="booking"]) .dark .hover\:bg-gray-100:hover,
 body:not([data-route*="booking"]) .dark .hover\:bg-gray-50:hover {
-  background-color: #334155 !important;
+  background-color: var(--color-border) !important;
 }
 body:not([data-route*="booking"]) .dark .hover\:bg-white:hover {
-  background-color: #1e293b !important;
+  background-color: var(--color-bg-surface) !important;
 }
 body:not([data-route*="booking"]) .dark .hover\:text-slate-900:hover,
 body:not([data-route*="booking"]) .dark .hover\:text-gray-900:hover {
-  color: #f1f5f9 !important;
+  color: var(--color-text-primary) !important;
 }
 
 /* Status tint backgrounds */
@@ -274,21 +392,182 @@ body:not([data-route*="booking"]) .dark .hover\:text-gray-900:hover {
 .dark .bg-red-50,
 .dark .bg-yellow-50,
 .dark .bg-green-50 {
-  background-color: #1e293b !important;
+  background-color: var(--color-bg-surface) !important;
 }
 
 /* Modal / dialog backdrops */
 .dark [class*="backdrop"],
 .dark [class*="overlay"],
 .dark [class*="modal-bg"] {
-  background-color: rgba(0, 0, 0, 0.7) !important;
+  background-color: rgba(28, 23, 20, 0.8) !important;
 }
 
-/* Indigo accent preserved, just ensuring text on it stays white */
-.dark .bg-indigo-600,
-.dark .bg-indigo-500,
-.dark .bg-indigo-700 {
-  color: #ffffff !important;
+@media (prefers-color-scheme: dark) {
+  /* Exclude booking page from dark mode */
+  body:not([data-route*="booking"]) .bg-white,
+  body:not([data-route*="booking"]) .bg-white\/95,
+  body:not([data-route*="booking"]) .bg-white\/80,
+  body:not([data-route*="booking"]) .bg-white\/70,
+  body:not([data-route*="booking"]) .bg-white\/50 {
+    background-color: var(--color-bg-page) !important;
+  }
+  body:not([data-route*="booking"]) .bg-slate-50,
+  body:not([data-route*="booking"]) .bg-slate-100,
+  body:not([data-route*="booking"]) .bg-slate-200 {
+    background-color: var(--color-bg-surface) !important;
+  }
+  body:not([data-route*="booking"]) .bg-slate-300 {
+    background-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) .text-slate-900,
+  body:not([data-route*="booking"]) .text-slate-800,
+  body:not([data-route*="booking"]) .text-slate-700,
+  body:not([data-route*="booking"]) .text-slate-600 {
+    color: var(--color-text-primary) !important;
+  }
+  body:not([data-route*="booking"]) .text-slate-500 {
+    color: var(--color-text-secondary) !important;
+  }
+  body:not([data-route*="booking"]) .text-slate-400 {
+    color: var(--color-text-secondary) !important;
+  }
+  body:not([data-route*="booking"]) .border-slate-200,
+  body:not([data-route*="booking"]) .border-slate-100,
+  body:not([data-route*="booking"]) .border-slate-300 {
+    border-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) .border-slate-400 {
+    border-color: var(--color-border) !important;
+  }
+
+  /* Inputs & selects */
+  body:not([data-route*="booking"]) input,
+  body:not([data-route*="booking"]) select,
+  body:not([data-route*="booking"]) textarea {
+    background-color: var(--color-bg-surface) !important;
+    color: var(--color-text-primary) !important;
+    border-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) input::placeholder,
+  body:not([data-route*="booking"]) textarea::placeholder {
+    color: var(--color-text-secondary) !important;
+  }
+
+  /* Tables */
+  body:not([data-route*="booking"]) table thead th {
+    background-color: var(--color-bg-surface) !important;
+    color: var(--color-text-primary) !important;
+    border-bottom-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) table tbody td {
+    background-color: var(--color-bg-page) !important;
+    color: var(--color-text-primary) !important;
+    border-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) table tbody tr:nth-child(even) td {
+    background-color: var(--color-bg-surface) !important;
+  }
+  body:not([data-route*="booking"]) table tbody tr:hover td {
+    background-color: var(--color-border) !important;
+  }
+
+  /* Scrollbars */
+  body:not([data-route*="booking"]) ::-webkit-scrollbar-track {
+    background: var(--color-bg-page);
+  }
+  body:not([data-route*="booking"]) ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+  }
+  body:not([data-route*="booking"]) ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-text-secondary);
+  }
+
+  /* Recharts / chart tooltips */
+  .recharts-tooltip-wrapper .recharts-default-tooltip {
+    background-color: var(--color-bg-surface) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text-primary) !important;
+  }
+  .recharts-legend-item-text {
+    fill: var(--color-text-primary) !important;
+  }
+  .recharts-text {
+    fill: var(--color-text-secondary) !important;
+  }
+
+  /* Glassmorphism override */
+  .glass {
+    background: rgba(28, 23, 20, 0.85) !important;
+    border-color: rgba(70, 60, 50, 0.3) !important;
+  }
+
+  /* Gray palette (used in some components) */
+  body:not([data-route*="booking"]) .bg-gray-50,
+  body:not([data-route*="booking"]) .bg-gray-100,
+  body:not([data-route*="booking"]) .bg-gray-200 {
+    background-color: var(--color-bg-surface) !important;
+  }
+  body:not([data-route*="booking"]) .bg-gray-300 {
+    background-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) .text-gray-900,
+  body:not([data-route*="booking"]) .text-gray-800,
+  body:not([data-route*="booking"]) .text-gray-700,
+  body:not([data-route*="booking"]) .text-gray-600 {
+    color: var(--color-text-primary) !important;
+  }
+  body:not([data-route*="booking"]) .text-gray-500 {
+    color: var(--color-text-secondary) !important;
+  }
+  body:not([data-route*="booking"]) .text-gray-400 {
+    color: var(--color-text-secondary) !important;
+  }
+  body:not([data-route*="booking"]) .border-gray-200,
+  body:not([data-route*="booking"]) .border-gray-100,
+  body:not([data-route*="booking"]) .border-gray-300 {
+    border-color: var(--color-border) !important;
+  }
+
+  /* Hover state overrides */
+  body:not([data-route*="booking"]) .hover\:bg-slate-100:hover,
+  body:not([data-route*="booking"]) .hover\:bg-slate-50:hover,
+  body:not([data-route*="booking"]) .hover\:bg-gray-100:hover,
+  body:not([data-route*="booking"]) .hover\:bg-gray-50:hover {
+    background-color: var(--color-border) !important;
+  }
+  body:not([data-route*="booking"]) .hover\:bg-white:hover {
+    background-color: var(--color-bg-surface) !important;
+  }
+  body:not([data-route*="booking"]) .hover\:text-slate-900:hover,
+  body:not([data-route*="booking"]) .hover\:text-gray-900:hover {
+    color: var(--color-text-primary) !important;
+  }
+
+  /* Status tint backgrounds */
+  .bg-emerald-50,
+  .bg-rose-50,
+  .bg-amber-50,
+  .bg-blue-50,
+  .bg-indigo-50,
+  .bg-purple-50,
+  .bg-teal-50,
+  .bg-orange-50,
+  .bg-cyan-50,
+  .bg-pink-50,
+  .bg-lime-50,
+  .bg-sky-50,
+  .bg-red-50,
+  .bg-yellow-50,
+  .bg-green-50 {
+    background-color: var(--color-bg-surface) !important;
+  }
+
+  /* Modal / dialog backdrops */
+  [class*="backdrop"],
+  [class*="overlay"],
+  [class*="modal-bg"] {
+    background-color: rgba(28, 23, 20, 0.8) !important;
+  }
 }
 
 /* Public portal (Grand Vista) custom utilities */
@@ -309,4 +588,207 @@ body:not([data-route*="booking"]) .dark .hover\:text-gray-900:hover {
     #f4f4f5 10px,
     #f4f4f5 20px
   );
+}
+
+/* ───────────────────────────────────────────
+   DOMAIN-SPECIFIC ACCENT UTILITIES
+   Apply these classes to domain-specific sections
+   to use their assigned accent colors
+   ─────────────────────────────────────────── */
+
+/* Operations Core (terracotta) */
+.accent-operations {
+  --accent-color: var(--color-accent-operations);
+  --accent-hover: var(--color-accent-operations-hover);
+}
+.accent-operations .bg-primary,
+.accent-operations .bg-indigo-600,
+.accent-operations .bg-blue-600 {
+  background-color: var(--color-accent-operations) !important;
+}
+.accent-operations .hover\:bg-primary:hover,
+.accent-operations .hover\:bg-indigo-600:hover,
+.accent-operations .hover\:bg-blue-600:hover {
+  background-color: var(--color-accent-operations-hover) !important;
+}
+.accent-operations .text-primary,
+.accent-operations .text-indigo-600,
+.accent-operations .text-blue-600 {
+  color: var(--color-accent-operations) !important;
+}
+.accent-operations .border-primary,
+.accent-operations .border-indigo-600,
+.accent-operations .border-blue-600 {
+  border-color: var(--color-accent-operations) !important;
+}
+.accent-operations .ring-offset,
+.accent-operations .focus\:ring-indigo-500:focus,
+.accent-operations .focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--color-accent-operations) !important;
+}
+
+/* Finance & Compliance (brass) */
+.accent-finance {
+  --accent-color: var(--color-accent-finance);
+  --accent-hover: var(--color-accent-finance-hover);
+}
+.accent-finance .bg-primary,
+.accent-finance .bg-indigo-600,
+.accent-finance .bg-blue-600 {
+  background-color: var(--color-accent-finance) !important;
+}
+.accent-finance .hover\:bg-primary:hover,
+.accent-finance .hover\:bg-indigo-600:hover,
+.accent-finance .hover\:bg-blue-600:hover {
+  background-color: var(--color-accent-finance-hover) !important;
+}
+.accent-finance .text-primary,
+.accent-finance .text-indigo-600,
+.accent-finance .text-blue-600 {
+  color: var(--color-accent-finance) !important;
+}
+.accent-finance .border-primary,
+.accent-finance .border-indigo-600,
+.accent-finance .border-blue-600 {
+  border-color: var(--color-accent-finance) !important;
+}
+.accent-finance .ring-offset,
+.accent-finance .focus\:ring-indigo-500:focus,
+.accent-finance .focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--color-accent-finance) !important;
+}
+
+/* Guest Experience (sage) */
+.accent-guest {
+  --accent-color: var(--color-accent-guest);
+  --accent-hover: var(--color-accent-guest-hover);
+}
+.accent-guest .bg-primary,
+.accent-guest .bg-indigo-600,
+.accent-guest .bg-blue-600 {
+  background-color: var(--color-accent-guest) !important;
+}
+.accent-guest .hover\:bg-primary:hover,
+.accent-guest .hover\:bg-indigo-600:hover,
+.accent-guest .hover\:bg-blue-600:hover {
+  background-color: var(--color-accent-guest-hover) !important;
+}
+.accent-guest .text-primary,
+.accent-guest .text-indigo-600,
+.accent-guest .text-blue-600 {
+  color: var(--color-accent-guest) !important;
+}
+.accent-guest .border-primary,
+.accent-guest .border-indigo-600,
+.accent-guest .border-blue-600 {
+  border-color: var(--color-accent-guest) !important;
+}
+.accent-guest .ring-offset,
+.accent-guest .focus\:ring-indigo-500:focus,
+.accent-guest .focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--color-accent-guest) !important;
+}
+
+/* System Administration (charcoal) */
+.accent-admin {
+  --accent-color: var(--color-accent-admin);
+  --accent-hover: var(--color-accent-admin-hover);
+}
+.accent-admin .bg-primary,
+.accent-admin .bg-indigo-600,
+.accent-admin .bg-blue-600 {
+  background-color: var(--color-accent-admin) !important;
+}
+.accent-admin .hover\:bg-primary:hover,
+.accent-admin .hover\:bg-indigo-600:hover,
+.accent-admin .hover\:bg-blue-600:hover {
+  background-color: var(--color-accent-admin-hover) !important;
+}
+.accent-admin .text-primary,
+.accent-admin .text-indigo-600,
+.accent-admin .text-blue-600 {
+  color: var(--color-accent-admin) !important;
+}
+.accent-admin .border-primary,
+.accent-admin .border-indigo-600,
+.accent-admin .border-blue-600 {
+  border-color: var(--color-accent-admin) !important;
+}
+.accent-admin .ring-offset,
+.accent-admin .focus\:ring-indigo-500:focus,
+.accent-admin .focus\:ring-blue-500:focus {
+  --tw-ring-color: var(--color-accent-admin) !important;
+}
+
+/* Semantic state utilities */
+.state-success .bg-emerald-500,
+.state-success .bg-green-500 {
+  background-color: var(--color-success) !important;
+}
+.state-success .hover\:bg-emerald-600:hover,
+.state-success .hover\:bg-green-600:hover {
+  background-color: var(--color-success-hover) !important;
+}
+.state-success .text-emerald-500,
+.state-success .text-green-500 {
+  color: var(--color-success) !important;
+}
+
+.state-warning .bg-amber-500,
+.state-warning .bg-yellow-500 {
+  background-color: var(--color-warning) !important;
+}
+.state-warning .hover\:bg-amber-600:hover,
+.state-warning .hover\:bg-yellow-600:hover {
+  background-color: var(--color-warning-hover) !important;
+}
+.state-warning .text-amber-500,
+.state-warning .text-yellow-500 {
+  color: var(--color-warning) !important;
+}
+
+.state-danger .bg-rose-500,
+.state-danger .bg-red-500 {
+  background-color: var(--color-danger) !important;
+}
+.state-danger .hover\:bg-rose-600:hover,
+.state-danger .hover\:bg-red-600:hover {
+  background-color: var(--color-danger-hover) !important;
+}
+.state-danger .text-rose-500,
+.state-danger .text-red-500 {
+  color: var(--color-danger) !important;
+}
+
+.state-info .bg-cyan-500,
+.state-info .bg-blue-500 {
+  background-color: var(--color-info) !important;
+}
+.state-info .hover\:bg-cyan-600:hover,
+.state-info .hover\:bg-blue-600:hover {
+  background-color: var(--color-info-hover) !important;
+}
+.state-info .text-cyan-500,
+.state-info .text-blue-500 {
+  color: var(--color-info) !important;
+}
+
+/* Text contrast utilities for colored backgrounds */
+.text-on-accent {
+  color: #2B2420;
+}
+.text-on-accent-light {
+  color: #FAF6EF;
+}
+.text-on-warning {
+  color: #2B2420;
+}
+.text-on-success {
+  color: #FAF6EF;
+}
+.text-on-danger {
+  color: #FAF6EF;
+}
+.text-on-info {
+  color: #FAF6EF;
 }

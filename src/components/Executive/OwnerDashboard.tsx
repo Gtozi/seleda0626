@@ -142,7 +142,7 @@ const OwnerDashboard = () => {
 
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((m, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div key={i} className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-[32px] shadow-sm dark:shadow-slate-900/20">
             <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${m.color} mb-4`}>
                <m.icon size={18} />
             </div>
@@ -157,7 +157,7 @@ const OwnerDashboard = () => {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
-         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+         <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-8 rounded-[40px] shadow-sm dark:shadow-slate-900/20">
             <div className="flex items-center justify-between mb-8">
                <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Portfolio Equity Growth ($M)</h3>
@@ -170,16 +170,16 @@ const OwnerDashboard = () => {
             <div className="h-72 w-full">
                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={equityData}>
-                     <XAxis dataKey="year" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
-                     <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
+                     <XAxis dataKey="year" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
+                     <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
                      <Tooltip />
-                     <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={4} fill="#6366f1" fillOpacity={0.05} />
+                     <Area type="monotone" dataKey="value" stroke="#B5563C" strokeWidth={4} fill="#B5563C" fillOpacity={0.05} />
                   </AreaChart>
                </ResponsiveContainer>
             </div>
          </div>
 
-         <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+         <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-8 rounded-[40px] shadow-sm dark:shadow-slate-900/20">
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8 font-sans">Active Capital Projects</h3>
             <div className="space-y-6">
                {capitalProjects.map((p, i) => (
@@ -191,13 +191,13 @@ const OwnerDashboard = () => {
                        </div>
                        <span className="text-[11px] font-black text-slate-900 dark:text-white">{p.progress.toFixed(0)}%</span>
                     </div>
-                    <div className="h-2 w-full bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden border border-slate-100 dark:border-slate-700">
+                    <div className="h-2 w-full bg-slate-50 dark:bg-slate-900/40 rounded-full overflow-hidden border border-slate-200/60 dark:border-slate-700/60">
                        <div className={`h-full ${p.color}`} style={{ width: `${p.progress}%` }} />
                     </div>
                  </div>
                ))}
             </div>
-            <button className="w-full mt-10 py-3 bg-slate-50 dark:bg-slate-800 rounded-2xl text-[10px] font-black uppercase text-slate-500 tracking-widest hover:bg-slate-900 hover:text-white transition group flex items-center justify-center gap-2">
+            <button className="w-full mt-10 py-3 bg-slate-50 dark:bg-slate-900/40 rounded-2xl text-[10px] font-black uppercase text-slate-500 dark:text-slate-400 tracking-widest hover:bg-slate-900 dark:hover:bg-slate-800 hover:text-white dark:hover:text-white transition group flex items-center justify-center gap-2">
                Investment Ledger
                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
             </button>

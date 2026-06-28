@@ -237,7 +237,7 @@ const StoreManagement: React.FC = () => {
            {stores.map((store) => {
               const itemsCount = getStoreStockCount(store.name);
               return (
-                <div key={store.id} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-3xs group hover:border-emerald-300 transition-all cursor-pointer">
+                <div key={store.id} className="bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 rounded-3xl p-6 shadow-3xs group hover:border-emerald-300 transition-all cursor-pointer dark:shadow-slate-900/20">
                    <div className="flex justify-between items-start mb-6">
                       <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-2xl text-slate-400 group-hover:text-emerald-500 transition-colors">
                          <Store size={24} />

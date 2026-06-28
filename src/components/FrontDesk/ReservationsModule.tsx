@@ -1130,10 +1130,10 @@ export default function ReservationsModule({
           </div>
 
           {/* Bookings Table / Grid */}
-          <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-slate-200/60 shadow-lg shadow-slate-200/50 bg-white/50 backdrop-blur-sm">
-            <table className="w-full text-left text-sm text-slate-700 border-collapse table-fixed" style={{ tableLayout: 'fixed' }}>
+          <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/20 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm">
+            <table className="w-full text-left text-sm text-slate-700 dark:text-slate-200 border-collapse table-fixed" style={{ tableLayout: 'fixed' }}>
               <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200/60 font-sans text-xs font-semibold text-slate-500 tracking-wide">
+                <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/60 dark:border-slate-700 font-sans text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide">
                   <th className="py-4 px-5 w-[100px]">Booking ID</th>
                   <th className="py-4 px-5 w-[80px]">Group ID</th>
                   <th className="py-4 px-5 w-[150px]">Guest Name</th>
@@ -1151,7 +1151,7 @@ export default function ReservationsModule({
                   <th className="py-4 px-5 w-[130px] text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100/60 bg-white/80">
+              <tbody className="divide-y divide-slate-100/60 dark:divide-slate-700/50 bg-white/80 dark:bg-slate-900/20">
                 {(() => {
                   // Group reservations by group ID
                   const groupMap = new Map<string, Reservation[]>();
@@ -1963,10 +1963,10 @@ export default function ReservationsModule({
 
               if (groupsToShow.length === 0 && individualsToShow.length === 0) {
                 return (
-                  <div className="py-12 text-center text-slate-400 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200 mt-2 space-y-1">
-                    <Users size={28} className="mx-auto text-slate-300 pb-1" />
-                    <p className="font-sans font-bold text-slate-750">No Bookings Found</p>
-                    <p className="font-sans text-xs text-slate-400 max-w-xs mx-auto">There are no profile reservations matching the search query or filtered status tags in database buffers.</p>
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 mt-2 space-y-1">
+                    <Users size={28} className="mx-auto text-slate-300 dark:text-slate-500 pb-1" />
+                    <p className="font-sans font-bold text-slate-750 dark:text-slate-300">No Bookings Found</p>
+                    <p className="font-sans text-xs text-slate-400 dark:text-slate-400 max-w-xs mx-auto">There are no profile reservations matching the search query or filtered status tags in database buffers.</p>
                   </div>
                 );
               }

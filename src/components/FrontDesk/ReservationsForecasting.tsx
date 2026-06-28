@@ -80,11 +80,7 @@ export default function ReservationsForecasting({
   const [fStrategy, setFStrategy] = useState<'optimistic' | 'defensive' | 'yield_max'>('yield_max');
   const [fPromoActive, setFPromoActive] = useState<boolean>(true);
   const [forecastSubTab, setForecastSubTab] = useState<'occupancy' | 'revenue' | 'distribution'>('occupancy');
-  const [aiSimulationLogs, setAiSimulationLogs] = useState<string[]>([
-    'Ledger analytics scanned: 24 room-nights capacity mapped.',
-    'Seasonal baseline multiplier detected: 1.0x (Standard spring shoulder).',
-    'AI recommended optimization strategy: yield_max activated.'
-  ]);
+  const [aiSimulationLogs, setAiSimulationLogs] = useState<string[]>([]);
 
   // Compile Forecast Data Realtime!
   const forecastData = useMemo(() => {

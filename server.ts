@@ -171,63 +171,63 @@ const fallbackUsers: Record<string, User & { password: string }> = {
   'housekeeping@erp.com': {
     id: 'U-102', name: 'Housekeeping Manager', email: 'housekeeping@erp.com',
     role: 'housekeeping', roleDescription: 'HK Supervisor', avatarInitials: 'HK',
-    status: 'Active', allowedTabs: ['frontoffice', 'housekeeping', 'settings'],
+    status: 'Active', allowedTabs: ['housekeeping', 'settings'],
     allowedSettings: { viewRoomOutlook: true },
     password: DEFAULT_PASSWORD,
   },
   'fb@erp.com': {
     id: 'U-103', name: 'F&B Director', email: 'fb@erp.com',
     role: 'f&b', roleDescription: 'Culinary Director', avatarInitials: 'FB',
-    status: 'Active', allowedTabs: ['frontoffice', 'f&b', 'settings'],
+    status: 'Active', allowedTabs: ['f&b', 'settings'],
     allowedSettings: { viewRoomOutlook: true },
     password: DEFAULT_PASSWORD,
   },
   'maintenance@erp.com': {
     id: 'U-104', name: 'Chief Engineer', email: 'maintenance@erp.com',
     role: 'maintenance', roleDescription: 'Chief Engineer', avatarInitials: 'CE',
-    status: 'Active', allowedTabs: ['frontoffice', 'maintenance', 'settings'],
+    status: 'Active', allowedTabs: ['maintenance', 'settings'],
     allowedSettings: { viewRoomOutlook: true },
     password: DEFAULT_PASSWORD,
   },
   'gm@erp.com': {
     id: 'U-105', name: 'General Manager', email: 'gm@erp.com',
     role: 'executive', roleDescription: 'General Manager', avatarInitials: 'GM',
-    status: 'Active', allowedTabs: ['frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'executive', 'admin', 'procurement', 'settings'],
+    status: 'Active', allowedTabs: ['executive', 'settings'],
     allowedSettings: { editGlobalSettings: true, adjustHotelTaxes: true, bypassHousekeepingLock: true, manageUserAccounts: true, viewRatePlans: true, editRatePlans: true, viewRoomOutlook: true, viewSalesCampaigns: true, manageSalesCampaigns: true },
     password: DEFAULT_PASSWORD,
   },
   'finance@erp.com': {
     id: 'U-106', name: 'Finance Controller', email: 'finance@erp.com',
     role: 'finance', roleDescription: 'Finance Controller', avatarInitials: 'FC',
-    status: 'Active', allowedTabs: ['frontoffice', 'finance', 'settings'],
+    status: 'Active', allowedTabs: ['finance', 'settings'],
     allowedSettings: { viewRatePlans: true, editRatePlans: true, adjustHotelTaxes: true },
     password: DEFAULT_PASSWORD,
   },
   'hr@erp.com': {
     id: 'U-107', name: 'HR Manager', email: 'hr@erp.com',
     role: 'hr', roleDescription: 'HR Manager', avatarInitials: 'HR',
-    status: 'Active', allowedTabs: ['frontoffice', 'hr', 'settings'],
+    status: 'Active', allowedTabs: ['hr', 'settings'],
     allowedSettings: { manageUserAccounts: true },
     password: DEFAULT_PASSWORD,
   },
   'inventory@erp.com': {
     id: 'U-108', name: 'Inventory Manager', email: 'inventory@erp.com',
     role: 'inventory', roleDescription: 'Stores Manager', avatarInitials: 'IM',
-    status: 'Active', allowedTabs: ['frontoffice', 'inventory', 'settings'],
+    status: 'Active', allowedTabs: ['inventory', 'settings'],
     allowedSettings: {},
     password: DEFAULT_PASSWORD,
   },
   'procurement@erp.com': {
     id: 'U-109', name: 'Procurement Lead', email: 'procurement@erp.com',
     role: 'procurement', roleDescription: 'Procurement Lead', avatarInitials: 'PL',
-    status: 'Active', allowedTabs: ['frontoffice', 'procurement', 'settings'],
+    status: 'Active', allowedTabs: ['procurement', 'settings'],
     allowedSettings: {},
     password: DEFAULT_PASSWORD,
   },
   'admin@erp.com': {
     id: 'U-110', name: 'System Administrator', email: 'admin@erp.com',
     role: 'admin', roleDescription: 'System Administrator', avatarInitials: 'SA',
-    status: 'Active', allowedTabs: ['frontoffice', 'admin', 'settings'],
+    status: 'Active', allowedTabs: ['admin', 'settings'],
     allowedSettings: { editGlobalSettings: true, adjustHotelTaxes: true, bypassHousekeepingLock: true, manageUserAccounts: true, manageRoles: true, viewRatePlans: true, editRatePlans: true, viewRoomOutlook: true, viewSalesCampaigns: true, manageSalesCampaigns: true },
     password: DEFAULT_PASSWORD,
   },
@@ -345,6 +345,46 @@ function deriveLegacyPermissions(permissionCodes: string[]): { allowedTabs: Allo
  * This unifies the permission model so the client works with a single source of truth.
  */
 async function enrichUserWithDerivedPermissions(user: User): Promise<User> {
+  // Apply role-based access control regardless of Supabase configuration
+  // System admin must only access admin portal
+  if (user.role === 'system_admin' || user.role === 'admin') {
+    return {
+      ...user,
+      allowedTabs: ['admin', 'settings'] as AllowedTab[],
+      allowedSettings: { ...(user.allowedSettings || {}) },
+    };
+  }
+  
+  // GM/executive accounts must only access executive, never operational departments or admin
+  if (user.role === 'general_manager' || user.role === 'gm' || user.role === 'owner' || user.role === 'executive') {
+    return {
+      ...user,
+      allowedTabs: ['executive', 'settings'] as AllowedTab[],
+      allowedSettings: { ...(user.allowedSettings || {}) },
+    };
+  }
+  
+  // Operational roles restricted to their specific department only
+  const roleToTab: Record<string, AllowedTab[]> = {
+    'frontoffice': ['frontoffice'],
+    'housekeeping': ['housekeeping'],
+    'f&b': ['f&b'],
+    'maintenance': ['maintenance'],
+    'inventory': ['inventory'],
+    'finance': ['finance'],
+    'hr': ['hr'],
+    'procurement': ['procurement'],
+  };
+  
+  if (roleToTab[user.role]) {
+    return {
+      ...user,
+      allowedTabs: roleToTab[user.role],
+      allowedSettings: { ...(user.allowedSettings || {}) },
+    };
+  }
+
+  // If Supabase is configured, fetch additional permissions from database
   if (!hasSupabaseAdminConfig || !supabaseAdmin) return user;
   try {
     const { data, error } = await supabaseAdmin
@@ -365,44 +405,6 @@ async function enrichUserWithDerivedPermissions(user: User): Promise<User> {
     });
 
     const derived = deriveLegacyPermissions(codes);
-    
-    // System admin must only access admin portal
-    if (user.role === 'system_admin' || user.role === 'admin') {
-      return {
-        ...user,
-        allowedTabs: ['frontoffice', 'admin', 'settings'] as AllowedTab[],
-        allowedSettings: { ...(derived.allowedSettings || {}), ...(user.allowedSettings || {}) },
-      };
-    }
-    
-    // GM/executive accounts must only access executive/admin, never operational departments
-    if (user.role === 'general_manager' || user.role === 'gm' || user.role === 'owner' || user.role === 'executive') {
-      return {
-        ...user,
-        allowedTabs: ['frontoffice', 'executive', 'admin', 'settings'] as AllowedTab[],
-        allowedSettings: { ...(derived.allowedSettings || {}), ...(user.allowedSettings || {}) },
-      };
-    }
-    
-    // Operational roles restricted to their specific department only
-    const roleToTab: Record<string, AllowedTab[]> = {
-      'frontoffice': ['frontoffice'],
-      'housekeeping': ['frontoffice', 'housekeeping'],
-      'f&b': ['frontoffice', 'f&b'],
-      'maintenance': ['frontoffice', 'maintenance'],
-      'inventory': ['frontoffice', 'inventory'],
-      'finance': ['frontoffice', 'finance'],
-      'hr': ['frontoffice', 'hr'],
-      'procurement': ['frontoffice', 'procurement'],
-    };
-    
-    if (roleToTab[user.role]) {
-      return {
-        ...user,
-        allowedTabs: roleToTab[user.role],
-        allowedSettings: { ...(derived.allowedSettings || {}), ...(user.allowedSettings || {}) },
-      };
-    }
     
     return {
       ...user,
@@ -758,14 +760,14 @@ async function startServer() {
       let { data, error } = await supabaseAdmin
         .from('audit_events')
         .select('*')
-        .order('timestamp', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(limit);
       if (error && error.code === '42P01') {
         await ensureAuditEventsTable();
         const result = await supabaseAdmin
           .from('audit_events')
           .select('*')
-          .order('timestamp', { ascending: false })
+          .order('created_at', { ascending: false })
           .limit(limit);
         data = result.data;
         error = result.error;

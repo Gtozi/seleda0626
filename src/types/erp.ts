@@ -591,6 +591,36 @@ export interface Notification {
   read: boolean;
 }
 
+export interface GuestCommunication {
+  id: string;
+  guestId: string;
+  reservationId?: string;
+  roomNumber?: string;
+  message: string;
+  messageType: 'Request' | 'Booking' | 'Inquiry' | 'Complaint' | 'Other';
+  status: 'Pending' | 'Resolved' | 'In Progress';
+  reply?: string;
+  createdAt: string;
+  repliedAt?: string;
+  repliedBy?: string;
+}
+
+export interface AirportShuttleRequest {
+  id: string;
+  guestId: string;
+  reservationId?: string;
+  roomNumber?: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  shuttleType: 'Pickup' | 'Drop-off';
+  flightNumber?: string;
+  flightTime?: string;
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ERPStats {
   occupancyRate: number; // percentage
   adr: number; // average daily rate in USD

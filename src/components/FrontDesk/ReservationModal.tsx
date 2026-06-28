@@ -109,28 +109,28 @@ export default function ReservationModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 16 }}
             transition={{ type: 'spring', damping: 24, stiffness: 320 }}
-            className="bg-gradient-to-br from-white to-slate-50/30 rounded-3xl border border-slate-200/80 shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col"
+            className="bg-gradient-to-br from-white dark:from-slate-900/30 to-slate-50/30 dark:to-slate-900/20 rounded-3xl border border-slate-200/80 dark:border-slate-700 shadow-2xl dark:shadow-slate-900/20 max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="shrink-0 px-6 py-5 border-b border-slate-200/60 flex items-center justify-between bg-gradient-to-r from-slate-50/80 to-white">
+            <div className="shrink-0 px-6 py-5 border-b border-slate-200/60 dark:border-slate-700 flex items-center justify-between bg-gradient-to-r from-slate-50/80 dark:from-slate-900/40 to-white dark:to-slate-900/30">
               <div className="min-w-0">
                 <h3
                   id="reservation-modal-title"
-                  className="text-base font-sans font-black text-slate-900 tracking-tight flex items-center gap-2.5"
+                  className="text-base font-sans font-black text-slate-900 dark:text-slate-200 tracking-tight flex items-center gap-2.5"
                 >
-                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 text-amber-600 shadow-sm">
+                  <span className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-900/30 dark:to-amber-800/20 text-amber-600 dark:text-amber-400 shadow-sm">
                     <Sparkles size={14} />
                   </span>
                   {title}
                 </h3>
-                <p className="text-xs text-slate-500 font-sans mt-0.5 truncate">
+                <p className="text-xs text-slate-500 dark:text-slate-400 font-sans mt-0.5 truncate">
                   {subtitle}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 ml-4 p-2 hover:bg-slate-200/80 rounded-full text-slate-400 hover:text-slate-700 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/40 hover:shadow-sm"
+                className="shrink-0 ml-4 p-2 hover:bg-slate-200/80 dark:hover:bg-slate-700/50 rounded-full text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-amber-500/40 hover:shadow-sm"
                 aria-label="Close modal"
               >
                 <X size={18} />
@@ -138,7 +138,7 @@ export default function ReservationModal({
             </div>
 
             {/* Tabs */}
-            <div className="shrink-0 px-6 py-3 border-b border-slate-200/60 bg-white flex gap-2">
+            <div className="shrink-0 px-6 py-3 border-b border-slate-200/60 dark:border-slate-700 bg-white dark:bg-slate-900/30 flex gap-2">
               <button
                 type="button"
                 onClick={() => setActiveTab('form')}
@@ -178,7 +178,7 @@ export default function ReservationModal({
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-white to-slate-50/20">
+            <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-white dark:from-slate-900/30 to-slate-50/20 dark:to-slate-900/20">
               <AnimatePresence mode="wait">
                 {successMsg && (
                   <motion.div
@@ -187,7 +187,7 @@ export default function ReservationModal({
                     exit={{ opacity: 0, y: -8, height: 0 }}
                     className="shrink-0 px-6 pt-4 overflow-hidden"
                   >
-                    <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-mono flex items-center gap-2.5 shadow-sm">
+                    <div className="p-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-mono flex items-center gap-2.5 shadow-sm">
                       <span className="p-1 bg-emerald-500 rounded-full text-white shrink-0">
                         <Check size={12} className="stroke-[3]" />
                       </span>
@@ -286,7 +286,7 @@ export default function ReservationModal({
                       exit={{ opacity: 0, x: 10 }}
                       transition={{ duration: 0.2 }}
                     >
-                      <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                      <div className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-6 shadow-sm dark:shadow-slate-900/20">
                         <h4 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                           <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 text-amber-600">
                             <Tag size={14} />

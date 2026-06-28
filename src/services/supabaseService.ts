@@ -764,11 +764,21 @@ export const supabaseService = {
   upsertPackage: async (pkg: Package): Promise<void> => upsertTable('packages', pkg, mapPackageToDb),
   deletePackage: async (id: string): Promise<void> => deleteFromTable('packages', id),
 
-  fetchGroupBookings: async (): Promise<GroupBooking[]> => fetchTable('group_bookings', mapGroupBookingFromDb, 'check_in_date'),
-  upsertGroupBooking: async (group: GroupBooking): Promise<void> => upsertTable('group_bookings', group, mapGroupBookingToDb),
+  fetchGroupBookings: async (): Promise<GroupBooking[]> => {
+    // Legacy table - migrated to group_profiles, return empty array
+    return [];
+  },
+  upsertGroupBooking: async (group: GroupBooking): Promise<void> => {
+    // Legacy table - migrated to group_profiles, no-op
+  },
 
-  fetchCorporateAccounts: async (): Promise<CorporateAccount[]> => fetchTable('corporate_accounts', mapCorporateAccountFromDb, 'company_name'),
-  upsertCorporateAccount: async (account: CorporateAccount): Promise<void> => upsertTable('corporate_accounts', account, mapCorporateAccountToDb),
+  fetchCorporateAccounts: async (): Promise<CorporateAccount[]> => {
+    // Legacy table - migrated to group_profiles, return empty array
+    return [];
+  },
+  upsertCorporateAccount: async (account: CorporateAccount): Promise<void> => {
+    // Legacy table - migrated to group_profiles, no-op
+  },
 
   fetchInventoryStores: async (): Promise<Store[]> => fetchTable('inventory_stores', mapStoreFromDb, 'name'),
   upsertInventoryStore: async (store: Store): Promise<void> => upsertTable('inventory_stores', store, mapStoreToDb),
@@ -785,7 +795,7 @@ export const supabaseService = {
   upsertInventoryRequisition: async (req: Requisition): Promise<void> => upsertTable('inventory_requisitions', req, mapRequisitionToDb),
   deleteInventoryRequisition: async (id: string): Promise<void> => deleteFromTable('inventory_requisitions', id),
 
-  fetchStockMovements: async (): Promise<StockMovement[]> => fetchTable('inventory_stock_movements', mapStockMovementFromDb, 'date'),
+  fetchStockMovements: async (): Promise<StockMovement[]> => fetchTable('inventory_stock_movements', mapStockMovementFromDb, 'movement_date'),
   upsertStockMovement: async (movement: StockMovement): Promise<void> => upsertTable('inventory_stock_movements', movement, mapStockMovementToDb),
 
   fetchInventoryGRNs: async (): Promise<GRN[]> => fetchTable('inventory_grns', mapGRNFromDb, 'received_date'),

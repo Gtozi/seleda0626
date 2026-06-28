@@ -127,7 +127,7 @@ const StrategicBI = () => {
     <div className="space-y-6 font-sans">
       <div className="grid lg:grid-cols-12 gap-6">
          {/* Demand Forecast */}
-         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+         <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-8 rounded-[40px] shadow-3xs dark:shadow-slate-900/20">
             <div className="flex items-center justify-between mb-8">
                <div>
                   <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Demand Velocity Forecast</h3>
@@ -147,16 +147,16 @@ const StrategicBI = () => {
             <div className="h-72 w-full">
                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={occupancyForecast}>
-                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                     <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
-                     <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} tickFormatter={(v) => `${v}%`} />
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3ECE0" />
+                     <XAxis dataKey="name" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
+                     <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} tickFormatter={(v) => `${v}%`} />
                      <Tooltip contentStyle={{ borderRadius: '16px', border: 'none' }} />
                      <Area type="monotone" dataKey="actual" fill="url(#colorActual)" stroke="none" />
-                     <Line type="monotone" dataKey="forecast" stroke="#6366f1" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4, fill: '#6366f1' }} />
+                     <Line type="monotone" dataKey="forecast" stroke="#B5563C" strokeWidth={3} strokeDasharray="5 5" dot={{ r: 4, fill: '#B5563C' }} />
                      <defs>
                         <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                           <stop offset="5%" stopColor="#cbd5e1" stopOpacity={0.2}/>
-                           <stop offset="95%" stopColor="#cbd5e1" stopOpacity={0}/>
+                           <stop offset="5%" stopColor="#C9BBA8" stopOpacity={0.2}/>
+                           <stop offset="95%" stopColor="#C9BBA8" stopOpacity={0}/>
                         </linearGradient>
                      </defs>
                   </ComposedChart>
@@ -165,7 +165,7 @@ const StrategicBI = () => {
          </div>
 
          {/* Market Share Radar */}
-         <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+         <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-8 rounded-[40px] shadow-3xs dark:shadow-slate-900/20">
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Channel Power Distribution</h3>
             <div className="h-64 w-full">
                <ResponsiveContainer width="100%" height="100%">
@@ -197,7 +197,7 @@ const StrategicBI = () => {
            { label: 'Market Position', value: 'Ranked #2 in Region', text: 'Top 5% for Guest Service Excellence scores in boutique luxury segment.', icon: Globe },
            { label: 'Customer Lifetime', value: `LTV: $${ltvStats.ltv.toLocaleString()}`, text: ltvStats.trend, icon: Target },
          ].map((p, i) => (
-           <div key={i} className="p-6 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] shadow-3xs hover:border-indigo-200 transition-colors">
+           <div key={i} className="p-6 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 rounded-[32px] shadow-3xs hover:border-indigo-200 transition-colors dark:shadow-slate-900/20">
               <div className="w-10 h-10 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-indigo-600 mb-6 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
                  <p.icon size={20} />
               </div>
@@ -212,7 +212,7 @@ const StrategicBI = () => {
       <div className="bg-gradient-to-r from-slate-50 to-indigo-50 dark:from-slate-900 dark:to-slate-800 border border-slate-200 dark:border-slate-700 p-8 rounded-[40px] shadow-3xs">
          <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-               <div className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
+               <div className="p-3 bg-white dark:bg-slate-900/30 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-slate-900/20">
                   <BarChart3 size={24} className="text-indigo-500" />
                </div>
                <div>

@@ -182,7 +182,7 @@ export default function RoomSelectionSection({
             <select
               value={roomType}
               onChange={(e) => onRoomTypeChange(e.target.value)}
-              className="flex-1 px-3 py-2.5 bg-white border border-slate-200/80 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm appearance-none"
+              className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm appearance-none"
             >
               {uniqueRoomTypes.map(type => (
                 <option key={type} value={type}>{type}</option>
@@ -194,7 +194,7 @@ export default function RoomSelectionSection({
               defaultValue="1"
               ref={countInputRef}
               placeholder="Qty"
-              className="w-20 px-3 py-2.5 bg-white border border-slate-200/80 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm"
+              className="w-20 px-3 py-2.5 bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm"
             />
             <button
               type="button"
@@ -216,7 +216,7 @@ export default function RoomSelectionSection({
                 <BedDouble size={10} />
                 Vacant {roomType} Rooms
               </label>
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">{availableCount}</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full">{availableCount}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
               {availableRooms.map(r => {

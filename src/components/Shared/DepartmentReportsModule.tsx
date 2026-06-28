@@ -76,7 +76,7 @@ export default function DepartmentReportsModule({ departmentName }: DepartmentRe
     if (!stats || stats.length === 0) return null;
     return (
       <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden mt-6 animate-fade-in">
-        <div className="p-4 bg-slate-50/50 dark:bg-slate-950/50 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
           <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
             <BarChart3 size={12} className="text-indigo-500" />
             Statistical Data Ledger
@@ -195,18 +195,18 @@ export default function DepartmentReportsModule({ departmentName }: DepartmentRe
                     <AreaChart data={timelineData}>
                       <defs>
                         <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#B5563C" stopOpacity={0.1}/>
+                          <stop offset="95%" stopColor="#B5563C" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
-                      <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#94a3b8'}} />
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#C9BBA8" />
+                      <XAxis dataKey="name" fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#6B5C4D'}} />
+                      <YAxis fontSize={10} axisLine={false} tickLine={false} tick={{fill: '#6B5C4D'}} />
                       <Tooltip 
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                         itemStyle={{ fontSize: '10px', fontWeight: 'bold' }}
                       />
-                      <Area type="monotone" dataKey="Value" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
+                      <Area type="monotone" dataKey="Value" stroke="#B5563C" strokeWidth={2} fillOpacity={1} fill="url(#colorValue)" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

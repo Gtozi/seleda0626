@@ -390,28 +390,28 @@ export default function ReservationForm({
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.35, duration: 0.35, ease: 'easeOut' }}
-        className="flex justify-end gap-3 pt-5 border-t border-slate-200/60"
+        className="flex justify-end gap-3 pt-5 border-t border-slate-200/60 dark:border-slate-700"
       >
         <div className="relative">
           {showDiscardConfirm && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute bottom-full mb-2 right-0 w-64 p-3 bg-white border border-slate-200 rounded-xl shadow-lg z-10"
+              className="absolute bottom-full mb-2 right-0 w-64 p-3 bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg dark:shadow-slate-900/20 z-10"
             >
-              <p className="text-[11px] text-slate-700 font-medium mb-2">Unsaved changes will be lost. Discard anyway?</p>
+              <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium mb-2">Unsaved changes will be lost. Discard anyway?</p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDiscardConfirm(false)}
-                  className="flex-1 px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg hover:bg-slate-200 transition"
+                  className="flex-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition"
                 >
                   Keep Editing
                 </button>
                 <button
                   type="button"
                   onClick={() => { setShowDiscardConfirm(false); onCancel(); }}
-                  className="flex-1 px-3 py-1.5 bg-rose-50 text-rose-600 text-[10px] font-bold rounded-lg hover:bg-rose-100 transition"
+                  className="flex-1 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-[10px] font-bold rounded-lg hover:bg-rose-100 dark:hover:bg-rose-900/40 transition"
                 >
                   Discard
                 </button>
@@ -421,7 +421,7 @@ export default function ReservationForm({
           <button
             type="button"
             onClick={handleDiscardClick}
-            className="px-6 py-2.5 bg-white border border-slate-200/80 text-slate-600 font-sans font-bold text-xs rounded-xl hover:bg-slate-50 hover:border-slate-300 transition-all duration-200 hover:shadow-sm active:scale-[0.98]"
+            className="px-6 py-2.5 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-sans font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-sm dark:hover:shadow-slate-900/20 active:scale-[0.98]"
           >
             Discard Changes
           </button>

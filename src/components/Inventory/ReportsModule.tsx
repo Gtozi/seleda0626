@@ -29,12 +29,12 @@ import {
 
 const ReportsModule: React.FC = () => {
   const departmentConsumptionData = [
-    { dept: 'Kitchen', value: 8500, color: '#10b981' },
-    { dept: 'Housekeeping', value: 6200, color: '#3b82f6' },
-    { dept: 'Bar', value: 3400, color: '#f59e0b' },
-    { dept: 'Front Desk', value: 800, color: '#6366f1' },
-    { dept: 'Engineering', value: 2100, color: '#8b5cf6' },
-    { dept: 'Admin', value: 450, color: '#94a3b8' },
+    { dept: 'Kitchen', value: 8500, color: '#5F7A4F' },
+    { dept: 'Housekeeping', value: 6200, color: '#5E7A78' },
+    { dept: 'Bar', value: 3400, color: '#C18A3B' },
+    { dept: 'Front Desk', value: 800, color: '#B5563C' },
+    { dept: 'Engineering', value: 2100, color: '#7C8463' },
+    { dept: 'Admin', value: 450, color: '#6B5C4D' },
   ];
 
   const valueTrend = [

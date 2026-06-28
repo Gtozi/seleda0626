@@ -136,7 +136,7 @@ const FinanceCommand = () => {
       deptMap[e.department] = (deptMap[e.department] || 0) + e.amount;
     });
     const total = Object.values(deptMap).reduce((sum, v) => sum + v, 0) || 1;
-    const colors = ['#6366f1', '#f59e0b', '#10b981', '#ec4899', '#94a3b8'];
+    const colors = ['#B5563C', '#C18A3B', '#5F7A4F', '#9C4A36', '#6B5C4D'];
     return Object.entries(deptMap)
       .slice(0, 5)
       .map(([name, value], i) => ({ name, value: Math.round((value / total) * 100), color: colors[i % colors.length] }));
@@ -212,7 +212,7 @@ const FinanceCommand = () => {
   return (
     <div className="space-y-6 font-sans">
       {/* Date Range Picker */}
-      <div className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-2xl">
+      <div className="flex items-center justify-between bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-4 rounded-2xl dark:shadow-slate-900/20">
         <div className="flex items-center gap-3">
           <Calendar size={18} className="text-indigo-500" />
           <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Date Range</span>
@@ -260,7 +260,7 @@ const FinanceCommand = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {revenueStats.map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+          <div key={i} className="bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-6 rounded-3xl shadow-3xs dark:shadow-slate-900/20">
             <div className={`text-[10px] font-black uppercase tracking-widest mb-1 ${stat.color}`}>{stat.label}</div>
             <div className="flex items-baseline justify-between mb-2">
                <h3 className="text-2xl font-black text-slate-900 dark:text-white leading-none">{stat.value}</h3>
@@ -273,7 +273,7 @@ const FinanceCommand = () => {
 
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Profitability Trend */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-6 rounded-[32px] shadow-3xs dark:shadow-slate-900/20">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Revenue vs Net Profit</h3>
@@ -293,19 +293,19 @@ const FinanceCommand = () => {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={profitabilityData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} />
-                <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#94a3b8' }} tickFormatter={(v) => `$${v/1000}k`} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3ECE0" />
+                <XAxis dataKey="month" axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} />
+                <YAxis axisLine={false} tickLine={false} fontSize={10} fontWeight={700} tick={{ fill: '#6B5C4D' }} tickFormatter={(v) => `$${v/1000}k`} />
                 <Tooltip contentStyle={{ borderRadius: '16px', border: 'none' }} />
-                <Bar dataKey="revenue" fill="#f1f5f9" radius={[4, 4, 0, 0]} barSize={24} />
-                <Bar dataKey="profit" fill="#6366f1" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="revenue" fill="#F3ECE0" radius={[4, 4, 0, 0]} barSize={24} />
+                <Bar dataKey="profit" fill="#B5563C" radius={[4, 4, 0, 0]} barSize={24} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
 
         {/* Expense Structure */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-6 rounded-[32px] shadow-3xs dark:shadow-slate-900/20">
           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Expense Decomposition</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">

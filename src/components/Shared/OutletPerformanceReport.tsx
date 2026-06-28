@@ -58,7 +58,7 @@ const OutletPerformanceReport: React.FC = () => {
     { id: 'TR-103', date: '2026-05-28 16:10', from: 'Restaurant Store', to: 'Bar Store', item: 'Lemons', qty: 5, status: 'In Transit' },
   ];
 
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b'];
+  const COLORS = ['#B5563C', '#5F7A4F', '#C18A3B'];
 
   return (
     <div className="space-y-6 pb-20">
@@ -140,7 +140,7 @@ const OutletPerformanceReport: React.FC = () => {
         </div>
 
         {/* Drink Consumption */}
-        <div className="xl:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+        <div className="xl:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-8 rounded-[40px] shadow-3xs dark:shadow-slate-900/20">
            <div className="flex items-center justify-between mb-8">
               <div>
                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Drink Consumption Comparison</h3>

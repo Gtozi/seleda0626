@@ -6,7 +6,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import {
   Room, Guest, Reservation, GroupBooking, CorporateAccount,
-  Promotion, MarketingCampaign, Notification, ERPStats,
+  Promotion, MarketingCampaign, Notification, ERPStats, GuestCommunication, AirportShuttleRequest,
   RatePlan, Season, Package, User, DispatchedEmail, GlobalHotelSettings,
   RoomStatus, ReservationStatus, RoomTypeMetadata, YieldPolicy, PendingAdminChange, AdminChangeType, RiskCompliance
 } from '../types/erp';
@@ -38,6 +38,8 @@ export interface ERPContextType {
   promotions: Promotion[];
   campaigns: MarketingCampaign[];
   notifications: Notification[];
+  guestCommunications: GuestCommunication[];
+  airportShuttleRequests: AirportShuttleRequest[];
   journals: JournalEntry[];
   salesTransactions: GlobalSaleTransaction[];
   chartOfAccounts: ChartOfAccount[];
@@ -101,6 +103,12 @@ export interface ERPContextType {
   addNotification: (message: string, type: Notification['type'], department: Notification['department']) => void;
   markNotificationRead: (id: string) => void;
   clearNotification: (id: string) => void;
+  addGuestCommunication: (comm: Omit<GuestCommunication, 'id' | 'createdAt'>) => string;
+  updateGuestCommunication: (id: string, updates: Partial<GuestCommunication>) => void;
+  deleteGuestCommunication: (id: string) => void;
+  addAirportShuttleRequest: (request: Omit<AirportShuttleRequest, 'id' | 'createdAt' | 'updatedAt'>) => string;
+  updateAirportShuttleRequest: (id: string, updates: Partial<AirportShuttleRequest>) => void;
+  deleteAirportShuttleRequest: (id: string) => void;
   addGroupBooking: (group: Omit<GroupBooking, 'id'>) => Promise<GroupBooking | undefined>;
   updateGroupBookingStatus: (id: string, status: GroupBooking['status']) => Promise<void>;
   addCorporateAccount: (account: Omit<CorporateAccount, 'id'>) => void;
@@ -190,23 +198,10 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
   const finance = useFinance();
 
   // Yield policies state
-  const [yieldPolicies, setYieldPolicies] = useState<YieldPolicy[]>([
-    { id: 'Standard', name: 'Standard Low-Seas Demand', description: 'No dynamic pricing multipliers. Base hotel rates apply directly.', multiplier: 1.0, isDefault: true },
-    { id: 'High Occupancy', name: 'High Peak Occupancy Demand Tiers', description: 'Applied when total occupancy exceeds 75%. Automates a price adjustment.', multiplier: 1.15, isDefault: true },
-    { id: 'Holiday Peak', name: 'Holiday & Summer Peak Season', description: 'Applied under prime travel holidays. Yields price dynamic uplift.', multiplier: 1.35, isDefault: true }
-  ]);
+  const [yieldPolicies, setYieldPolicies] = useState<YieldPolicy[]>([]);
 
   // Risk & Compliance state
-  const [riskCompliance, setRiskCompliance] = useState<RiskCompliance[]>([
-    { id: '1', title: 'Fire Safety Certification', category: 'Safety', status: 'Warning', expiryDate: '2024-12-31', owner: 'Engineering', description: 'Annual fire safety inspection and certification', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '2', title: 'Liquor License Renewal', category: 'Legal', status: 'Warning', expiryDate: '2024-06-30', owner: 'Executive', description: 'State liquor license renewal', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '3', title: 'GDPR / Data Privacy Audit', category: 'Compliance', status: 'Good', expiryDate: '2024-11-05', owner: 'Admin', description: 'Annual data privacy compliance audit', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '4', title: 'Asset Insurance Policy', category: 'Financial', status: 'Good', expiryDate: '2025-01-15', owner: 'Finance', description: 'Property and liability insurance coverage', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '5', title: 'Health & Safety Inspection', category: 'Safety', status: 'Good', expiryDate: '2024-09-30', owner: 'Engineering', description: 'Quarterly health and safety inspection', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '6', title: 'Food Safety Certificate', category: 'Compliance', status: 'Good', expiryDate: '2024-08-15', owner: 'F&B', description: 'Restaurant food handling certification', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '7', title: 'Building Permit Renewal', category: 'Legal', status: 'Good', expiryDate: '2025-03-01', owner: 'Engineering', description: 'Municipal building compliance', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: '8', title: 'Environmental Compliance', category: 'Compliance', status: 'Warning', expiryDate: '2024-07-31', owner: 'Engineering', description: 'Waste management and environmental standards', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
-  ]);
+  const [riskCompliance, setRiskCompliance] = useState<RiskCompliance[]>([]);
 
   const addYieldPolicy = useCallback((policy: Omit<YieldPolicy, 'id'>) => {
     const newId = `policy_${Date.now()}`;
@@ -282,12 +277,76 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     return best ? best.number : null;
   };
 
+  // Guest Communications state
+  const [guestCommunications, setGuestCommunications] = useState<GuestCommunication[]>([]);
+
+  const addGuestCommunication = useCallback((comm: Omit<GuestCommunication, 'id' | 'createdAt'>) => {
+    const newId = `comm_${Date.now()}`;
+    const newComm: GuestCommunication = {
+      ...comm,
+      id: newId,
+      createdAt: new Date().toISOString()
+    };
+    setGuestCommunications(prev => [...prev, newComm]);
+    return newId;
+  }, []);
+
+  const updateGuestCommunication = useCallback((id: string, updates: Partial<GuestCommunication>) => {
+    setGuestCommunications(prev => prev.map(comm => {
+      if (comm.id === id) {
+        return { ...comm, ...updates };
+      }
+      return comm;
+    }));
+  }, []);
+
+  const deleteGuestCommunication = useCallback((id: string) => {
+    setGuestCommunications(prev => prev.filter(comm => comm.id !== id));
+  }, []);
+
+  // Airport Shuttle Requests state
+  const [airportShuttleRequests, setAirportShuttleRequests] = useState<AirportShuttleRequest[]>([]);
+
+  const addAirportShuttleRequest = useCallback((request: Omit<AirportShuttleRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newId = `shuttle_${Date.now()}`;
+    const now = new Date().toISOString();
+    const newRequest: AirportShuttleRequest = {
+      ...request,
+      id: newId,
+      createdAt: now,
+      updatedAt: now
+    };
+    setAirportShuttleRequests(prev => [...prev, newRequest]);
+    return newId;
+  }, []);
+
+  const updateAirportShuttleRequest = useCallback((id: string, updates: Partial<AirportShuttleRequest>) => {
+    setAirportShuttleRequests(prev => prev.map(req => {
+      if (req.id === id) {
+        return { ...req, ...updates, updatedAt: new Date().toISOString() };
+      }
+      return req;
+    }));
+  }, []);
+
+  const deleteAirportShuttleRequest = useCallback((id: string) => {
+    setAirportShuttleRequests(prev => prev.filter(req => req.id !== id));
+  }, []);
+
   const value: ERPContextType = {
     ...system,
     ...guest,
     ...reservation,
     ...inventory,
     ...finance,
+    guestCommunications,
+    addGuestCommunication,
+    updateGuestCommunication,
+    deleteGuestCommunication,
+    airportShuttleRequests,
+    addAirportShuttleRequest,
+    updateAirportShuttleRequest,
+    deleteAirportShuttleRequest,
     campaigns: [],
     addCampaign: () => {},
     yieldPolicies,

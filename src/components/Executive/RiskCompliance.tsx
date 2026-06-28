@@ -25,7 +25,7 @@ const RiskCompliance = () => {
           { label: 'Upcoming Audits', value: String(upcomingAudits), sub: 'Next 30 Days', icon: Activity, color: 'text-amber-500' },
           { label: 'Compliant Assets', value: `${((compliantAssets / Math.max(riskCompliance.length, 1)) * 100).toFixed(1)}%`, sub: `${compliantAssets}/${riskCompliance.length} Verified`, icon: ShieldAlert, color: 'text-indigo-500' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div key={i} className="bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 p-6 rounded-[32px] shadow-3xs dark:shadow-slate-900/20">
             <stat.icon className={`mb-3 ${stat.color}`} size={18} />
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
             <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{stat.value}</h3>
@@ -35,7 +35,7 @@ const RiskCompliance = () => {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
-         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs font-sans">
+         <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 rounded-[32px] overflow-hidden shadow-3xs font-sans dark:shadow-slate-900/20">
             <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Risk Exposure Registry</h3>
                <div className="flex gap-2">

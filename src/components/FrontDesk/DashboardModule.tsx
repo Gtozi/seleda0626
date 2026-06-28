@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useERP } from '../../context/ERPContext';
-import { toISODate } from '../../utils/date';
+import { toISODate, formatTimeAgo } from '../../utils/date';
 import { Room, RoomStatus, Reservation } from '../../types/erp';
 import { 
   ResponsiveContainer, 
@@ -71,16 +71,22 @@ export default function DashboardModule({
   onProcessCheckout?: (resId: string) => void;
   onViewGuestProfile?: (guestId: string) => void;
 }) {
-  const { 
-    rooms, 
-    reservations, 
+  const {
+    rooms,
+    reservations,
     guests,
-    setRoomStatus, 
-    checkInReservation, 
-    checkOutReservation, 
+    guestCommunications,
+    addGuestCommunication,
+    updateGuestCommunication,
+    airportShuttleRequests,
+    addAirportShuttleRequest,
+    updateAirportShuttleRequest,
+    setRoomStatus,
+    checkInReservation,
+    checkOutReservation,
     assignRoomToReservation,
-    currentSystemDate, 
-    runNightAudit, 
+    currentSystemDate,
+    runNightAudit,
     stats,
     notifications,
     clearNotification,
@@ -143,54 +149,45 @@ export default function DashboardModule({
   };
 
   // Guest Communication Hub state
-  const [guestMessages, setGuestMessages] = useState([
-    {
-      id: 'MSG-001',
-      guestName: 'Alex Carter',
-      room: 'Room 102',
-      message: 'Can we get 2 extra towels for the Sunset trek preparation?',
-      time: '10m ago',
-      status: 'Pending',
-      type: 'Request'
-    },
-    {
-      id: 'MSG-002',
-      guestName: 'Guest Member A',
-      room: 'Room 304',
-      message: 'Could you book a local guide for the nearby heritage site tomorrow morning?',
-      time: '25m ago',
-      status: 'Pending',
-      type: 'Booking'
-    },
-    {
-      id: 'MSG-003',
-      guestName: 'Guest Member B',
-      room: 'Room 205',
-      message: 'Is the restaurant serving vegan fasting food tonight?',
-      time: '1h ago',
-      status: 'Resolved',
-      type: 'Inquiry',
-      reply: 'Yes, we have a full selection of regional fasting dishes tonight with vegan options.'
-    },
-  ]);
-  const [selectedMsgId, setSelectedMsgId] = useState<string>('MSG-001');
+  const [guestMessages, setGuestMessages] = useState(guestCommunications.map(comm => ({
+    id: comm.id,
+    guestName: guests.find(g => g.id === comm.guestId)?.name || 'Unknown Guest',
+    room: comm.roomNumber || 'N/A',
+    message: comm.message,
+    time: formatTimeAgo(comm.createdAt),
+    status: comm.status,
+    type: comm.messageType,
+    reply: comm.reply
+  })));
+  const [selectedMsgId, setSelectedMsgId] = useState<string>(guestCommunications[0]?.id || '');
   const [replyText, setReplyText] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string>('');
+
+  // Sync guestMessages with guestCommunications from context
+  useEffect(() => {
+    setGuestMessages(guestCommunications.map(comm => ({
+      id: comm.id,
+      guestName: guests.find(g => g.id === comm.guestId)?.name || 'Unknown Guest',
+      room: comm.roomNumber || 'N/A',
+      message: comm.message,
+      time: formatTimeAgo(comm.createdAt),
+      status: comm.status,
+      type: comm.messageType,
+      reply: comm.reply
+    })));
+  }, [guestCommunications, guests]);
 
   const handleSendReply = (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyText.trim()) return;
 
-    setGuestMessages(prev => prev.map(msg => {
-      if (msg.id === selectedMsgId) {
-        return {
-          ...msg,
-          status: 'Resolved',
-          reply: replyText
-        };
-      }
-      return msg;
-    }));
+    // Update the communication in the database/context
+    updateGuestCommunication(selectedMsgId, {
+      status: 'Resolved',
+      reply: replyText,
+      repliedAt: new Date().toISOString(),
+      repliedBy: 'Front Desk Agent'
+    });
 
     const activeMsg = guestMessages.find(m => m.id === selectedMsgId);
     if (activeMsg && addStructuredAuditLog) {
@@ -288,12 +285,17 @@ export default function DashboardModule({
 
   // 10. AIRPORT SHUTTLE REQUESTS (Advance Schedule: T+1)
   const tomorrowDate = currentSystemDate ? (() => { const d = new Date(currentSystemDate); d.setDate(d.getDate() + 1); return toISODate(d); })() : '';
-  const shuttleRequests = [
-    { id: 'SH-1', guestName: 'Eleanor Vance', room: '502', time: '14:30', type: 'Pickup', flight: 'UA 442', status: 'Confirmed' },
-    { id: 'SH-2', guestName: 'Marcus Brody', room: '201', time: '16:00', type: 'Drop-off', flight: 'BA 119', status: 'Pending' },
-    { id: 'SH-3', guestName: 'Amiya Chen', room: '102', time: '10:15', type: 'Drop-off', flight: 'SQ 021', status: 'Completed' },
-    { id: 'SH-4', guestName: 'Robert Stark', room: '403', time: '09:00', type: 'Pickup', flight: 'AF 112', status: 'Confirmed' },
-  ];
+  const shuttleRequests = airportShuttleRequests
+    .filter(req => req.scheduledDate === tomorrowDate)
+    .map(req => ({
+      id: req.id,
+      guestName: guests.find(g => g.id === req.guestId)?.name || 'Unknown Guest',
+      room: req.roomNumber || 'N/A',
+      time: req.scheduledTime,
+      type: req.shuttleType,
+      flight: req.flightNumber || 'N/A',
+      status: req.status
+    }));
 
   // 10. OVERBOOKING WARNINGS RISK RADAR
   const overbookingWarnings = calculateOverbookingRisk(rooms, reservations, currentSystemDate);
@@ -384,7 +386,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="stats-banner">
         
         {/* WIDGET 1: Arrivals Today */}
-        <div className="p-5 bg-gradient-to-br from-white to-emerald-50/30 border border-slate-200 rounded-2xl flex items-center justify-between card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-900/30 dark:to-emerald-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Arrivals Today</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -400,7 +402,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 2: Departures Today */}
-        <div className="p-5 bg-gradient-to-br from-white to-indigo-50/30 border border-slate-200 rounded-2xl flex items-center justify-between card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Departures Today</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -416,7 +418,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 3: In-house Guests Count */}
-        <div className="p-5 bg-gradient-to-br from-white to-amber-50/30 border border-slate-200 rounded-2xl flex items-center justify-between card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-amber-50/30 dark:from-slate-900/30 dark:to-amber-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">In-house Guests</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -432,7 +434,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 4: Occupancy % */}
-        <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 border border-slate-200 rounded-2xl card-shadow hover:card-shadow-hover transition-all duration-300 hover:-translate-y-0.5 space-y-1.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 space-y-1.5 smooth-transition">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Occupancy %</p>
@@ -458,7 +460,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* WIDGET 5: Revenue Snapshot */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 text-slate-900 rounded-3xl p-5 shadow-lg border border-indigo-200 flex flex-col justify-between space-y-4 hover:shadow-xl transition-shadow duration-300 backdrop-blur-xl smooth-transition">
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-900/20 text-slate-900 dark:text-slate-200 rounded-3xl p-5 shadow-lg dark:shadow-slate-900/20 border border-indigo-200 dark:border-indigo-700/50 flex flex-col justify-between space-y-4 hover:shadow-xl dark:hover:shadow-slate-900/30 transition-shadow duration-300 backdrop-blur-xl smooth-transition">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold">Finance Engine Ledger</span>
@@ -496,7 +498,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 6: Guest Communication Hub */}
-        <div className="bg-gradient-to-br from-white to-indigo-50/20 border border-slate-200 rounded-3xl p-5 card-shadow hover:card-shadow-hover transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
+        <div className="bg-gradient-to-br from-white to-indigo-50/20 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-slate-400 font-bold block flex items-center gap-1">
@@ -597,7 +599,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 10: Overbooking Warnings */}
-        <div className="bg-gradient-to-br from-white to-rose-50/20 border border-slate-200 rounded-3xl p-5 card-shadow hover:card-shadow-hover transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
+        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-slate-400 font-bold block">Overbooking Warnings</h4>
@@ -651,7 +653,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
 
         {/* WIDGET 11: Reservation Source Analytics */}
-        <div className="bg-gradient-to-br from-white to-slate-50/50 border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-300 space-y-3 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 space-y-3 flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-mono uppercase text-slate-400 font-bold">Source Revenue Analytics</h4>
             <p className="text-[10px] text-slate-500 font-sans">Reservations by incoming source channels.</p>
@@ -703,7 +705,7 @@ export default function DashboardModule({
         </div>
 
         {/* DEPARTURES CHECKLIST WIDGET */}
-        <div className="bg-gradient-to-br from-white to-rose-50/20 border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3">
+        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-rose-600 font-extrabold flex items-center gap-1">
@@ -723,7 +725,7 @@ export default function DashboardModule({
               </div>
             ) : (
               departuresToday.map(res => (
-                <div key={res.id} className="p-2.5 bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl space-y-2 transition-all duration-200 hover:shadow-md hover:border-slate-300">
+                <div key={res.id} className="p-2.5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/40 dark:to-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2 transition-all duration-200 hover:shadow-md dark:hover:shadow-slate-900/30 hover:border-slate-300 dark:hover:border-slate-600">
                    <div className="flex justify-between items-start">
                       <div>
                          <div className="font-bold text-xs text-slate-800">{res.guestName}</div>
@@ -750,7 +752,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 9: VIP Arrivals Spotlight */}
-        <div className="bg-gradient-to-br from-white to-amber-50/20 border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3">
+        <div className="bg-gradient-to-br from-white to-amber-50/20 dark:from-slate-900/30 dark:to-amber-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-teal-700 font-extrabold flex items-center gap-1">
@@ -770,7 +772,7 @@ export default function DashboardModule({
               </div>
             ) : (
               vipArrivals.map(res => (
-                <div key={res.id} className="p-2 bg-gradient-to-tr from-amber-50/50 to-indigo-50/10 border border-amber-100 rounded-xl space-y-1">
+                <div key={res.id} className="p-2 bg-gradient-to-tr from-amber-50/50 to-indigo-50/10 dark:from-amber-900/30 dark:to-indigo-900/20 border border-amber-100 dark:border-amber-700/50 rounded-xl space-y-1">
                   <div className="flex justify-between items-start">
                     <div>
                       <strong className="text-slate-800 text-xs block">{res.guestName}</strong>
@@ -814,7 +816,7 @@ export default function DashboardModule({
 
           <div className="space-y-2 flex-1 max-h-[145px] overflow-y-auto pr-1">
             {shuttleRequests.map(item => (
-              <div key={item.id} className="p-2.5 bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl space-y-1.5 transition-all duration-200 hover:shadow-md hover:border-slate-300">
+              <div key={item.id} className="p-2.5 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900/40 dark:to-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl space-y-1.5 transition-all duration-200 hover:shadow-md dark:hover:shadow-slate-900/30 hover:border-slate-300 dark:hover:border-slate-600">
                 <div className="flex justify-between items-start">
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5">
@@ -855,7 +857,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* WIDGET 12: Live Room Status Interactive Board (Takes 2 Columns) */}
-        <div className={`lg:col-span-2 bg-gradient-to-br from-white to-slate-50/50 border ${filterArrivalsToday ? 'border-emerald-300/60 ring-2 ring-emerald-500/10 shadow-emerald-100/30' : 'border-slate-200'} rounded-3xl p-4 sm:p-6 shadow-sm hover:shadow-md transition-all duration-500 space-y-4 sm:space-y-5`}>
+        <div className={`lg:col-span-2 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border ${filterArrivalsToday ? 'border-emerald-300/60 ring-2 ring-emerald-500/10 shadow-emerald-100/30' : 'border-slate-200 dark:border-slate-700'} rounded-3xl p-4 sm:p-6 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-500 space-y-4 sm:space-y-5`}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 border-b border-slate-100/80 pb-3 sm:pb-4">
             <div>
               <h3 className="text-xs sm:text-sm font-sans font-semibold text-slate-800 flex items-center gap-1.5">
@@ -870,7 +872,7 @@ export default function DashboardModule({
                 placeholder="Find room..."
                 value={roomSearch}
                 onChange={(e) => setRoomSearch(e.target.value)}
-                className="px-2 sm:px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-[10px] sm:text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 w-24 sm:w-32 transition-all duration-200"
+                className="px-2 sm:px-3 py-1.5 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] sm:text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 w-24 sm:w-32 transition-all duration-200"
               />
 
               <button
@@ -893,7 +895,7 @@ export default function DashboardModule({
               <select 
                 value={roomFilter} 
                 onChange={(e) => setRoomFilter(e.target.value as any)}
-                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] sm:text-xs font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer transition-all duration-200"
+                className="px-2 py-1 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] sm:text-xs font-mono text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer transition-all duration-200"
               >
                 <option value="all">All States</option>
                 <option value="Vacant Clean">Vacant Clean</option>
@@ -946,7 +948,7 @@ export default function DashboardModule({
         </div>
 
         {/* ARRIVALS CHECKLIST WIDGET SECTION */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-start transition-colors duration-300 pointer-events-auto">
+        <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 flex flex-col justify-start transition-colors duration-300 pointer-events-auto">
           <div className="border-b border-slate-100 pb-2.5 flex justify-between items-start gap-2">
             <div 
               className="cursor-pointer group flex flex-col"
@@ -967,7 +969,7 @@ export default function DashboardModule({
               </span>
               
               {/* Dynamic Mode Switcher */}
-              <div className="flex bg-slate-100 p-0.5 rounded-lg text-[9px] select-none border border-slate-200">
+              <div className="flex bg-slate-100 dark:bg-slate-800/50 p-0.5 rounded-lg text-[9px] select-none border border-slate-200 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setAllocationMode('standard')}
@@ -997,13 +999,13 @@ export default function DashboardModule({
 
           {/* If predictive mode & alerts/logs are active */}
           {allocationAlert && (
-            <div className="p-2.5 text-[10px] font-sans font-semibold rounded-lg bg-indigo-50 text-indigo-800 border border-indigo-150 animate-pulse">
+            <div className="p-2.5 text-[10px] font-sans font-semibold rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-700/50 animate-pulse">
               💡 {allocationAlert}
             </div>
           )}
 
           {allocationMode === 'predictive' && arrivalsToday.some(r => !r.roomNumber) && (
-            <div className="p-3 bg-gradient-to-br from-indigo-50/60 to-slate-50 border border-indigo-100 rounded-xl space-y-2">
+            <div className="p-3 bg-gradient-to-br from-indigo-50/60 to-slate-50 dark:from-indigo-900/20 dark:to-slate-900/20 border border-indigo-100 dark:border-indigo-700/50 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-2xs">
                 <div className="flex items-center gap-1 font-sans font-extrabold text-indigo-950">
                   <Sparkles size={11} className="text-amber-500 animate-spin" style={{ animationDuration: '6s' }} />
@@ -1028,7 +1030,7 @@ export default function DashboardModule({
 
           {/* Allocation Logs block */}
           {allocationMode === 'predictive' && allocationLog.length > 0 && (
-            <div className="p-2 bg-slate-50 rounded-lg border border-slate-200 max-h-[100px] overflow-y-auto space-y-1">
+            <div className="p-2 bg-slate-50 dark:bg-slate-900/20 rounded-lg border border-slate-200 dark:border-slate-700 max-h-[100px] overflow-y-auto space-y-1">
               <div className="text-[8px] font-mono uppercase text-slate-400 font-bold tracking-wider">Allocation Engine Outputs:</div>
               {allocationLog.map((logStr, idx) => (
                 <div key={idx} className="text-[9px] font-mono text-slate-600 leading-tight">
@@ -1250,7 +1252,7 @@ export default function DashboardModule({
       </div>
 
       {/* LOWER ROW: IN-HOUSE ACTIVE GUEST TABLE (WIDGET 3 FULL LEDGER) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4 transition-colors duration-300">
+      <div className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 transition-colors duration-300">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="text-sm font-sans font-semibold text-slate-80s text-slate-800 dark:text-white flex items-center gap-1.5">
@@ -1405,7 +1407,7 @@ export default function DashboardModule({
       {/* AUTOMATED NIGHT AUDIT CONFIRMATION */}
       {showAuditConfirm && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl max-w-md w-full p-5 space-y-4 border border-slate-100 dark:border-slate-850">
+          <div className="bg-white dark:bg-slate-900/30 rounded-2xl shadow-lg dark:shadow-slate-900/20 max-w-md w-full p-5 space-y-4 border border-slate-200/80 dark:border-slate-700">
             <div className="flex items-center gap-2 text-amber-600">
               <Moon size={20} className="animate-spin" />
               <h3 className="font-sans font-bold text-sm dark:text-white">Execute Night End & Tariff Ledger?</h3>

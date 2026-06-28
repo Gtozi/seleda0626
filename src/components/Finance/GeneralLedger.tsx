@@ -476,7 +476,7 @@ const GeneralLedger = () => {
            </div>
 
            {/* Journals Table */}
-           <div className="lg:col-span-12 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+           <div className="lg:col-span-12 bg-white dark:bg-slate-900/30 border border-slate-150 dark:border-slate-700 rounded-3xl overflow-hidden shadow-3xs dark:shadow-slate-900/20">
               <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
                  <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />

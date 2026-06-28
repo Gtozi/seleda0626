@@ -28,6 +28,7 @@ import { CORE_ADMIN_MODULES } from './components/Admin/adminModules';
 import ProcurementPortal from './components/Procurement/ProcurementPortal';
 import { User } from './types/erp';
 import { logout, verifySession } from './lib/auth';
+import { canAccessTab } from './lib/permissions';
 import {
   Map,
   Plus,
@@ -96,8 +97,11 @@ function MasterHotelERP() {
       if (!active) return;
       if (user) {
         setCurrentUser(user);
-        // Role-based routing - each role restricted to its specific department
-        setActiveDept('frontoffice');
+        // Set initial department based on user's allowed access
+        const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
+          ? user.allowedTabs[0] 
+          : 'frontoffice';
+        setActiveDept(initialDept);
       }
       setSessionChecked(true);
     });
@@ -124,11 +128,24 @@ function MasterHotelERP() {
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     
-    // All users default to front office desk portal
-    setActiveDept('frontoffice');
+    // Set initial department based on user's allowed access
+    // Default to first allowed tab, or frontoffice if not specified
+    const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
+      ? user.allowedTabs[0] 
+      : 'frontoffice';
+    setActiveDept(initialDept);
     
     // Navigate to ERP after successful login
     navigate('/erp');
+  };
+
+  const handleDeptChange = (dept: typeof activeDept) => {
+    // Check if user has access to the requested department
+    if (!canAccessTab(currentUser, dept)) {
+      console.warn(`Access denied: User does not have permission to access ${dept}`);
+      return;
+    }
+    setActiveDept(dept);
   };
 
   const handleLogout = async () => {
@@ -233,7 +250,7 @@ function MasterHotelERP() {
             <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
               <div className="flex items-center gap-2 text-xs">
                 <button 
-                  onClick={() => setActiveDept('settings')}
+                  onClick={() => handleDeptChange('settings')}
                   className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs relative border transition transition-all cursor-pointer ${
                     activeDept === 'settings' 
                       ? 'bg-indigo-600 border-indigo-500 text-white' 

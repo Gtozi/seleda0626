@@ -178,11 +178,16 @@ export const canAccessTab = (
     return user.allowedTabs.includes(tab as any);
   }
 
-  // Executive, General Manager, System Admin, Admin, GM, and Owner roles can access all tabs (when no explicit allowedTabs)
-  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'system_admin' || user.role === 'admin' || user.role === 'gm' || user.role === 'owner') return true;
+  // Fallback: if no explicit allowedTabs, restrict access based on role
+  // Admin/System Admin can only access admin
+  if (user.role === 'admin' || user.role === 'system_admin') {
+    return tab === 'admin';
+  }
 
-  // Admin tab is not accessible to non-admin roles without explicit allowedTabs
-  if (tab === 'admin') return false;
+  // Executive/GM/Owner can only access executive
+  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'gm' || user.role === 'owner') {
+    return tab === 'executive';
+  }
 
   // Default: user can only access their own role's tab
   return user.role === tab;

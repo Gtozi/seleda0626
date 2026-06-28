@@ -352,7 +352,7 @@ export default function ModernCalendar({
         <div className="min-w-[800px]">
           {/* Header Row */}
           <div className={`grid ${gridCols} border-b-2 border-slate-200 bg-gradient-to-r from-slate-50 to-slate-100 rounded-t-2xl`}>
-            <div className="py-3 px-4 font-bold text-xs font-mono uppercase text-slate-600 border-r border-slate-200">
+            <div className="py-3 px-4 font-bold text-xs font-mono uppercase text-slate-600 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700">
               Room
             </div>
             {dateRange.map((date, idx) => {
@@ -366,14 +366,14 @@ export default function ModernCalendar({
                     isToday ? 'bg-amber-100' : ''
                   } ${!isCurrentMonth && viewMode === 'month' ? 'opacity-50' : ''}`}
                 >
-                  <div className="text-xs font-bold font-sans text-slate-700">
+                  <div className="text-xs font-bold font-sans text-slate-700 dark:text-slate-300">
                     {format(date, 'EEE')}
                   </div>
-                  <div className={`text-sm font-black font-sans ${isToday ? 'text-amber-600' : 'text-slate-900'}`}>
+                  <div className={`text-sm font-black font-sans ${isToday ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-200'}`}>
                     {format(date, 'd')}
                   </div>
                   {viewMode === 'month' && (
-                    <div className="text-[9px] text-slate-400 font-mono uppercase">
+                    <div className="text-[9px] text-slate-400 dark:text-slate-500 font-mono uppercase">
                       {format(date, 'MMM')}
                     </div>
                   )}
@@ -403,13 +403,13 @@ export default function ModernCalendar({
                   className={`grid ${gridCols} hover:bg-gradient-to-r hover:from-slate-50 hover:to-transparent transition-all duration-200`}
                 >
                   {/* Room Info */}
-                  <div className="py-3 px-4 border-r border-slate-200 bg-slate-50/50 flex flex-col justify-center">
+                  <div className="py-3 px-4 border-r border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/20 flex flex-col justify-center">
                     <div className="flex items-center gap-2">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600 font-bold text-xs">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs">
                         {room.number}
                       </div>
                       <div>
-                        <div className="text-xs font-bold text-slate-800 font-sans">{room.type}</div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-slate-200 font-sans">{room.type}</div>
                         <div className="text-[10px] text-slate-400 font-mono uppercase">{room.status}</div>
                       </div>
                     </div>
@@ -484,8 +484,8 @@ export default function ModernCalendar({
                           isToday ? 'bg-amber-50/30' : ''
                         }`}
                       >
-                        <div className="w-full h-full border border-slate-100 rounded-lg bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 flex items-center justify-center">
-                          <div className="text-[9px] font-mono text-emerald-400/60 uppercase tracking-wider">
+                        <div className="w-full h-full border border-slate-100 dark:border-slate-700/40 rounded-lg bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center">
+                          <div className="text-[9px] font-mono text-emerald-400/60 dark:text-emerald-500/50 uppercase tracking-wider">
                             Vacant
                           </div>
                         </div>
@@ -500,8 +500,8 @@ export default function ModernCalendar({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-100">
-        <span className="text-[10px] font-bold text-slate-400 uppercase font-mono">Status Legend:</span>
+      <div className="flex flex-wrap items-center gap-4 pt-4 border-t border-slate-100 dark:border-slate-700/40">
+        <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase font-mono">Status Legend:</span>
         {([
           { status: 'CheckedIn', color: 'bg-emerald-500', label: 'Checked In' },
           { status: 'Confirmed', color: 'bg-sky-500', label: 'Confirmed' },
@@ -510,7 +510,7 @@ export default function ModernCalendar({
         ]).map((item) => (
           <div key={item.status} className="flex items-center gap-1.5">
             <span className={`w-2 h-2 rounded-full ${item.color}`} />
-            <span className="text-[10px] font-mono text-slate-500 uppercase">{item.label}</span>
+            <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 uppercase">{item.label}</span>
           </div>
         ))}
       </div>

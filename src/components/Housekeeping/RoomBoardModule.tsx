@@ -310,10 +310,10 @@ export default function RoomBoardModule({
             </AnimatePresence>
           </div>
         ) : (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
-            <table className="w-full text-left border-collapse text-[10px]">
+          <div className="bg-white dark:bg-slate-900rder border-slate-200 dark:border-slate-8008rounded-3xl overflow-hidden shadow-3xs">
+            <table className="w-full text-left border-collapse text-[10px] dark:text-slate-200">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-850 h-10 border-b dark:border-slate-800 text-slate-400 uppercase font-black tracking-widest">
+                <tr className="bg-slate-50 dark:bg-slate-900/40 h-10 border-b dark:border-slate-700 text-slate-400 dark:text-slate-300 uppercase font-black tracking-widest">
                   <th className="px-4">Room</th>
                   <th className="px-4">Type</th>
                   <th className="px-4">Status</th>
@@ -322,7 +322,7 @@ export default function RoomBoardModule({
                   <th className="px-4">Arrival / Dep.</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700/40">
                 {filteredRooms.map(room => {
                    const details = roomDetails[room.number] || { lastCleaned: 'N/A', housekeeper: 'Unassigned', arrival: 'N/A', departure: 'N/A' };
                    return (

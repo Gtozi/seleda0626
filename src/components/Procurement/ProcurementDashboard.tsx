@@ -56,7 +56,7 @@ const ProcurementDashboard = () => {
     { month: 'May', spend: 480000, savings: 32000 },
   ];
 
-  const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const COLORS = ['#B5563C', '#5F7A4F', '#C18A3B', '#9C4A36', '#7C8463'];
 
   return (
     <div className="space-y-6 text-sans">

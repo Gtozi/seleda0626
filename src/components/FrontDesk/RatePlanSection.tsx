@@ -44,10 +44,10 @@ export default function RatePlanSection({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2, duration: 0.35, ease: 'easeOut' }}
-      className="bg-white border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm"
+      className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 space-y-4 shadow-sm dark:shadow-slate-900/20"
     >
-      <h4 className="text-xs font-mono font-bold text-slate-500 uppercase flex items-center gap-2">
-        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 text-slate-500">
+      <h4 className="text-xs font-mono font-bold text-slate-500 dark:text-slate-300 uppercase flex items-center gap-2">
+        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300">
           <Tag size={12} />
         </span>
         Rate Plan & Dynamic Upsell
@@ -55,12 +55,12 @@ export default function RatePlanSection({
 
       <div className="space-y-3">
         <div className="space-y-1">
-          <label htmlFor="ratePlanId" className="text-[10px] font-bold text-slate-500 uppercase">Active Rate Plan</label>
+          <label htmlFor="ratePlanId" className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Active Rate Plan</label>
           <select
             id="ratePlanId"
             value={ratePlanId}
             onChange={(e) => onRatePlanChange(e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition appearance-none"
+            className="w-full px-3 py-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition appearance-none"
           >
             {ratePlans.map(plan => (
               <option key={plan.id} value={plan.id}>{plan.name} (x{plan.baseModifier})</option>
@@ -69,7 +69,7 @@ export default function RatePlanSection({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="promoCode" className="text-[10px] font-bold text-slate-500 uppercase">Promo Code</label>
+          <label htmlFor="promoCode" className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Promo Code</label>
           <div className="relative">
             <Tag size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
@@ -78,18 +78,18 @@ export default function RatePlanSection({
               value={promoCode}
               onChange={(e) => onPromoCodeChange(e.target.value)}
               placeholder="WINTER2024"
-              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition"
+              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition"
             />
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-bold text-slate-500 uppercase">Select Add-on Packages</label>
+          <label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase">Select Add-on Packages</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2" role="group" aria-label="Add-on packages">
             {packages.map(pkg => (
               <label
                 key={pkg.id}
-                className="flex items-center gap-2 p-2 bg-white border border-slate-100 rounded-lg cursor-pointer hover:border-amber-200 transition"
+                className="flex items-center gap-2 p-2 bg-white dark:bg-slate-900/30 border border-slate-100 dark:border-slate-700/40 rounded-lg cursor-pointer hover:border-amber-200 dark:hover:border-amber-600 transition"
               >
                 <input
                   type="checkbox"

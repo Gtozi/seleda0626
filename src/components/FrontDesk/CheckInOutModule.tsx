@@ -779,7 +779,7 @@ export default function CheckInOutModule({
                   </select>
 
                   {!['Cash', 'Room Charge'].includes(paymentMethod) && (
-                    <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1 animate-fade-in">
+                    <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-lg space-y-1 animate-fade-in">
                       <label className="text-xs font-mono uppercase text-slate-500 font-semibold">Receipt Screenshot</label>
                       <input
                         type="file"
@@ -940,7 +940,7 @@ export default function CheckInOutModule({
                 <div className="space-y-4" id="unified-billing-controls">
                   
                   {/* I. CLIENT INFO SECTION */}
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
                       <UserPlus size={14} className="text-indigo-600" />
                       <span className="text-xs font-sans font-semibold text-slate-800">
@@ -1008,7 +1008,7 @@ export default function CheckInOutModule({
                   </div>
 
                   {/* II. POST INCIDENTAL CHARGE SECTION */}
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
                       <PlusCircle size={14} className="text-indigo-600" />
                       <span className="text-xs font-sans font-semibold text-slate-800">
@@ -1082,7 +1082,7 @@ export default function CheckInOutModule({
                   </div>
 
                   {/* III. POST PAYMENT / CREDIT SECTION */}
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
                     <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
                       <CreditCard size={14} className="text-emerald-600" />
                       <span className="text-xs font-sans font-semibold text-slate-800">
@@ -1258,7 +1258,7 @@ export default function CheckInOutModule({
                 {selectedGroupKey ? (
                   <div className="space-y-4">
                     {/* Sponsor guest info */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
                       <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3 text-xs font-semibold text-slate-800 font-sans">
                         <Briefcase size={14} className="text-indigo-600 shrink-0" />
                         <span>Sponsor Contract Profile</span>
@@ -1340,7 +1340,7 @@ export default function CheckInOutModule({
                               e.target.value = '';
                             }
                           }}
-                          className="w-full px-2.5 py-2 bg-white border border-slate-200 text-xs rounded text-slate-600 font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                          className="w-full px-2.5 py-2 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 text-xs rounded text-slate-600 dark:text-slate-300 font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="">Link any other In-House Guest...</option>
                           {checkedInReservations

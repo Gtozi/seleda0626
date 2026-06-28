@@ -8,7 +8,7 @@
     <script>
       (function() {
         const saved = localStorage.getItem('erp-theme');
-        if (saved === 'dark' || (!saved)) {
+        if (saved === 'dark' || !saved) {
           document.documentElement.classList.add('dark');
         } else {
           document.documentElement.classList.remove('dark');
