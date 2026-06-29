@@ -89,7 +89,7 @@ function MasterHotelERP() {
   // ERP Sidebar/Page department selector (First front office completes requested screens)
   const [activeDept, setActiveDept] = useState<'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'settings'>('frontoffice');
 
-  const { systemUsers } = useERP();
+  const { systemUsers, syncUserProfile } = useERP();
 
   React.useEffect(() => {
     let active = true;
@@ -97,6 +97,14 @@ function MasterHotelERP() {
       if (!active) return;
       if (user) {
         setCurrentUser(user);
+        // Sync userProfile with actual authentication data
+        syncUserProfile({
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          avatar: user.avatarInitials,
+          lastLogin: new Date().toISOString()
+        });
         // Set initial department based on user's allowed access
         const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
           ? user.allowedTabs[0] 
@@ -425,10 +433,13 @@ function MasterHotelERP() {
                       <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="exec-sub-menu">
                         <button onClick={() => setExecDir('dashboard')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Overview</button>
                         <button onClick={() => setExecDir('operations')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['operations', 'approvals'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Operations</button>
-                        <button onClick={() => setExecDir('finance')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['finance', 'fin_controls', 'planning'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Financial</button>
-                        <button onClick={() => setExecDir('policies')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['policies', 'loyalty', 'revenue_mapping', 'pos_outlets', 'property', 'governance'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Business</button>
+                        <button onClick={() => setExecDir('finance')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['finance', 'planning'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Financial</button>
+                        <button onClick={() => setExecDir('business_admin')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'business_admin' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Business Admin</button>
+                        <button onClick={() => setExecDir('property_config')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'property_config' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Room Inventory</button>
+                        <button onClick={() => setExecDir('pricing_revenue')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'pricing_revenue' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Pricing & Revenue</button>
                         <button onClick={() => setExecDir('analytics')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['analytics', 'outlet_performance'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Analytics</button>
                         <button onClick={() => setExecDir('risk')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['risk', 'owner'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Strategic</button>
+                        <button onClick={() => setExecDir('governance')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'governance' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Governance</button>
                       </div>
                       {(() => {
                         const execSubTabs: Record<string, { id: string; label: string }[]> = {
@@ -438,16 +449,7 @@ function MasterHotelERP() {
                           ],
                           financial: [
                             { id: 'finance', label: 'Finance' },
-                            { id: 'fin_controls', label: 'Financial Controls' },
                             { id: 'planning', label: 'Planning' },
-                          ],
-                          business: [
-                            { id: 'policies', label: 'Policies' },
-                            { id: 'loyalty', label: 'Loyalty' },
-                            { id: 'revenue_mapping', label: 'Revenue Mapping' },
-                            { id: 'pos_outlets', label: 'POS & Outlets' },
-                            { id: 'property', label: 'Property' },
-                            { id: 'governance', label: 'Governance' },
                           ],
                           analytics: [
                             { id: 'analytics', label: 'Analytics' },

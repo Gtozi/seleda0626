@@ -10,7 +10,7 @@ import { Reservation } from '../../types/erp';
 import ReservationForm from './ReservationForm';
 import ModernCalendar from './ModernCalendar';
 import { ReservationFormData } from '../../schemas/reservationSchema';
-import { RoomType, RatePlan, Package, CorporateAccount, Room } from '../../types/erp';
+import { RoomType, RatePlan, Package, CorporateAccount, Room, RoomTypeDetail } from '../../types/erp';
 
 interface ReservationModalProps {
   isOpen: boolean;
@@ -23,6 +23,7 @@ interface ReservationModalProps {
   packages: Package[];
   corporateAccounts: CorporateAccount[];
   rooms: Room[];
+  roomTypes: RoomTypeDetail[];
   reservations: Reservation[];
   currency: string;
   formatAmount: (amount: number) => string;
@@ -45,6 +46,7 @@ export default function ReservationModal({
   packages,
   corporateAccounts,
   rooms,
+  roomTypes,
   reservations,
   currency,
   formatAmount,
@@ -247,6 +249,7 @@ export default function ReservationModal({
                 packages={packages}
                 corporateAccounts={corporateAccounts}
                 rooms={rooms}
+                roomTypes={roomTypes}
                 currency={currency}
                 formatAmount={formatAmount}
                 getYieldMultiplier={getYieldMultiplier}

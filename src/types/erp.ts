@@ -20,6 +20,25 @@ export interface Room {
   status: RoomStatus;
   rate: number;
   features: string[];
+  roomTypeId?: string; // Foreign key to room_types table
+}
+
+export interface RoomTypeDetail {
+  id: string;
+  name: string;
+  description: string;
+  basePrice: number;
+  maxOccupancy: number;
+  bedConfiguration: string;
+  roomSizeSqm: number;
+  amenities: string[];
+  imageUrl1: string;
+  imageUrl2?: string;
+  imageUrl3?: string;
+  isActive: boolean;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export type GuestStatus = 'VIP' | 'Regular' | 'Loyalty Member';
@@ -138,6 +157,7 @@ export interface Reservation {
   isDepositPaid?: boolean;
   ratePlanId?: string;
   packageIds?: string[];
+  guestServiceIds?: string[];
   additionalGuestIds?: string[];
   discountPercent?: number;
   taxPercent?: number;
@@ -560,6 +580,15 @@ export interface Package {
   chargeFrequency: 'once' | 'daily';
 }
 
+export interface GuestService {
+  id: string;
+  name: string;
+  description: string;
+  category: 'dining' | 'transportation' | 'laundry' | 'spa' | 'room_service' | 'concierge';
+  price: number;
+  available: boolean;
+}
+
 export interface Promotion {
   id: string;
   code: string;
@@ -913,6 +942,7 @@ export interface PendingAdminChange {
   changeType: AdminChangeType;
   submittedAt: string;
   submittedBy: string;
+  payload?: AdminOperationPayload;
   approvedBy?: string;
   approvedAt?: string;
   status: 'pending' | 'approved' | 'rejected';

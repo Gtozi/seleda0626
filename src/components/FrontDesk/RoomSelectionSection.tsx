@@ -5,8 +5,8 @@
 
 import React, { useRef } from 'react';
 import { motion } from 'motion/react';
-import { Layers, Clock, DoorOpen, BedDouble, CheckCircle2, Circle, Tag, X } from 'lucide-react';
-import { Room, RoomType } from '../../types/erp';
+import { Layers, Clock, DoorOpen, BedDouble, CheckCircle2, Circle, Tag, X, Image as ImageIcon, DollarSign, Users, Wifi, Coffee, Maximize } from 'lucide-react';
+import { Room, RoomType, RoomTypeDetail } from '../../types/erp';
 
 interface RoomSelection {
   roomType?: string;
@@ -22,6 +22,7 @@ interface RoomSelectionSectionProps {
   currentSystemDate: string;
   uniqueRoomTypes: string[];
   rooms: Room[];
+  roomTypes: RoomTypeDetail[];
   getTypeAvailability: (roomType: string, checkInDate: string, checkOutDate: string) => { available: number };
   onRoomTypeChange: (type: string) => void;
   onRoomSelectionsChange: (selections: RoomSelection[]) => void;
@@ -40,6 +41,7 @@ export default function RoomSelectionSection({
   currentSystemDate,
   uniqueRoomTypes,
   rooms,
+  roomTypes,
   getTypeAvailability,
   onRoomTypeChange,
   onRoomSelectionsChange,
@@ -130,6 +132,11 @@ export default function RoomSelectionSection({
   );
   const availableCount = availability.available;
 
+  // Get room type details
+  const getRoomTypeDetail = (type: string) => {
+    return roomTypes.find(rt => rt.name === type || rt.id === type);
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -176,34 +183,112 @@ export default function RoomSelectionSection({
         <div className="space-y-2">
           <label className="text-[10px] font-bold text-slate-600 uppercase flex items-center gap-2">
             <DoorOpen size={10} className="text-amber-500" />
-            Add Room Type
+            Select Room Type
           </label>
-          <div className="flex gap-2">
-            <select
-              value={roomType}
-              onChange={(e) => onRoomTypeChange(e.target.value)}
-              className="flex-1 px-3 py-2.5 bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm appearance-none"
-            >
-              {uniqueRoomTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </select>
-            <input
-              type="number"
-              min="1"
-              defaultValue="1"
-              ref={countInputRef}
-              placeholder="Qty"
-              className="w-20 px-3 py-2.5 bg-white dark:bg-slate-900/40 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition-all duration-200 shadow-sm"
-            />
-            <button
-              type="button"
-              onClick={handleAddRoomType}
-              className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:scale-[1.02] active:scale-[0.98]"
-            >
-              Add
-            </button>
+          
+          {/* Enhanced Room Type Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {roomTypes.filter(rt => rt.isActive).map((rt) => {
+              const rtDetail = getRoomTypeDetail(rt.name);
+              const isSelected = roomType === rt.name || roomType === rt.id;
+              const availability = getTypeAvailability(rt.name, effectiveCheckIn, effectiveCheckOut);
+              
+              return (
+                <motion.button
+                  key={rt.id}
+                  type="button"
+                  onClick={() => onRoomTypeChange(rt.name)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`relative overflow-hidden rounded-xl border-2 transition-all ${
+                    isSelected 
+                      ? 'border-amber-500 bg-amber-50 shadow-md' 
+                      : 'border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm'
+                  }`}
+                >
+                  {/* Room Type Image */}
+                  {rt.imageUrl1 && (
+                    <div className="relative h-24 bg-slate-100">
+                      <img
+                        src={rt.imageUrl1}
+                        alt={rt.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full">
+                        <span className="text-white text-[9px] font-bold">{availability.available} available</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Room Type Info */}
+                  <div className="p-3">
+                    <div className="flex justify-between items-start mb-1">
+                      <h5 className="text-xs font-black text-slate-900 uppercase">{rt.name}</h5>
+                      {isSelected && (
+                        <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
+                          <CheckCircle2 size={12} className="text-white" />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <p className="text-[9px] text-slate-500 line-clamp-2 mb-2">{rt.description}</p>
+                    
+                    {/* Key Details */}
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
+                        <DollarSign size={10} className="text-emerald-500" />
+                        <span className="font-bold">${rt.basePrice}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
+                        <Users size={10} className="text-indigo-500" />
+                        <span className="font-bold">{rt.maxOccupancy}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
+                        <Maximize size={10} className="text-amber-500" />
+                        <span className="font-bold">{rt.roomSizeSqm}sqm</span>
+                      </div>
+                    </div>
+                    
+                    {/* Amenities Preview */}
+                    <div className="flex flex-wrap gap-1">
+                      {rt.amenities.slice(0, 3).map((amenity, idx) => (
+                        <span key={idx} className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[8px]">
+                          {amenity}
+                        </span>
+                      ))}
+                      {rt.amenities.length > 3 && (
+                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[8px]">
+                          +{rt.amenities.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </motion.button>
+              );
+            })}
           </div>
+          
+          {/* Quantity Input and Add Button */}
+          {roomType && (
+            <div className="flex gap-2 items-center p-3 bg-amber-50 border border-amber-200 rounded-xl">
+              <input
+                type="number"
+                min="1"
+                defaultValue="1"
+                ref={countInputRef}
+                placeholder="Qty"
+                className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleAddRoomType}
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow-md"
+              >
+                Add to Selection
+              </button>
+            </div>
+          )}
+          
           {errors?.roomType && (
             <p className="text-[10px] text-rose-500 mt-1" role="alert">{errors.roomType}</p>
           )}

@@ -59,6 +59,7 @@ export interface SystemContextType {
   setUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
   updateProfile: (data: Partial<{ name: string; email: string; avatar: string }>) => void;
   updatePassword: (old: string, newP: string) => Promise<boolean>;
+  syncUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
   
   currentSystemDate: string;
   setCurrentSystemDate: (date: string) => void;
@@ -67,6 +68,7 @@ export interface SystemContextType {
 
   pendingAdminChanges: PendingAdminChange[];
   submitAdminChange: (change: Omit<PendingAdminChange, 'id' | 'submittedAt' | 'status'>) => void;
+  executeAdminChangeDirectly: (change: Omit<PendingAdminChange, 'id' | 'submittedAt' | 'status'>) => void;
   approveAdminChange: (id: string) => void;
   declineAdminChange: (id: string) => void;
   submitGlobalSettingsChange: (title: string, description: string, changeType: AdminChangeType, settings: Partial<GlobalHotelSettings>) => void;
@@ -315,6 +317,58 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
   }, [addStructuredAuditLog, userProfile]);
 
+  const executeAdminChangeDirectly = useCallback((change: Omit<PendingAdminChange, 'id' | 'submittedAt' | 'status'>) => {
+    const { operation, args } = change.payload as any;
+    // Execute the operation directly without governance approval
+    if (operation === 'addSystemUser') {
+      const newUser: User = { ...args[0], id: `U-${Date.now()}` };
+      setSystemUsers(u => [...u, newUser]);
+      supabaseService.insertSystemUser(newUser).catch(console.error);
+    } else if (operation === 'updateSystemUser') {
+      setSystemUsers(u => u.map(usr => usr.id === args[0] ? { ...usr, ...args[1] } : usr));
+      supabaseService.updateSystemUser(args[0], args[1]).catch(console.error);
+    } else if (operation === 'deleteSystemUser') {
+      setSystemUsers(u => u.filter(usr => usr.id !== args[0]));
+      supabaseService.deleteSystemUser(args[0]).catch(console.error);
+    } else if (operation === 'addCustomRole') {
+      const newRole: CustomRole = { ...args[0], id: `ROLE-${Date.now()}` };
+      setCustomRoles(r => [...r, newRole]);
+      supabaseService.upsertCustomRole(newRole).catch(console.error);
+    } else if (operation === 'updateCustomRole') {
+      setCustomRoles(r => r.map(role => role.id === args[0] ? { ...role, ...args[1] } : role));
+      supabaseService.upsertCustomRole(args[0]).catch(console.error);
+    } else if (operation === 'deleteCustomRole') {
+      setCustomRoles(r => r.filter(role => role.id !== args[0]));
+      supabaseService.deleteCustomRole(args[0]).catch(console.error);
+    } else if (operation === 'updateSecuritySettings') {
+      // Handle security settings updates
+      const settings = args[0];
+      // Update global settings or other security-related state
+      addStructuredAuditLog({
+        userId: userProfile?.id || 'system',
+        userName: change.submittedBy || 'System Admin',
+        device: 'Web Browser',
+        ipAddress: '192.168.1.100',
+        module: 'Security',
+        recordId: `SEC-${Date.now()}`,
+        action: 'SECURITY_SETTINGS_UPDATE',
+        details: `Security settings updated directly by executive: ${JSON.stringify(settings)}`
+      });
+    } else if (operation === 'deleteRoom') {
+      // Handle room deletion - this would need to be integrated with ERP context
+      addStructuredAuditLog({
+        userId: userProfile?.id || 'system',
+        userName: change.submittedBy || 'System Admin',
+        device: 'Web Browser',
+        ipAddress: '192.168.1.100',
+        module: 'Property',
+        recordId: `ROOM-${Date.now()}`,
+        action: 'ROOM_DELETION',
+        details: `Room ${args[0]} deleted directly by executive without governance approval`
+      });
+    }
+  }, [addStructuredAuditLog, userProfile]);
+
   const approveAdminChange = useCallback((id: string) => {
     setPendingAdminChanges(prev => {
       const change = prev.find(c => c.id === id);
@@ -397,6 +451,10 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [addStructuredAuditLog, userProfile]);
 
   const submitGlobalSettingsChange = useCallback((title: string, description: string, changeType: AdminChangeType, settings: Partial<GlobalHotelSettings>) => {
+    // Immediately apply the settings to global state
+    updateGlobalHotelSettings(settings);
+    
+    // Also submit to pending changes for audit trail
     submitAdminChange({
       title,
       description,
@@ -404,7 +462,7 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       submittedBy: userProfile.name || 'System Admin',
       payload: { operation: 'updateGlobalHotelSettings', args: [settings] }
     });
-  }, [submitAdminChange, userProfile]);
+  }, [submitAdminChange, userProfile, updateGlobalHotelSettings]);
 
   const updateRoomTypeMetadata = useCallback((type: RoomTypeMetadata['type'], updates: Partial<RoomTypeMetadata>) => {
     setRoomTypeMetadata(prev => prev.map(m => m.type === type ? { ...m, ...updates } : m));
@@ -416,8 +474,9 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Sync theme to DOM and localStorage
   useEffect(() => {
-    if (typeof document !== 'undefined') {
-      if (theme === 'dark') {
+    if (typeof document !== 'undefined' && typeof window !== 'undefined') {
+      const isBookingRoute = window.location.pathname.includes('booking');
+      if (theme === 'dark' && !isBookingRoute) {
         document.documentElement.classList.add('dark');
       } else {
         document.documentElement.classList.remove('dark');
@@ -433,6 +492,10 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const setUserProfileFull = useCallback((profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => {
+    setUserProfile(profile);
+  }, []);
+
+  const syncUserProfile = useCallback((profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => {
     setUserProfile(profile);
   }, []);
 
@@ -465,10 +528,10 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     roomTypeMetadata, updateRoomTypeMetadata,
     currency, setCurrency,
     theme, toggleTheme,
-    userProfile, setUserProfile: setUserProfileFull, updateProfile, updatePassword,
+    userProfile, setUserProfile: setUserProfileFull, updateProfile, updatePassword, syncUserProfile,
     currentSystemDate, setCurrentSystemDate,
     isSystemLoading,
-    pendingAdminChanges, submitAdminChange, approveAdminChange, declineAdminChange,
+    pendingAdminChanges, submitAdminChange, executeAdminChangeDirectly, approveAdminChange, declineAdminChange,
     submitGlobalSettingsChange
   };
 

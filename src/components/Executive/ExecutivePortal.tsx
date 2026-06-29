@@ -3,24 +3,20 @@ import ExecutiveDashboard from './ExecutiveDashboard';
 import OperationsCenter from './OperationsCenter';
 import ApprovalCenter from './ApprovalCenter';
 import FinanceCommand from './FinanceCommand';
+import BusinessAdmin from './BusinessAdmin';
+import PropertyAssetConfig from './PropertyAssetConfig';
 import OwnerDashboard from './OwnerDashboard';
 import StrategicBI from './StrategicBI';
 import BudgetPlanning from './BudgetPlanning';
 import RiskCompliance from './RiskCompliance';
 import OutletPerformanceReport from '../Shared/OutletPerformanceReport';
-import Governance from '../Admin/Governance';
-import FinancialRevenueControls from '../Admin/FinancialRevenueControls';
-import OperationalPolicies from '../Admin/OperationalPolicies';
-import LoyaltyProgram from '../Admin/LoyaltyProgram';
-import RevenueMapping from '../Admin/RevenueMapping';
-import POSSetup from '../Admin/POSSetup';
-import PropertyConfigurationSetup from '../Admin/PropertyConfigurationSetup';
+import PricingRevenueManagement from './PricingRevenueManagement';
+import BusinessAdminAudit from './BusinessAdminAudit';
 
 type ExecutiveModule =
-  | 'dashboard' | 'operations' | 'finance' | 'fin_controls' | 'policies'
-  | 'loyalty' | 'revenue_mapping' | 'pos_outlets' | 'property'
+  | 'dashboard' | 'operations' | 'finance' | 'business_admin' | 'property_config'
   | 'approvals' | 'analytics' | 'planning' | 'risk' | 'owner'
-  | 'outlet_performance' | 'governance';
+  | 'outlet_performance' | 'pricing_revenue' | 'governance';
 
 const ExecutivePortal = ({ activeModule = 'dashboard' }: { activeModule?: string }) => {
   const currentModule = activeModule as ExecutiveModule;
@@ -30,19 +26,16 @@ const ExecutivePortal = ({ activeModule = 'dashboard' }: { activeModule?: string
       {currentModule === 'dashboard' && <ExecutiveDashboard />}
       {currentModule === 'operations' && <OperationsCenter />}
       {currentModule === 'finance' && <FinanceCommand />}
-      {currentModule === 'fin_controls' && <FinancialRevenueControls />}
-      {currentModule === 'policies' && <OperationalPolicies />}
-      {currentModule === 'loyalty' && <LoyaltyProgram />}
-      {currentModule === 'revenue_mapping' && <RevenueMapping />}
-      {currentModule === 'pos_outlets' && <POSSetup />}
-      {currentModule === 'property' && <PropertyConfigurationSetup />}
+      {currentModule === 'business_admin' && <BusinessAdmin />}
+      {currentModule === 'property_config' && <PropertyAssetConfig />}
       {currentModule === 'analytics' && <StrategicBI />}
       {currentModule === 'outlet_performance' && <OutletPerformanceReport />}
       {currentModule === 'approvals' && <ApprovalCenter />}
       {currentModule === 'planning' && <BudgetPlanning />}
       {currentModule === 'risk' && <RiskCompliance />}
       {currentModule === 'owner' && <OwnerDashboard />}
-      {currentModule === 'governance' && <Governance />}
+      {currentModule === 'pricing_revenue' && <PricingRevenueManagement />}
+      {currentModule === 'governance' as ExecutiveModule && <BusinessAdminAudit />}
     </div>
   );
 };

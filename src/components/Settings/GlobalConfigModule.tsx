@@ -13,7 +13,8 @@ import {
   FileText,
   Plus,
   Trash2,
-  GripVertical
+  GripVertical,
+  ShieldCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -30,7 +31,7 @@ export default function GlobalConfigModule() {
     seasons,
     packages
   } = useERP();
-  const [activeSection, setActiveSection] = useState<'branding' | 'supabase'>('branding');
+  const [activeSection, setActiveSection] = useState<'branding' | 'financial' | 'policies' | 'terms' | 'supabase'>('branding');
 
   const [portalData, setPortalData] = useState({
     customHotelName: globalHotelSettings.customHotelName,
@@ -40,6 +41,24 @@ export default function GlobalConfigModule() {
     publicTagline: globalHotelSettings.publicTagline || '',
     heroImageUrl: globalHotelSettings.heroImageUrl || '',
     bookingTerms: globalHotelSettings.bookingTerms || '',
+    hotelTin: globalHotelSettings.hotelTin || '',
+    hotelVatNo: globalHotelSettings.hotelVatNo || '',
+    hotelVatDate: globalHotelSettings.hotelVatDate || '',
+    taxPercent: globalHotelSettings.taxPercent || 15,
+    serviceChargePercent: globalHotelSettings.serviceChargePercent || 10,
+    exchangeRate: globalHotelSettings.exchangeRate || 1,
+    cancellationGraceHours: globalHotelSettings.cancellationGraceHours || 24,
+    cancellationPenaltyPercent: globalHotelSettings.cancellationPenaltyPercent || 0,
+    creditLimitDefault: globalHotelSettings.creditLimitDefault || 0,
+    publicBookingEnabled: globalHotelSettings.publicBookingEnabled ?? true,
+    guestPortalEnabled: globalHotelSettings.guestPortalEnabled ?? true,
+    maintenanceMode: globalHotelSettings.maintenanceMode || false,
+    maintenanceMessage: globalHotelSettings.maintenanceMessage || '',
+    termsAdventureLiability: globalHotelSettings.termsAdventureLiability || '',
+    termsWaitlistProtocol: globalHotelSettings.termsWaitlistProtocol || '',
+    termsConservationDevotion: globalHotelSettings.termsConservationDevotion || '',
+    termsBillingCancellation: globalHotelSettings.termsBillingCancellation || '',
+    termsWildernessEmergency: globalHotelSettings.termsWildernessEmergency || '',
   });
   const [portalSaveStatus, setPortalSaveStatus] = useState<'idle' | 'saving' | 'success'>('idle');
   const [selectedMetaType, setSelectedMetaType] = useState(roomTypeMetadata[0]?.type || '');
@@ -97,7 +116,40 @@ export default function GlobalConfigModule() {
             }`}
           >
             <Globe size={18} />
-            Public Booking Branding
+            Branding
+          </button>
+          <button
+            onClick={() => setActiveSection('financial')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeSection === 'financial'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none translate-x-1'
+                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FileText size={18} />
+            Financial
+          </button>
+          <button
+            onClick={() => setActiveSection('policies')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeSection === 'policies'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none translate-x-1'
+                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <ShieldCheck size={18} />
+            Policies
+          </button>
+          <button
+            onClick={() => setActiveSection('terms')}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+              activeSection === 'terms'
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none translate-x-1'
+                : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <FileText size={18} />
+            Terms
           </button>
           <button
             onClick={() => setActiveSection('supabase')}
@@ -141,6 +193,24 @@ export default function GlobalConfigModule() {
                       publicTagline: portalData.publicTagline,
                       heroImageUrl: portalData.heroImageUrl,
                       bookingTerms: portalData.bookingTerms,
+                      hotelTin: portalData.hotelTin,
+                      hotelVatNo: portalData.hotelVatNo,
+                      hotelVatDate: portalData.hotelVatDate,
+                      taxPercent: portalData.taxPercent,
+                      serviceChargePercent: portalData.serviceChargePercent,
+                      exchangeRate: portalData.exchangeRate,
+                      cancellationGraceHours: portalData.cancellationGraceHours,
+                      cancellationPenaltyPercent: portalData.cancellationPenaltyPercent,
+                      creditLimitDefault: portalData.creditLimitDefault,
+                      publicBookingEnabled: portalData.publicBookingEnabled,
+                      guestPortalEnabled: portalData.guestPortalEnabled,
+                      maintenanceMode: portalData.maintenanceMode,
+                      maintenanceMessage: portalData.maintenanceMessage,
+                      termsAdventureLiability: portalData.termsAdventureLiability,
+                      termsWaitlistProtocol: portalData.termsWaitlistProtocol,
+                      termsConservationDevotion: portalData.termsConservationDevotion,
+                      termsBillingCancellation: portalData.termsBillingCancellation,
+                      termsWildernessEmergency: portalData.termsWildernessEmergency,
                     });
                     setPortalSaveStatus('success');
                     setTimeout(() => setPortalSaveStatus('idle'), 3000);
@@ -196,6 +266,231 @@ export default function GlobalConfigModule() {
                         <Save size={18} />
                       )}
                       {portalSaveStatus === 'success' ? 'Saved' : 'Save Branding'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {activeSection === 'financial' && (
+              <motion.div
+                key="financial"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm space-y-8"
+              >
+                <div>
+                  <h2 className="text-xl font-sans font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="text-indigo-600" size={24} />
+                    Financial Settings
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">Manage tax rates, service charges, and hotel identification details.</p>
+                </div>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setPortalSaveStatus('saving');
+                  setTimeout(() => {
+                    updateGlobalHotelSettings({
+                      hotelTin: portalData.hotelTin,
+                      hotelVatNo: portalData.hotelVatNo,
+                      hotelVatDate: portalData.hotelVatDate,
+                      taxPercent: portalData.taxPercent,
+                      serviceChargePercent: portalData.serviceChargePercent,
+                      exchangeRate: portalData.exchangeRate,
+                    });
+                    setPortalSaveStatus('success');
+                    setTimeout(() => setPortalSaveStatus('idle'), 3000);
+                  }, 600);
+                }} className="space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Hotel Identification</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Hotel TIN</label>
+                        <input type="text" value={portalData.hotelTin} onChange={e => setPortalData(p => ({ ...p, hotelTin: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">VAT Number</label>
+                        <input type="text" value={portalData.hotelVatNo} onChange={e => setPortalData(p => ({ ...p, hotelVatNo: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">VAT Date</label>
+                        <input type="text" value={portalData.hotelVatDate} onChange={e => setPortalData(p => ({ ...p, hotelVatDate: e.target.value }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Rates & Charges</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Tax Percent (%)</label>
+                        <input type="number" value={portalData.taxPercent} onChange={e => setPortalData(p => ({ ...p, taxPercent: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Service Charge (%)</label>
+                        <input type="number" value={portalData.serviceChargePercent} onChange={e => setPortalData(p => ({ ...p, serviceChargePercent: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Exchange Rate</label>
+                        <input type="number" step="0.01" value={portalData.exchangeRate} onChange={e => setPortalData(p => ({ ...p, exchangeRate: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+                  <hr className="border-slate-100 dark:border-slate-800" />
+                  <div className="flex justify-end gap-3">
+                    <button type="submit" disabled={portalSaveStatus === 'saving'} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50">
+                      {portalSaveStatus === 'saving' ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : portalSaveStatus === 'success' ? <CheckCircle2 size={18} /> : <Save size={18} />}
+                      {portalSaveStatus === 'success' ? 'Saved' : 'Save Financial'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {activeSection === 'policies' && (
+              <motion.div
+                key="policies"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm space-y-8"
+              >
+                <div>
+                  <h2 className="text-xl font-sans font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <ShieldCheck className="text-indigo-600" size={24} />
+                    Property Policies
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">Configure cancellation policies, credit limits, and system access controls.</p>
+                </div>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setPortalSaveStatus('saving');
+                  setTimeout(() => {
+                    updateGlobalHotelSettings({
+                      cancellationGraceHours: portalData.cancellationGraceHours,
+                      cancellationPenaltyPercent: portalData.cancellationPenaltyPercent,
+                      creditLimitDefault: portalData.creditLimitDefault,
+                      publicBookingEnabled: portalData.publicBookingEnabled,
+                      guestPortalEnabled: portalData.guestPortalEnabled,
+                      maintenanceMode: portalData.maintenanceMode,
+                      maintenanceMessage: portalData.maintenanceMessage,
+                    });
+                    setPortalSaveStatus('success');
+                    setTimeout(() => setPortalSaveStatus('idle'), 3000);
+                  }, 600);
+                }} className="space-y-8">
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Cancellation Policy</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Grace Period (Hours)</label>
+                        <input type="number" value={portalData.cancellationGraceHours} onChange={e => setPortalData(p => ({ ...p, cancellationGraceHours: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Penalty Percent (%)</label>
+                        <input type="number" value={portalData.cancellationPenaltyPercent} onChange={e => setPortalData(p => ({ ...p, cancellationPenaltyPercent: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Credit Settings</h3>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Default Credit Limit</label>
+                      <input type="number" value={portalData.creditLimitDefault} onChange={e => setPortalData(p => ({ ...p, creditLimitDefault: Number(e.target.value) }))} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200" />
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">System Access</h3>
+                    <div className="space-y-3">
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={portalData.publicBookingEnabled} onChange={e => setPortalData(p => ({ ...p, publicBookingEnabled: e.target.checked }))} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Enable Public Booking</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={portalData.guestPortalEnabled} onChange={e => setPortalData(p => ({ ...p, guestPortalEnabled: e.target.checked }))} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Enable Guest Portal</span>
+                      </label>
+                      <label className="flex items-center gap-3 cursor-pointer">
+                        <input type="checkbox" checked={portalData.maintenanceMode} onChange={e => setPortalData(p => ({ ...p, maintenanceMode: e.target.checked }))} className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-sm text-slate-700 dark:text-slate-300">Maintenance Mode</span>
+                      </label>
+                      {portalData.maintenanceMode && (
+                        <div className="space-y-1.5 ml-8">
+                          <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Maintenance Message</label>
+                          <textarea value={portalData.maintenanceMessage} onChange={e => setPortalData(p => ({ ...p, maintenanceMessage: e.target.value }))} rows={2} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <hr className="border-slate-100 dark:border-slate-800" />
+                  <div className="flex justify-end gap-3">
+                    <button type="submit" disabled={portalSaveStatus === 'saving'} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50">
+                      {portalSaveStatus === 'saving' ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : portalSaveStatus === 'success' ? <CheckCircle2 size={18} /> : <Save size={18} />}
+                      {portalSaveStatus === 'success' ? 'Saved' : 'Save Policies'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            )}
+
+            {activeSection === 'terms' && (
+              <motion.div
+                key="terms"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-sm space-y-8"
+              >
+                <div>
+                  <h2 className="text-xl font-sans font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <FileText className="text-indigo-600" size={24} />
+                    Legal Terms & Conditions
+                  </h2>
+                  <p className="text-sm text-slate-500 mt-1">Configure legal terms for various hotel operations and guest interactions.</p>
+                </div>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  setPortalSaveStatus('saving');
+                  setTimeout(() => {
+                    updateGlobalHotelSettings({
+                      termsAdventureLiability: portalData.termsAdventureLiability,
+                      termsWaitlistProtocol: portalData.termsWaitlistProtocol,
+                      termsConservationDevotion: portalData.termsConservationDevotion,
+                      termsBillingCancellation: portalData.termsBillingCancellation,
+                      termsWildernessEmergency: portalData.termsWildernessEmergency,
+                    });
+                    setPortalSaveStatus('success');
+                    setTimeout(() => setPortalSaveStatus('idle'), 3000);
+                  }, 600);
+                }} className="space-y-8">
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Adventure Liability Waiver</label>
+                      <textarea value={portalData.termsAdventureLiability} onChange={e => setPortalData(p => ({ ...p, termsAdventureLiability: e.target.value }))} rows={3} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Waitlist Protocol</label>
+                      <textarea value={portalData.termsWaitlistProtocol} onChange={e => setPortalData(p => ({ ...p, termsWaitlistProtocol: e.target.value }))} rows={3} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Conservation Devotion Policy</label>
+                      <textarea value={portalData.termsConservationDevotion} onChange={e => setPortalData(p => ({ ...p, termsConservationDevotion: e.target.value }))} rows={3} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Billing & Cancellation Terms</label>
+                      <textarea value={portalData.termsBillingCancellation} onChange={e => setPortalData(p => ({ ...p, termsBillingCancellation: e.target.value }))} rows={3} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-mono uppercase text-slate-450 tracking-wider font-bold">Wilderness Emergency Protocol</label>
+                      <textarea value={portalData.termsWildernessEmergency} onChange={e => setPortalData(p => ({ ...p, termsWildernessEmergency: e.target.value }))} rows={3} className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200 resize-none" />
+                    </div>
+                  </div>
+                  <hr className="border-slate-100 dark:border-slate-800" />
+                  <div className="flex justify-end gap-3">
+                    <button type="submit" disabled={portalSaveStatus === 'saving'} className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition disabled:opacity-50">
+                      {portalSaveStatus === 'saving' ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : portalSaveStatus === 'success' ? <CheckCircle2 size={18} /> : <Save size={18} />}
+                      {portalSaveStatus === 'success' ? 'Saved' : 'Save Terms'}
                     </button>
                   </div>
                 </form>

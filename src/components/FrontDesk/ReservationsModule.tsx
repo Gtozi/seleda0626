@@ -57,6 +57,7 @@ export default function ReservationsModule({
 }) {
   const {
     rooms,
+    roomTypes,
     reservations,
     addReservation,
     guests,
@@ -87,6 +88,7 @@ export default function ReservationsModule({
     addPackage,
     updatePackage,
     deletePackage,
+    guestServices,
     corporateAccounts,
     groupBookings,
     addGroupBooking,
@@ -415,6 +417,33 @@ export default function ReservationsModule({
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
   const [selectedCalendarRes, setSelectedCalendarRes] = useState<any | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+
+  const renderAddonsCell = (res: Reservation) => {
+    const countIds = (ids: string[]) => {
+      const counts = new Map<string, number>();
+      ids.forEach(id => counts.set(id, (counts.get(id) || 0) + 1));
+      return counts;
+    };
+    const pkgCounts = countIds(res.packageIds || []);
+    const serviceCounts = countIds(res.guestServiceIds || []);
+    const items: { label: string; quantity: number }[] = [];
+    pkgCounts.forEach((qty, id) => {
+      items.push({ label: packages.find(p => p.id === id)?.name || id, quantity: qty });
+    });
+    serviceCounts.forEach((qty, id) => {
+      items.push({ label: guestServices.find(gs => gs.id === id)?.name || id, quantity: qty });
+    });
+    if (items.length === 0) return <span className="text-xs text-slate-400 italic">—</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((item, i) => (
+          <span key={i} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded border border-amber-200/60">
+            {item.label}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
   const getDailyRateForType = (type: RoomType, ratePlanId?: string, promoCode?: string) => {
     return calculateDailyRate(type, ratePlanId || 'RP-STD', ratePlans, promotions, promoCode);
@@ -1145,6 +1174,7 @@ export default function ReservationsModule({
                   <th className="py-4 px-5 w-[80px]">Channel</th>
                   <th className="py-4 px-5 w-[80px]">Rate</th>
                   <th className="py-4 px-5 w-[80px]">Total</th>
+                  <th className="py-4 px-5 w-[100px]">Add-ons / Packages</th>
                   <th className="py-4 px-5 w-[80px]">Deposit</th>
                   <th className="py-4 px-5 w-[120px]">Notes</th>
                   <th className="py-4 px-5 w-[60px] text-center">Status</th>
@@ -1282,6 +1312,7 @@ export default function ReservationsModule({
                               <td className="py-3 px-5 text-xs text-slate-600">
                                 {formatAmount(totalRevenue)}
                               </td>
+                              <td className="py-3 px-5 text-xs text-slate-600 italic">—</td>
                               <td className="py-3 px-5">
                                 <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
                                   isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
@@ -1409,6 +1440,7 @@ export default function ReservationsModule({
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.channel}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(res.rate)}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(res.totalAmount)}</td>
+                                  <td className="py-3 px-5 pl-12">{renderAddonsCell(res)}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.depositAmount > 0 ? formatAmount(res.depositAmount) : '—'}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-500 max-w-[120px] truncate">{res.notes || '—'}</td>
                                   <td className="py-3 px-5 pl-12 text-center">
@@ -1518,11 +1550,6 @@ export default function ReservationsModule({
                           {res.ratePlanId && (
                             <div className="text-[10px] text-indigo-600 uppercase font-bold mt-1 flex items-center gap-1">
                               <Tag size={10} /> {ratePlans.find(p => p.id === res.ratePlanId)?.name || res.ratePlanId}
-                            </div>
-                          )}
-                          {res.packageIds && res.packageIds.length > 0 && (
-                            <div className="text-[10px] text-amber-600 uppercase font-bold mt-1 flex items-center gap-1">
-                              <Sparkles size={10} /> {res.packageIds.length} Add-on(s)
                             </div>
                           )}
                         </td>
@@ -1677,6 +1704,9 @@ export default function ReservationsModule({
                             {res.paymentStatus}
                           </span>
                         </td>
+
+                        {/* Add-ons / Packages */}
+                        <td className="py-4 px-5">{renderAddonsCell(res)}</td>
 
                         {/* Deposit */}
                         <td className="py-4 px-5 font-sans">
@@ -2135,159 +2165,25 @@ export default function ReservationsModule({
 
       {/* YIELD & PRICE POLICY CONTROLLER */}
       {activeTab === 'yield' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-6 animate-fade-in text-slate-850 dark:text-slate-100 transition-colors">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-sm font-sans font-bold text-slate-900 dark:text-white">Dynamic Rate & Yield Policy Console</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Optimize RevPAR dynamically through real-time occupancy and market based adjustments.</p>
-            </div>
-            <button
-              onClick={handleAddYieldPolicy}
-              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-750 text-white font-sans font-bold text-xs rounded-xl shadow-2xs hover:shadow-1xs active:scale-[0.98] transition-all flex items-center gap-1.5 self-start cursor-pointer border border-transparent"
-            >
-              <Plus size={14} /> Add Custom Yield Tier
-            </button>
+        <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4 animate-fade-in text-slate-850 dark:text-slate-100 transition-colors">
+          <div className="flex justify-between items-center">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Yield Pricing Policies</h3>
           </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left/Middle Column: Configuration of active policy & rule cards */}
-            <div className="lg:col-span-2 space-y-4">
-              <span className="text-[10px] font-mono uppercase text-slate-450 dark:text-slate-500 font-extrabold block">Configure & Modify Multiplier Tiers</span>
-              
-              <div className="space-y-3">
-                {yieldPolicies.map((policy) => {
-                  const isActive = demandTier === policy.id;
-                  return (
-                    <div 
-                      key={policy.id}
-                      className={`p-4 border rounded-2xl transition-all duration-150 relative ${
-                        isActive 
-                          ? 'bg-indigo-50/40 dark:bg-indigo-950/15 border-indigo-500 shadow-3xs' 
-                          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-350 dark:hover:border-slate-700 shadow-3xs'
-                      }`}
-                    >
-                      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
-                        
-                        {/* Selector/Radio Left */}
-                        <div className="flex items-start gap-3 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => setDemandTier(policy.id)}
-                            className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-1 cursor-pointer transition ${
-                              isActive 
-                                ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40' 
-                                : 'border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800'
-                            }`}
-                          >
-                            {isActive && <div className="w-2.5 h-2.5 rounded-full bg-indigo-600 dark:bg-indigo-400"></div>}
-                          </button>
-
-                          <div className="space-y-2 flex-1">
-                            {/* Editable Title */}
-                            <input
-                              type="text"
-                              value={policy.name}
-                              onChange={(e) => handleUpdateYieldPolicy(policy.id, { name: e.target.value })}
-                              className="font-bold text-xs bg-transparent border-b border-transparent hover:border-slate-200 dark:hover:border-slate-750 focus:border-indigo-500 px-1 py-0.5 rounded text-slate-900 dark:text-white w-full outline-hidden font-sans"
-                              placeholder="Policy Name"
-                            />
-
-                            {/* Editable Description */}
-                            <textarea
-                              value={policy.description}
-                              rows={1}
-                              onChange={(e) => handleUpdateYieldPolicy(policy.id, { description: e.target.value })}
-                              className="text-2xs bg-transparent border-b border-transparent hover:border-slate-150 dark:hover:border-slate-750 focus:border-indigo-500 px-1 py-0.5 rounded text-slate-500 dark:text-slate-400 w-full outline-hidden font-sans resize-none"
-                              placeholder="Add a trigger description..."
-                            />
-                          </div>
-                        </div>
-
-                        {/* Multiplier / Delete Right */}
-                        <div className="flex items-center md:items-center gap-3 justify-between md:justify-end">
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-3xs font-mono uppercase text-slate-400 dark:text-slate-500 font-bold">Multiplier</span>
-                            <div className="flex items-center bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-1.5 py-1">
-                              <input
-                                type="number"
-                                step="0.05"
-                                min="0.10"
-                                max="5.00"
-                                value={policy.multiplier}
-                                onChange={(e) => {
-                                  const val = e.target.value === '' ? 1.0 : parseFloat(e.target.value);
-                                  handleUpdateYieldPolicy(policy.id, { multiplier: isNaN(val) ? 1.0 : val });
-                                }}
-                                className="w-14 text-center font-mono font-bold text-xs bg-transparent text-slate-800 dark:text-white outline-hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                              />
-                              <span className="text-3xs font-mono text-slate-400 select-none">x</span>
-                            </div>
-                          </div>
-
-                          {!policy.isDefault && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteYieldPolicy(policy.id)}
-                              className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition cursor-pointer"
-                              title="Delete policy tier"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          )}
-                        </div>
-
-                      </div>
-                      
-                      {isActive && (
-                        <div className="absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-950 text-indigo-750 dark:text-indigo-400 rounded-md text-[8px] font-mono tracking-wider font-extrabold border border-indigo-200 dark:border-indigo-805 uppercase select-none">
-                          Active Target
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Right Column: Previews and assistant */}
-            <div className="space-y-4">
-              <span className="text-[10px] font-mono uppercase text-slate-450 dark:text-slate-500 font-extrabold block">Market Intelligence & Forecasts</span>
-              
-              <div className="p-4 bg-indigo-50 dark:bg-indigo-955/20 border border-indigo-150 dark:border-indigo-900/50 rounded-2xl space-y-2">
-                <h4 className="text-xs font-mono uppercase text-indigo-700 dark:text-indigo-400 font-extrabold flex items-center gap-1">
-                  <TrendingUp size={14} /> AI Yield Assistant recommendation
-                </h4>
-                <p className="text-xs text-indigo-850 dark:text-indigo-300 leading-relaxed font-sans">
-                  "Current market indicators show competitor pricing trending elevated in the downtown sector. Increasing demand to <span className="font-extrabold">{"High Occupancy"}</span> which is currently {yieldPolicies.find(p => p.id === 'High Occupancy')?.multiplier || '1.15'}x will lift RevPAR by ~12.4%."
-                </p>
-              </div>
-
-              <div className="p-4 bg-slate-50 dark:bg-slate-800/20 border border-slate-150 dark:border-slate-800 rounded-2xl space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-mono uppercase text-slate-450 dark:text-slate-405 font-bold">Dynamic Tariffs preview</h4>
-                  <span className="text-[10px] font-mono py-0.5 px-2 bg-slate-200 dark:bg-slate-850 rounded-full font-bold">
-                    Active: {getYieldMultiplier()}x
-                  </span>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {yieldPolicies.map(policy => (
+              <div key={policy.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
+                <div className="flex justify-between items-start">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">{policy.name}</h4>
+                  {policy.isDefault && (
+                    <span className="text-indigo-600 font-bold text-[10px]">Default</span>
+                  )}
                 </div>
-                
-                <div className="space-y-1.5 font-mono text-xs">
-                  <div className="flex justify-between py-1.5 border-b border-b-slate-100 dark:border-b-slate-800 text-slate-650 dark:text-slate-350">
-                    <span>Single Room:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{formatAmount(Math.round(120 * getYieldMultiplier()))} <span className="text-[10px] text-slate-400 font-normal">/ nt ({formatAmount(120)})</span></span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-b-slate-100 dark:border-b-slate-800 text-slate-650 dark:text-slate-350">
-                    <span>Double Room:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{formatAmount(Math.round(180 * getYieldMultiplier()))} <span className="text-[10px] text-slate-400 font-normal">/ nt ({formatAmount(180)})</span></span>
-                  </div>
-                  <div className="flex justify-between py-1.5 border-b border-b-slate-100 dark:border-b-slate-800 text-slate-650 dark:text-slate-350">
-                    <span>Executive Suite:</span>
-                    <span className="font-bold text-slate-800 dark:text-slate-100">{formatAmount(Math.round(350 * getYieldMultiplier()))} <span className="text-[10px] text-slate-400 font-normal">/ nt ({formatAmount(350)})</span></span>
-                  </div>
+                <p className="text-[10px] text-slate-500">{policy.description}</p>
+                <div className="flex justify-between text-[10px]">
+                  <span className="text-slate-500">Multiplier: {policy.multiplier}x</span>
                 </div>
               </div>
-            </div>
-
+            ))}
           </div>
         </div>
       )}
@@ -2299,11 +2195,6 @@ export default function ReservationsModule({
               <h3 className="text-base font-sans font-black text-slate-900 tracking-tight">Rate Plan & Package Management</h3>
               <p className="text-xs text-slate-500 font-sans">Manage global rate strategies, seasonal multipliers, and optional guest service packages.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="px-3 py-1 bg-amber-50 text-amber-700 text-[10px] font-mono font-bold rounded-lg border border-amber-100 flex items-center gap-1.5">
-                <Tag size={12} /> Live Configuration
-              </span>
-            </div>
           </div>
 
           <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 bg-slate-50/30">
@@ -2311,31 +2202,17 @@ export default function ReservationsModule({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Institutional Rate Plans</h4>
-                <button 
-                  onClick={() => handleOpenRateModal()}
-                  className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition cursor-pointer"
-                  title="Add Rate Plan"
-                >
-                  <Plus size={14} />
-                </button>
               </div>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {ratePlans.map(plan => (
-                  <div key={plan.id} className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:shadow-sm transition group">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-sans font-bold text-slate-800">{plan.name}</span>
-                        {plan.active && <span className="bg-emerald-50 text-emerald-600 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border border-emerald-100">ACTIVE</span>}
-                      </div>
-                      <p className="text-2xs text-slate-400 leading-tight">{plan.description}</p>
-                      <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition">
-                        <button onClick={() => handleOpenRateModal(plan)} className="text-[10px] font-sans font-bold text-indigo-500 hover:text-indigo-700 cursor-pointer">Edit</button>
-                        <button onClick={() => deleteRatePlan(plan.id)} className="text-[10px] font-sans font-bold text-rose-500 hover:text-rose-700 cursor-pointer">Delete</button>
-                      </div>
+                  <div key={plan.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{plan.name}</h4>
+                      {plan.active && <span className="bg-emerald-50 text-emerald-600 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border border-emerald-100">ACTIVE</span>}
                     </div>
-                    <div className="text-right">
-                      <div className="text-xs font-mono font-black text-indigo-600">x{plan.baseModifier}</div>
-                      <div className="text-[10px] text-slate-400 font-mono">Multiplier</div>
+                    <p className="text-[10px] text-slate-500">{plan.description}</p>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-slate-500">Base: {plan.baseModifier}x</span>
                     </div>
                   </div>
                 ))}
@@ -2344,33 +2221,19 @@ export default function ReservationsModule({
               {/* Seasons Section */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-2 mt-8">
                 <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Seasonal Yield Rules</h4>
-                <button 
-                  onClick={() => handleOpenSeasonModal()}
-                  className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition cursor-pointer"
-                  title="Add Seasonal Rule"
-                >
-                  <Plus size={14} />
-                </button>
               </div>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {seasons.map(season => (
-                  <div key={season.id} className="p-4 bg-white border border-slate-200 rounded-2xl flex items-center justify-between hover:shadow-sm transition text-xs group">
-                    <div className="space-y-1">
-                      <span className="font-sans font-bold text-slate-800">{season.name}</span>
-                      <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                        <Calendar size={10} />
-                        <span>Valid: {season.startMonth+1}/{season.startDay} - {season.endMonth+1}/{season.endDay}</span>
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 opacity-0 group-hover:opacity-100 transition">
-                        <button onClick={() => handleOpenSeasonModal(season)} className="text-[10px] font-sans font-bold text-indigo-500 hover:text-indigo-700 cursor-pointer">Edit</button>
-                        <button onClick={() => deleteSeason(season.id)} className="text-[10px] font-sans font-bold text-rose-500 hover:text-rose-700 cursor-pointer">Delete</button>
-                      </div>
+                  <div key={season.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{season.name}</h4>
                     </div>
-                    <div className="text-right">
-                      <div className={`text-xs font-mono font-black ${season.multiplier > 1 ? 'text-emerald-600' : 'text-amber-600'}`}>
-                        {season.multiplier > 1 ? '+' : ''}{Math.round((season.multiplier - 1) * 100)}%
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono">Dynamic Lift</div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+                      <Calendar size={10} />
+                      <span>Valid: {season.startMonth+1}/{season.startDay} - {season.endMonth+1}/{season.endDay}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-slate-500">Dynamic Lift: {season.multiplier > 1 ? '+' : ''}{Math.round((season.multiplier - 1) * 100)}%</span>
                     </div>
                   </div>
                 ))}
@@ -2381,42 +2244,20 @@ export default function ReservationsModule({
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                 <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Guest Service Packages</h4>
-                <button 
-                  onClick={() => handleOpenPackageModal()}
-                  className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition cursor-pointer"
-                  title="Add Package"
-                >
-                  <Plus size={14} />
-                </button>
               </div>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {packages.map(pkg => (
-                  <div key={pkg.id} className="p-4 bg-white border border-slate-200 rounded-2xl space-y-2 hover:shadow-sm transition group text-xs text-slate-650">
+                  <div key={pkg.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
                     <div className="flex justify-between items-start">
-                      <span className="font-sans font-bold text-slate-800 flex items-center gap-1.5">
-                        <Sparkles size={14} className="text-amber-400" />
-                        {pkg.name}
-                      </span>
-                      <span className="font-mono font-black text-slate-900">{formatAmount(pkg.price)}</span>
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{pkg.name}</h4>
+                      <span className="font-mono font-black text-indigo-600">{formatAmount(pkg.price)}</span>
                     </div>
-                    <p className="text-2xs text-slate-500 font-sans leading-relaxed">{pkg.description}</p>
-                    <div className="flex items-center justify-between border-t border-slate-50 pt-2">
-                       <span className="text-[9px] font-mono text-slate-400 uppercase font-bold tracking-tighter">Charge model: {pkg.chargeFrequency}</span>
-                       <div className="flex items-center gap-3">
-                        <button onClick={() => handleOpenPackageModal(pkg)} className="text-[10px] font-sans font-bold text-indigo-500 hover:text-indigo-700 transition cursor-pointer">Edit</button>
-                        <button onClick={() => deletePackage(pkg.id)} className="text-[10px] font-sans font-bold text-rose-500 hover:text-rose-700 transition cursor-pointer">Delete</button>
-                       </div>
+                    <p className="text-[10px] text-slate-500">{pkg.description}</p>
+                    <div className="flex justify-between text-[10px]">
+                      <span className="text-slate-500">Charge: {pkg.chargeFrequency}</span>
                     </div>
                   </div>
                 ))}
-                
-                <button 
-                   onClick={() => handleOpenPackageModal()}
-                   className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:text-slate-600 hover:border-slate-300 transition flex items-center justify-center gap-2 cursor-pointer bg-white/50"
-                >
-                  <Plus size={16} />
-                  <span className="text-xs font-sans font-bold">Configure New Service Add-on</span>
-                </button>
               </div>
             </div>
           </div>
@@ -2502,6 +2343,7 @@ export default function ReservationsModule({
             packages={packages}
             corporateAccounts={corporateAccounts}
             rooms={rooms}
+            roomTypes={roomTypes}
             reservations={reservations}
             currency={currency}
             formatAmount={formatAmount}

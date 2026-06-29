@@ -28,12 +28,13 @@ import {
   LayoutGrid,
   Printer,
   Store,
-  CreditCard
+  CreditCard,
+  Gavel
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
 
-type AdminTab = 'details' | 'billing' | 'invoice_settings' | 'history';
+type AdminTab = 'details' | 'billing' | 'invoice_settings' | 'policies';
 
 interface ChangeProposal {
   id: string;
@@ -76,6 +77,8 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
   const [hotelTin, setHotelTin] = useState(globalHotelSettings.hotelTin || '100293847');
   const [hotelVatNo, setHotelVatNo] = useState(globalHotelSettings.hotelVatNo || 'VAT-992384');
   const [hotelVatDate, setHotelVatDate] = useState(globalHotelSettings.hotelVatDate || '2026-01-15');
+  const [hotelLogo, setHotelLogo] = useState(globalHotelSettings.hotelLogo || '');
+  const [heroImage, setHeroImage] = useState(globalHotelSettings.heroImageUrl || '');
   
   // Custom business additions
   const [checkInTime, setCheckInTime] = useState('02:00 PM');
@@ -103,6 +106,26 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
   const [invoiceFooterText, setInvoiceFooterText] = useState(globalHotelSettings.invoiceFooterText || 'Thank you for your stay. We hope you visit again.');
   const [invoiceBankDetails, setInvoiceBankDetails] = useState(globalHotelSettings.invoiceBankDetails || 'Bank: Central Bank\nAccount: 000000000\nSWIFT: ERPBANK');
   const [paymentTypesConfig, setPaymentTypesConfig] = useState((globalHotelSettings.paymentTypes || ['Cash', 'Credit Card', 'Mobile Money', 'Bank Transfer', 'Room Charge']).join(', '));
+
+  // Policies local state
+  const [policiesForm, setPoliciesForm] = useState({
+    cancellationGraceHours: globalHotelSettings.cancellationGraceHours || 24,
+    cancellationPenaltyPercent: globalHotelSettings.cancellationPenaltyPercent || 50,
+    creditLimitDefault: globalHotelSettings.creditLimitDefault || 500,
+    autoNightAuditTime: globalHotelSettings.autoNightAuditTime || '02:00',
+    opHoursFrontDesk: globalHotelSettings.operatingHours?.frontDesk || '24 Hours',
+    opHoursRestaurant: globalHotelSettings.operatingHours?.restaurant || '06:00 - 23:00',
+    opHoursBar: globalHotelSettings.operatingHours?.bar || '10:00 - 02:00',
+    opHoursSpa: globalHotelSettings.operatingHours?.spa || '08:00 - 20:00',
+  });
+  const [policySections, setPolicySections] = useState<{id: string, title: string, content: string}[]>(
+    globalHotelSettings.policySections || [
+      { id: '1', title: '🏨 Section 1: Standard Guest Liability Waiver', content: globalHotelSettings.termsAdventureLiability || "The Hotel is not responsible for any loss or damage to guest property during their stay." },
+      { id: '2', title: '🔍 Section 2: Booking and Waitlist Protocol', content: globalHotelSettings.termsWaitlistProtocol || "All online booking registrations are subject to verification." },
+      { id: '3', title: '🌱 Section 3: Environmental Guidelines', content: globalHotelSettings.termsConservationDevotion || "Guests are encouraged to be mindful of water and electricity consumption." },
+      { id: '4', title: '💳 Section 4: Billing and Cancellation', content: globalHotelSettings.termsBillingCancellation || "A valid credit/debit card is required for all bookings." },
+    ]
+  );
 
 
   // Active Change Control Proposals
@@ -183,7 +206,14 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
         customHotelAddress: hotelAddress,
         hotelTin: hotelTin,
         hotelVatNo: hotelVatNo,
-        hotelVatDate: hotelVatDate
+        hotelVatDate: hotelVatDate,
+        hotelLogo,
+        heroImageUrl: heroImage,
+        checkInTime,
+        checkOutTime,
+        contactPhone,
+        contactEmail,
+        starRating
       }
     );
 
@@ -255,6 +285,43 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
     });
 
     triggerToast('Invoice & payment settings updated globally!', 'success');
+  };
+
+  const savePoliciesSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitGlobalSettingsChange(
+      'Operational Policies Update',
+      `Cancellation grace: ${policiesForm.cancellationGraceHours}h, Penalty: ${policiesForm.cancellationPenaltyPercent}%, Credit limit: ${policiesForm.creditLimitDefault}, Night audit: ${policiesForm.autoNightAuditTime}`,
+      'operational-policy',
+      {
+        cancellationGraceHours: Number(policiesForm.cancellationGraceHours),
+        cancellationPenaltyPercent: Number(policiesForm.cancellationPenaltyPercent),
+        creditLimitDefault: Number(policiesForm.creditLimitDefault),
+        autoNightAuditTime: policiesForm.autoNightAuditTime,
+        operatingHours: {
+          frontDesk: policiesForm.opHoursFrontDesk,
+          restaurant: policiesForm.opHoursRestaurant,
+          bar: policiesForm.opHoursBar,
+          spa: policiesForm.opHoursSpa
+        },
+        policySections,
+        termsAdventureLiability: policySections[0]?.content || '',
+        termsWaitlistProtocol: policySections[1]?.content || '',
+        termsConservationDevotion: policySections[2]?.content || '',
+        termsBillingCancellation: policySections[3]?.content || '',
+      }
+    );
+
+    addStructuredAuditLog({
+      action: 'UPDATE_POLICIES_CONFIG',
+      user: 'Superadmin (Platform)',
+      details: `Updated operational policies, cancellation rules, and terms & conditions.`,
+      ipAddress: '192.168.1.10',
+      status: 'Success',
+      severity: 'High'
+    });
+
+    triggerToast('Operational policies updated successfully!', 'success');
   };
 
 
@@ -376,14 +443,14 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
             Invoicing
           </button>
           <button 
-            id="tab-history"
-            onClick={() => setActiveTab('history')}
+            id="tab-policies"
+            onClick={() => setActiveTab('policies')}
             className={`px-3 py-2 flex items-center gap-2 rounded-lg text-[10px] font-sans font-black uppercase tracking-wider transition ${
-              activeTab === 'history' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:text-slate-900 bg-white'
+              activeTab === 'policies' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:text-slate-900 bg-white'
             }`}
           >
-            <History size={13} />
-            Audit
+            <Gavel size={13} />
+            Policies
           </button>
         </div>
       </div>
@@ -452,6 +519,29 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                     value={hotelVatDate} 
                     onChange={e => setHotelVatDate(e.target.value)}
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono focus:ring-1 focus:ring-indigo-600 focus:outline-none" 
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-slate-450 font-bold block">Hotel Logo URL</label>
+                  <input 
+                    type="url" 
+                    value={hotelLogo} 
+                    onChange={e => setHotelLogo(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-sans focus:ring-1 focus:ring-indigo-600 focus:outline-none" 
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-mono uppercase tracking-widest text-slate-450 font-bold block">Hero Image URL</label>
+                  <input 
+                    type="url" 
+                    value={heroImage} 
+                    onChange={e => setHeroImage(e.target.value)}
+                    placeholder="https://..."
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-sans focus:ring-1 focus:ring-indigo-600 focus:outline-none" 
                   />
                 </div>
               </div>
@@ -969,6 +1059,120 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
           </div>
         )}
 
+        {/* TAB 4: POLICIES */}
+        {activeTab === 'policies' && (
+          <div className="max-w-5xl mx-auto animate-fade-in">
+            <form onSubmit={savePoliciesSettings} className="space-y-6" id="policies-form">
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <h2 className="text-base font-sans font-black text-slate-900 tracking-tight flex items-center gap-2 mb-4">
+                  <Gavel size={18} className="text-indigo-500" /> Operational & Cancellation Policies
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+                  <div className="space-y-4 p-5 bg-slate-50/50 rounded-2xl border border-slate-200/60">
+                    <h4 className="text-[10px] font-mono font-black uppercase text-indigo-600 tracking-widest">Cancellation Rules</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Grace Period (Hours)</label>
+                        <input type="number" value={policiesForm.cancellationGraceHours} onChange={e => setPoliciesForm(f => ({ ...f, cancellationGraceHours: Number(e.target.value) }))} className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Penalty Percent (%)</label>
+                        <input type="number" value={policiesForm.cancellationPenaltyPercent} onChange={e => setPoliciesForm(f => ({ ...f, cancellationPenaltyPercent: Number(e.target.value) }))} className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 p-5 bg-slate-50/50 rounded-2xl border border-slate-200/60">
+                    <h4 className="text-[10px] font-mono font-black uppercase text-indigo-600 tracking-widest">Credit & Audit</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Default Guest Credit Limit</label>
+                        <input type="number" value={policiesForm.creditLimitDefault} onChange={e => setPoliciesForm(f => ({ ...f, creditLimitDefault: Number(e.target.value) }))} className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans font-bold" />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Scheduled Night Audit (Time)</label>
+                        <input type="time" value={policiesForm.autoNightAuditTime} onChange={e => setPoliciesForm(f => ({ ...f, autoNightAuditTime: e.target.value }))} className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4 p-5 bg-slate-900 rounded-2xl text-white mt-6">
+                  <h4 className="text-[10px] font-mono font-black uppercase text-indigo-400 tracking-widest">Departmental Operating Hours</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-bold text-slate-400">Front Desk</label>
+                      <input type="text" value={policiesForm.opHoursFrontDesk} onChange={e => setPoliciesForm(f => ({ ...f, opHoursFrontDesk: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-[10px]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-bold text-slate-400">Restaurant</label>
+                      <input type="text" value={policiesForm.opHoursRestaurant} onChange={e => setPoliciesForm(f => ({ ...f, opHoursRestaurant: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-[10px]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-bold text-slate-400">Bar Module</label>
+                      <input type="text" value={policiesForm.opHoursBar} onChange={e => setPoliciesForm(f => ({ ...f, opHoursBar: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-[10px]" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[9px] uppercase font-bold text-slate-400">Spa / Wellness</label>
+                      <input type="text" value={policiesForm.opHoursSpa} onChange={e => setPoliciesForm(f => ({ ...f, opHoursSpa: e.target.value }))} className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1.5 text-[10px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-[10px] font-mono font-black uppercase text-amber-800 tracking-widest flex items-center gap-1.5">
+                    <FileText size={12} className="text-amber-600" /> Public Booking Portal Terms & Conditions
+                  </h4>
+                  <button 
+                    type="button" 
+                    onClick={() => setPolicySections(prev => [...prev, {id: Date.now().toString(), title: 'New Section', content: ''}])}
+                    className="flex items-center gap-1.5 text-[9px] font-black uppercase text-indigo-700 bg-white px-2 py-1 rounded-lg border border-indigo-200 hover:bg-indigo-50"
+                  >
+                    <Plus size={10} /> Add Section
+                  </button>
+                </div>
+                <div className="space-y-4 pt-4">
+                  {policySections.map((section, idx) => (
+                    <div key={section.id} className="space-y-1 relative group">
+                      <label className="text-[10px] font-mono uppercase text-slate-500 font-bold block flex justify-between">
+                        <input 
+                          value={section.title}
+                          onChange={e => setPolicySections(prev => prev.map((s, i) => i === idx ? {...s, title: e.target.value} : s))}
+                          className="bg-transparent border-none w-full p-0 flex-1 focus:outline-none"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setPolicySections(prev => prev.filter((_, i) => i !== idx))}
+                          className="opacity-0 group-hover:opacity-100 text-rose-500"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </label>
+                      <textarea 
+                        rows={3}
+                        value={section.content} 
+                        onChange={e => setPolicySections(prev => prev.map((s, i) => i === idx ? {...s, content: e.target.value} : s))}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-sans focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <button type="submit"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                  <Save size={16} />
+                  Save Policies
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
     {activeTab === 'pos_categories' && (
     <div className="max-w-5xl mx-auto animate-fade-in space-y-8 pb-12">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 rounded-[32px] p-8 shadow-sm space-y-8">
@@ -1219,50 +1423,6 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
               </div>
             </div>
 
-          </div>
-        )}
-
-        {/* TAB 4: CONFIG REGISTRY AUDITING HISTORY */}
-        {activeTab === 'history' && (
-          <div className="max-w-4xl mx-auto space-y-6 animate-fade-in" id="config-logs-tab">
-            <div className="bg-white rounded-3xl border border-slate-205 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-slate-100">
-                <h3 className="text-sm font-sans font-black uppercase tracking-wider text-slate-800">Change Deployment Audit Logs</h3>
-                <p className="text-xs text-slate-400">Verifiably track every alteration, configuration override, or parameter decision deployed on the system.</p>
-              </div>
-
-              <div className="divide-y divide-slate-100">
-                {currentConfigLogs.map((log) => (
-                  <div key={log.id} className="p-5 hover:bg-slate-50/50 transition flex justify-between items-start gap-4">
-                    <div className="space-y-1.5">
-                      <div className="flex gap-2 items-center">
-                        <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-mono uppercase tracking-wider font-extrabold">{log.action}</span>
-                        <span className="text-[10px] text-slate-400 font-mono">{log.timestamp} &bull; User: {log.user}</span>
-                      </div>
-                      <p className="text-xs font-sans font-medium text-slate-800 leading-normal">{log.details}</p>
-                      <p className="text-[10px] text-slate-400 font-mono">Terminal Target: {log.ipAddress || '127.0.0.1'}</p>
-                    </div>
-
-                    <div className="shrink-0 flex flex-col items-end">
-                      <span className={`inline-flex px-2 py-0.5 rounded text-[9px] font-mono uppercase font-black ${
-                        log.severity === 'High' ? 'bg-rose-50 text-rose-600 border border-rose-100' :
-                        log.severity === 'Medium' ? 'bg-amber-55 text-amber-600 border border-amber-100' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {log.severity} Priority
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-500 flex items-center gap-1 mt-2 font-mono">
-                        <CheckCircle2 size={12} /> SECURE
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                {currentConfigLogs.length === 0 && (
-                  <div className="p-8 text-center text-xs font-sans text-slate-400">
-                    No corporate governance change logs have been recorded in this session. All systems operating with nominal base presets.
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
 

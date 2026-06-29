@@ -3,12 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import {
   Room, Guest, Reservation, GroupBooking, CorporateAccount,
   Promotion, MarketingCampaign, Notification, ERPStats, GuestCommunication, AirportShuttleRequest,
   RatePlan, Season, Package, User, DispatchedEmail, GlobalHotelSettings,
-  RoomStatus, ReservationStatus, RoomTypeMetadata, YieldPolicy, PendingAdminChange, AdminChangeType, RiskCompliance
+  RoomStatus, ReservationStatus, RoomTypeMetadata, YieldPolicy, PendingAdminChange, AdminChangeType, RiskCompliance, RoomTypeDetail, GuestService
 } from '../types/erp';
 import { 
   JournalEntry, GlobalSaleTransaction, ChartOfAccount, ExpenseRequest 
@@ -21,6 +21,7 @@ import { ReservationProvider, useReservation } from './ReservationContext';
 import { InventoryProvider, useInventory } from './InventoryContext';
 import { FinanceProvider, useFinance } from './FinanceContext';
 import { rangesOverlap } from '../services/allocationService';
+import { supabase, hasSupabaseConfig } from '../lib/supabase';
 
 export interface ERPContextType {
   platformView: 'erp' | 'direct' | 'mobile';
@@ -31,6 +32,7 @@ export interface ERPContextType {
   addDispatchedEmail: (email: Omit<DispatchedEmail, 'id' | 'sentAt'>) => void;
 
   rooms: Room[];
+  roomTypes: RoomTypeDetail[];
   guests: Guest[];
   reservations: Reservation[];
   groupBookings: GroupBooking[];
@@ -46,6 +48,7 @@ export interface ERPContextType {
   ratePlans: RatePlan[];
   seasons: Season[];
   packages: Package[];
+  guestServices: GuestService[];
   expenseRequests: ExpenseRequest[];
   yieldPolicies: YieldPolicy[];
   riskCompliance: RiskCompliance[];
@@ -100,6 +103,9 @@ export interface ERPContextType {
   addRoom: (room: Omit<Room, 'id'>) => void;
   updateRoom: (id: string, updates: Partial<Room>) => void;
   deleteRoom: (id: string) => void;
+  addRoomType: (roomType: Omit<RoomTypeDetail, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateRoomType: (id: string, updates: Partial<RoomTypeDetail>) => void;
+  deleteRoomType: (id: string) => void;
   addNotification: (message: string, type: Notification['type'], department: Notification['department']) => void;
   markNotificationRead: (id: string) => void;
   clearNotification: (id: string) => void;
@@ -114,7 +120,11 @@ export interface ERPContextType {
   addCorporateAccount: (account: Omit<CorporateAccount, 'id'>) => void;
   updateCorporateAccount: (id: string, updates: Partial<CorporateAccount>) => void;
   addPromotion: (promo: Omit<Promotion, 'id'>) => void;
+  updatePromotion: (id: string, updates: Partial<Promotion>) => void;
+  deletePromotion: (id: string) => void;
   addCampaign: (campaign: Omit<MarketingCampaign, 'id'>) => void;
+  updateCampaign: (id: string, updates: Partial<MarketingCampaign>) => void;
+  deleteCampaign: (id: string) => void;
   addRatePlan: (plan: Omit<RatePlan, 'id'>) => void;
   updateRatePlan: (id: string, updates: Partial<RatePlan>) => void;
   deleteRatePlan: (id: string) => void;
@@ -123,6 +133,9 @@ export interface ERPContextType {
   addExpenseRequest: (request: Omit<ExpenseRequest, 'id'>) => string;
   updateExpenseRequestStatus: (id: string, status: ExpenseRequest['status']) => void;
   deletePackage: (id: string) => void;
+  addGuestService: (service: Omit<GuestService, 'id'>) => void;
+  updateGuestService: (id: string, updates: Partial<GuestService>) => void;
+  deleteGuestService: (id: string) => void;
   addSeason: (season: Omit<Season, 'id'>) => void;
   updateSeason: (id: string, updates: Partial<Season>) => void;
   deleteSeason: (id: string) => void;
@@ -148,6 +161,7 @@ export interface ERPContextType {
   setUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
   updateProfile: (data: Partial<{ name: string; email: string; avatar: string }>) => void;
   updatePassword: (old: string, newP: string) => Promise<boolean>;
+  syncUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
   globalHotelSettings: GlobalHotelSettings;
   updateGlobalHotelSettings: (settings: Partial<GlobalHotelSettings>) => void;
   roomTypeMetadata: RoomTypeMetadata[];
@@ -200,25 +214,426 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
   // Yield policies state
   const [yieldPolicies, setYieldPolicies] = useState<YieldPolicy[]>([]);
 
+  // Campaigns and Promotions state
+  const [campaigns, setCampaigns] = useState<MarketingCampaign[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+
+  // Guest Services state
+  const [guestServices, setGuestServices] = useState<GuestService[]>([]);
+
+  // Fetch pricing data from database on mount
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
+    const fetchPricingData = async () => {
+      try {
+        // Fetch yield policies
+        const { data: yieldData } = await supabase.from('yield_policies').select('*');
+        if (yieldData) {
+          setYieldPolicies(yieldData.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            multiplier: row.multiplier,
+            isDefault: row.is_default
+          })));
+        }
+
+        // Fetch guest services
+        const { data: guestServicesData } = await supabase.from('guest_services').select('*');
+        if (guestServicesData) {
+          setGuestServices(guestServicesData.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            category: row.category,
+            price: row.price,
+            available: row.available
+          })));
+        }
+
+        // Fetch room types
+        const { data: roomTypesData } = await supabase.from('room_types').select('*').order('display_order');
+        if (roomTypesData && roomTypesData.length > 0) {
+          setRoomTypes(roomTypesData.map((row: any) => ({
+            id: row.id,
+            name: row.name,
+            description: row.description,
+            basePrice: row.base_price,
+            maxOccupancy: row.max_occupancy,
+            bedConfiguration: row.bed_configuration,
+            roomSizeSqm: row.room_size_sqm,
+            amenities: row.amenities || [],
+            imageUrl1: row.image_url_1,
+            imageUrl2: row.image_url_2,
+            imageUrl3: row.image_url_3,
+            isActive: row.is_active,
+            displayOrder: row.display_order,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching pricing data:', error);
+      }
+    };
+
+    fetchPricingData();
+  }, []);
+
+  // Fetch airport shuttle requests from Supabase on mount
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
+    const fetchAirportShuttleRequests = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('airport_shuttle_requests')
+          .select('*')
+          .order('scheduled_date', { ascending: true })
+          .order('scheduled_time', { ascending: true });
+
+        if (error) {
+          console.error('Error fetching airport shuttle requests:', error);
+          return;
+        }
+
+        if (data) {
+          setAirportShuttleRequests(data.map((row: any) => ({
+            id: row.id,
+            guestId: row.guest_id,
+            reservationId: row.reservation_id,
+            roomNumber: row.room_number,
+            scheduledDate: row.scheduled_date,
+            scheduledTime: row.scheduled_time,
+            shuttleType: row.shuttle_type,
+            flightNumber: row.flight_number,
+            flightTime: row.flight_time,
+            status: row.status,
+            notes: row.notes,
+            createdAt: row.created_at,
+            updatedAt: row.updated_at
+          })));
+        }
+      } catch (error) {
+        console.error('Error fetching airport shuttle requests:', error);
+      }
+    };
+
+    fetchAirportShuttleRequests();
+  }, []);
+
   // Risk & Compliance state
   const [riskCompliance, setRiskCompliance] = useState<RiskCompliance[]>([]);
 
-  const addYieldPolicy = useCallback((policy: Omit<YieldPolicy, 'id'>) => {
-    const newId = `policy_${Date.now()}`;
-    setYieldPolicies(prev => [...prev, { ...policy, id: newId }]);
+  // Room Types state
+  const [roomTypes, setRoomTypes] = useState<RoomTypeDetail[]>([
+    {
+      id: 'rt_single',
+      name: 'Single Room',
+      description: 'Comfortable single room perfect for business travelers. Features a cozy workspace and modern amenities.',
+      basePrice: 89.00,
+      maxOccupancy: 1,
+      bedConfiguration: '1 Queen Bed',
+      roomSizeSqm: 26,
+      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping'],
+      imageUrl1: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=600&fit=crop',
+      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
+      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      isActive: true,
+      displayOrder: 1,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'rt_double',
+      name: 'Double Room',
+      description: 'Spacious double room ideal for couples or friends. Offers comfortable bedding and city views.',
+      basePrice: 129.00,
+      maxOccupancy: 2,
+      bedConfiguration: '1 King Bed or 2 Queen Beds',
+      roomSizeSqm: 33,
+      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'City View'],
+      imageUrl1: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&h=600&fit=crop',
+      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
+      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      isActive: true,
+      displayOrder: 2,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'rt_suite',
+      name: 'Suite',
+      description: 'Luxurious suite with separate living area. Perfect for extended stays and special occasions.',
+      basePrice: 199.00,
+      maxOccupancy: 3,
+      bedConfiguration: '1 King Bed + Sofa Bed',
+      roomSizeSqm: 51,
+      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'City View', 'Living Room', 'Dining Table', 'Bathtub', 'Robes'],
+      imageUrl1: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=600&fit=crop',
+      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
+      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      isActive: true,
+      displayOrder: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'rt_deluxe',
+      name: 'Deluxe Room',
+      description: 'Premium deluxe room with enhanced amenities and stunning views. Features premium bedding and upgraded bath products.',
+      basePrice: 159.00,
+      maxOccupancy: 2,
+      bedConfiguration: '1 King Bed',
+      roomSizeSqm: 39,
+      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'Ocean View', 'Premium Bath Products', 'Turndown Service'],
+      imageUrl1: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop',
+      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
+      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      isActive: true,
+      displayOrder: 4,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: 'rt_penthouse',
+      name: 'Penthouse',
+      description: 'Exclusive penthouse suite with panoramic views, private terrace, and full luxury amenities. The ultimate accommodation experience.',
+      basePrice: 499.00,
+      maxOccupancy: 4,
+      bedConfiguration: '1 King Bed + 2 Queen Beds',
+      roomSizeSqm: 111,
+      amenities: ['Free WiFi', 'Multiple Smart TVs', 'Work Desk', 'Air Conditioning', 'Fully Stocked Mini Bar', 'Premium Coffee Maker', 'Safe', 'Daily Housekeeping', 'Panoramic View', 'Living Room', 'Dining Room', 'Private Terrace', 'Jacuzzi', 'Steam Room', 'Butler Service', 'Private Check-in', 'Airport Transfer'],
+      imageUrl1: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop',
+      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
+      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
+      isActive: true,
+      displayOrder: 5,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+  ]);
+
+  const addRoomType = useCallback(async (roomType: Omit<RoomTypeDetail, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newId = `rt_${Date.now()}`;
+    const now = new Date().toISOString();
+    const newRoomType = { ...roomType, id: newId, createdAt: now, updatedAt: now };
+    
+    setRoomTypes(prev => [...prev, newRoomType]);
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('room_types').insert({
+          id: newId,
+          name: roomType.name,
+          description: roomType.description,
+          base_price: roomType.basePrice,
+          max_occupancy: roomType.maxOccupancy,
+          bed_configuration: roomType.bedConfiguration,
+          room_size_sqm: roomType.roomSizeSqm,
+          amenities: roomType.amenities,
+          image_url_1: roomType.imageUrl1,
+          image_url_2: roomType.imageUrl2,
+          image_url_3: roomType.imageUrl3,
+          is_active: roomType.isActive,
+          display_order: roomType.displayOrder
+        });
+      } catch (error) {
+        console.error('Error adding room type:', error);
+      }
+    }
   }, []);
 
-  const updateYieldPolicy = useCallback((id: string, updates: Partial<YieldPolicy>) => {
+  const updateRoomType = useCallback(async (id: string, updates: Partial<RoomTypeDetail>) => {
+    setRoomTypes(prev => prev.map(rt => {
+      if (rt.id === id) {
+        return { ...rt, ...updates, updatedAt: new Date().toISOString() };
+      }
+      return rt;
+    }));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('room_types').update({
+          name: updates.name,
+          description: updates.description,
+          base_price: updates.basePrice,
+          max_occupancy: updates.maxOccupancy,
+          bed_configuration: updates.bedConfiguration,
+          room_size_sqm: updates.roomSizeSqm,
+          amenities: updates.amenities,
+          image_url_1: updates.imageUrl1,
+          image_url_2: updates.imageUrl2,
+          image_url_3: updates.imageUrl3,
+          is_active: updates.isActive,
+          display_order: updates.displayOrder,
+          updated_at: new Date().toISOString()
+        }).eq('id', id);
+      } catch (error) {
+        console.error('Error updating room type:', error);
+      }
+    }
+  }, []);
+
+  const deleteRoomType = useCallback(async (id: string) => {
+    setRoomTypes(prev => prev.filter(rt => rt.id !== id));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('room_types').delete().eq('id', id);
+      } catch (error) {
+        console.error('Error deleting room type:', error);
+      }
+    }
+  }, []);
+
+  const addYieldPolicy = useCallback(async (policy: Omit<YieldPolicy, 'id'>) => {
+    const newId = `policy_${Date.now()}`;
+    const newPolicy = { ...policy, id: newId };
+    
+    setYieldPolicies(prev => [...prev, newPolicy]);
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('yield_policies').insert({
+          id: newId,
+          name: policy.name,
+          description: policy.description,
+          multiplier: policy.multiplier,
+          is_default: policy.isDefault
+        });
+      } catch (error) {
+        console.error('Error adding yield policy:', error);
+      }
+    }
+  }, []);
+
+  const updateYieldPolicy = useCallback(async (id: string, updates: Partial<YieldPolicy>) => {
     setYieldPolicies(prev => prev.map(policy => {
       if (policy.id === id) {
         return { ...policy, ...updates };
       }
       return policy;
     }));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('yield_policies').update({
+          name: updates.name,
+          description: updates.description,
+          multiplier: updates.multiplier,
+          is_default: updates.isDefault
+        }).eq('id', id);
+      } catch (error) {
+        console.error('Error updating yield policy:', error);
+      }
+    }
   }, []);
 
-  const deleteYieldPolicy = useCallback((id: string) => {
+  const deleteYieldPolicy = useCallback(async (id: string) => {
     setYieldPolicies(prev => prev.filter(policy => policy.id !== id));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('yield_policies').delete().eq('id', id);
+      } catch (error) {
+        console.error('Error deleting yield policy:', error);
+      }
+    }
+  }, []);
+
+  const addCampaign = useCallback((campaign: Omit<MarketingCampaign, 'id'>) => {
+    const newId = `camp_${Date.now()}`;
+    setCampaigns(prev => [...prev, { ...campaign, id: newId }]);
+  }, []);
+
+  const updateCampaign = useCallback((id: string, updates: Partial<MarketingCampaign>) => {
+    setCampaigns(prev => prev.map(camp => {
+      if (camp.id === id) {
+        return { ...camp, ...updates };
+      }
+      return camp;
+    }));
+  }, []);
+
+  const deleteCampaign = useCallback((id: string) => {
+    setCampaigns(prev => prev.filter(camp => camp.id !== id));
+  }, []);
+
+  const addGuestService = useCallback(async (service: Omit<GuestService, 'id'>) => {
+    const newId = `gs_${Date.now()}`;
+    const newService = { ...service, id: newId };
+    
+    setGuestServices(prev => [...prev, newService]);
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('guest_services').insert({
+          id: newId,
+          name: service.name,
+          description: service.description,
+          category: service.category,
+          price: service.price,
+          available: service.available
+        });
+      } catch (error) {
+        console.error('Error adding guest service:', error);
+      }
+    }
+  }, []);
+
+  const updateGuestService = useCallback(async (id: string, updates: Partial<GuestService>) => {
+    setGuestServices(prev => prev.map(service => {
+      if (service.id === id) {
+        return { ...service, ...updates };
+      }
+      return service;
+    }));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('guest_services').update({
+          name: updates.name,
+          description: updates.description,
+          category: updates.category,
+          price: updates.price,
+          available: updates.available
+        }).eq('id', id);
+      } catch (error) {
+        console.error('Error updating guest service:', error);
+      }
+    }
+  }, []);
+
+  const deleteGuestService = useCallback(async (id: string) => {
+    setGuestServices(prev => prev.filter(service => service.id !== id));
+    
+    if (hasSupabaseConfig) {
+      try {
+        await supabase.from('guest_services').delete().eq('id', id);
+      } catch (error) {
+        console.error('Error deleting guest service:', error);
+      }
+    }
+  }, []);
+
+  const addPromotion = useCallback((promo: Omit<Promotion, 'id'>) => {
+    const newId = `promo_${Date.now()}`;
+    setPromotions(prev => [...prev, { ...promo, id: newId }]);
+  }, []);
+
+  const updatePromotion = useCallback((id: string, updates: Partial<Promotion>) => {
+    setPromotions(prev => prev.map(promo => {
+      if (promo.id === id) {
+        return { ...promo, ...updates };
+      }
+      return promo;
+    }));
+  }, []);
+
+  const deletePromotion = useCallback((id: string) => {
+    setPromotions(prev => prev.filter(promo => promo.id !== id));
   }, []);
 
   const runNightAudit = useCallback(() => {
@@ -317,20 +732,78 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
       updatedAt: now
     };
     setAirportShuttleRequests(prev => [...prev, newRequest]);
+
+    if (hasSupabaseConfig) {
+      try {
+        supabase.from('airport_shuttle_requests').insert({
+          id: newId,
+          guest_id: request.guestId,
+          reservation_id: request.reservationId,
+          room_number: request.roomNumber,
+          scheduled_date: request.scheduledDate,
+          scheduled_time: request.scheduledTime,
+          shuttle_type: request.shuttleType,
+          flight_number: request.flightNumber,
+          flight_time: request.flightTime,
+          status: request.status,
+          notes: request.notes,
+          created_at: now,
+          updated_at: now
+        }).then(({ error }) => {
+          if (error) console.error('Error adding airport shuttle request:', error);
+        });
+      } catch (error) {
+        console.error('Error adding airport shuttle request:', error);
+      }
+    }
+
     return newId;
   }, []);
 
   const updateAirportShuttleRequest = useCallback((id: string, updates: Partial<AirportShuttleRequest>) => {
+    const now = new Date().toISOString();
     setAirportShuttleRequests(prev => prev.map(req => {
       if (req.id === id) {
-        return { ...req, ...updates, updatedAt: new Date().toISOString() };
+        return { ...req, ...updates, updatedAt: now };
       }
       return req;
     }));
+
+    if (hasSupabaseConfig) {
+      try {
+        const mappedUpdates: any = { updated_at: now };
+        if (updates.guestId !== undefined) mappedUpdates.guest_id = updates.guestId;
+        if (updates.reservationId !== undefined) mappedUpdates.reservation_id = updates.reservationId;
+        if (updates.roomNumber !== undefined) mappedUpdates.room_number = updates.roomNumber;
+        if (updates.scheduledDate !== undefined) mappedUpdates.scheduled_date = updates.scheduledDate;
+        if (updates.scheduledTime !== undefined) mappedUpdates.scheduled_time = updates.scheduledTime;
+        if (updates.shuttleType !== undefined) mappedUpdates.shuttle_type = updates.shuttleType;
+        if (updates.flightNumber !== undefined) mappedUpdates.flight_number = updates.flightNumber;
+        if (updates.flightTime !== undefined) mappedUpdates.flight_time = updates.flightTime;
+        if (updates.status !== undefined) mappedUpdates.status = updates.status;
+        if (updates.notes !== undefined) mappedUpdates.notes = updates.notes;
+
+        supabase.from('airport_shuttle_requests').update(mappedUpdates).eq('id', id).then(({ error }) => {
+          if (error) console.error('Error updating airport shuttle request:', error);
+        });
+      } catch (error) {
+        console.error('Error updating airport shuttle request:', error);
+      }
+    }
   }, []);
 
   const deleteAirportShuttleRequest = useCallback((id: string) => {
     setAirportShuttleRequests(prev => prev.filter(req => req.id !== id));
+
+    if (hasSupabaseConfig) {
+      try {
+        supabase.from('airport_shuttle_requests').delete().eq('id', id).then(({ error }) => {
+          if (error) console.error('Error deleting airport shuttle request:', error);
+        });
+      } catch (error) {
+        console.error('Error deleting airport shuttle request:', error);
+      }
+    }
   }, []);
 
   const value: ERPContextType = {
@@ -347,12 +820,26 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     addAirportShuttleRequest,
     updateAirportShuttleRequest,
     deleteAirportShuttleRequest,
-    campaigns: [],
-    addCampaign: () => {},
+    campaigns,
+    addCampaign,
+    updateCampaign,
+    deleteCampaign,
+    promotions,
+    addPromotion,
+    updatePromotion,
+    deletePromotion,
+    roomTypes,
+    addRoomType,
+    updateRoomType,
+    deleteRoomType,
     yieldPolicies,
     addYieldPolicy,
     updateYieldPolicy,
     deleteYieldPolicy,
+    guestServices,
+    addGuestService,
+    updateGuestService,
+    deleteGuestService,
     riskCompliance,
     runNightAudit,
     triggerLiveSyncSimulation: () => {},

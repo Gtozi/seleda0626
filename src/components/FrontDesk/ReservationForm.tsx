@@ -15,7 +15,8 @@ import {
   Package,
   Reservation,
   CorporateAccount,
-  Room
+  Room,
+  RoomTypeDetail
 } from '../../types/erp';
 import { calculateNights } from '../../utils/billing';
 import { toISODate } from '../../utils/date';
@@ -37,6 +38,7 @@ interface ReservationFormProps {
   packages: Package[];
   corporateAccounts: CorporateAccount[];
   rooms: Room[];
+  roomTypes: RoomTypeDetail[];
   currency: string;
   formatAmount: (amount: number) => string;
   getYieldMultiplier: () => number;
@@ -54,6 +56,7 @@ export default function ReservationForm({
   packages,
   corporateAccounts,
   rooms,
+  roomTypes,
   currency,
   formatAmount,
   getYieldMultiplier,
@@ -360,6 +363,7 @@ export default function ReservationForm({
             currentSystemDate={currentSystemDate}
             uniqueRoomTypes={uniqueRoomTypes}
             rooms={rooms}
+            roomTypes={roomTypes}
             getTypeAvailability={getTypeAvailability}
             onRoomTypeChange={(value) => setFieldValue('roomType', value)}
             onRoomSelectionsChange={(value) => setFieldValue('roomSelections', value as Array<{ roomType: RoomType; count: number; roomNumbers?: string[] }>)}

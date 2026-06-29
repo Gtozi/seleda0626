@@ -45,7 +45,8 @@ function snakeToCamelRecord(obj: Record<string, any>): Record<string, any> {
 /** Known global_settings columns – strips unknown keys to prevent DB errors */
 const KNOWN_GLOBAL_SETTINGS_COLUMNS = new Set([
   'id', 'custom_hotel_name', 'custom_hotel_address', 'hotel_tin', 'hotel_vat_no', 'hotel_vat_date',
-  'tax_percent', 'service_charge_percent', 'exchange_rate', 'hero_image_url', 'contact_phone',
+  'tax_percent', 'service_charge_percent', 'exchange_rate', 'hero_image_url', 'contact_phone', 'contact_email',
+  'hotel_logo', 'check_in_time', 'check_out_time', 'star_rating',
   'public_tagline', 'social_links', 'invoice_template', 'invoice_footer_text', 'invoice_bank_details',
   'payment_types', 'addon_charges', 'pos_categories', 'pos_outlets', 'pos_printers', 'pos_outlet_categories',
   'split_folio_rules', 'loyalty_points_per_dollar', 'loyalty_redemption_rate', 'cancellation_grace_hours',
@@ -1134,20 +1135,51 @@ async function startServer() {
     const { data, error } = await supabaseAdmin.from('global_settings').select('*').maybeSingle();
     if (error) return res.status(500).json({ error: error.message });
     if (!data) return res.json({ settings: {} });
+    
+    // Parse fee components from business admin
+    const feeComponents = data.fee_components || [];
+    const vatFee = feeComponents.find((f: any) => f.name.toLowerCase().includes('vat') && f.isEnabled);
+    const scFee = feeComponents.find((f: any) => f.name.toLowerCase().includes('service charge') && f.isEnabled);
+    
+    // Parse operating hours
+    const operatingHours = data.operating_hours || {};
+    
     return res.json({
       settings: {
         customHotelName: data.custom_hotel_name || '',
         customHotelAddress: data.custom_hotel_address || '',
         publicTagline: data.public_tagline || '',
-        heroImageUrl: data.hero_image_url || '',
+        heroImageUrl: data.hero_image_url && !data.hero_image_url.startsWith('/src')
+          ? data.hero_image_url
+          : 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=1920',
+        hotelLogo: data.hotel_logo || '',
         contactPhone: data.contact_phone || '',
         contactEmail: data.contact_email || '',
-        taxPercent: data.tax_percent || 0,
-        serviceChargePercent: data.service_charge_percent || 0,
+        taxPercent: vatFee ? vatFee.value : (data.tax_percent || 0),
+        serviceChargePercent: scFee ? scFee.value : (data.service_charge_percent || 0),
+        exchangeRate: data.exchange_rate || 1,
         publicBookingEnabled: data.public_booking_enabled ?? true,
         maintenanceMode: data.maintenance_mode ?? false,
         maintenanceMessage: data.maintenance_message || '',
         bookingTerms: data.booking_terms || '',
+        // Business admin extended fields
+        hotelTin: data.hotel_tin || '',
+        hotelVatNo: data.hotel_vat_no || '',
+        checkInTime: data.check_in_time || '01:00 PM',
+        checkOutTime: data.check_out_time || '10:00 AM',
+        starRating: '5',
+        // Fee components for detailed pricing
+        feeComponents: feeComponents.map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          feeType: f.feeType,
+          value: f.value,
+          isEnabled: f.isEnabled
+        })),
+        // Policy sections
+        policySections: data.policy_sections || [],
+        cancellationGraceHours: data.cancellation_grace_hours || 24,
+        cancellationPenaltyPercent: data.cancellation_penalty_percent || 50
       }
     });
   });
@@ -1162,34 +1194,41 @@ async function startServer() {
       return res.status(400).json({ error: 'checkIn and checkOut are required' });
     }
 
-    const [{ data: rooms, error: roomsError }, { data: reservations, error: resError }] = await Promise.all([
+    const [{ data: roomTypes, error: rtError }, { data: rooms, error: roomsError }, { data: reservations, error: resError }] = await Promise.all([
+      supabaseAdmin.from('room_types').select('*').eq('is_active', true),
       supabaseAdmin.from('rooms').select('*'),
       supabaseAdmin.from('reservations').select('*')
     ]);
+    if (rtError) return res.status(500).json({ error: rtError.message });
     if (roomsError) return res.status(500).json({ error: roomsError.message });
     if (resError) return res.status(500).json({ error: resError.message });
 
+    const roomTypesList = roomTypes || [];
     const roomsList = rooms || [];
     const reservationsList = reservations || [];
-    const types = Array.from(new Set<string>(roomsList.map((r: any) => r.type)));
 
-    const result = types.map(type => {
-      const roomsOfType = roomsList.filter((r: any) => r.type === type);
-      const availability = getTypeAvailability(type, checkIn, checkOut, roomsList, reservationsList);
-      const avgRate = roomsOfType.length > 0
-        ? Math.round(roomsOfType.reduce((sum: number, r: any) => sum + Number(r.rate), 0) / roomsOfType.length)
-        : 0;
+    const result = roomTypesList.map((rt: any) => {
+      const roomsOfType = roomsList.filter((r: any) => r.room_type_id === rt.id || r.type === rt.name);
+      const availability = getTypeAvailability(rt.name, checkIn, checkOut, roomsList, reservationsList);
       return {
-        type,
-        title: type,
-        description: `${type} room`,
-        rate: avgRate,
-        capacity: availability.capacity,
+        type: rt.id, // Use room_type_id as the type identifier
+        title: rt.name,
+        description: rt.description || `${rt.name} room`,
+        rate: rt.base_price,
+        capacity: rt.max_occupancy,
         available: availability.available,
-        features: Array.from(new Set<string>(roomsOfType.flatMap((r: any) => r.features || []))),
-        imageUrl: getRoomImageUrl(type),
+        features: rt.amenities || [],
+        imageUrl: rt.image_url_1 || getRoomImageUrl(rt.name),
+        imageUrl2: rt.image_url_2 || null,
+        imageUrl3: rt.image_url_3 || null,
+        roomSizeSqm: rt.room_size_sqm,
+        bedConfiguration: rt.bed_configuration,
+        displayOrder: rt.display_order || 0,
+        totalRooms: availability.capacity,
+        // Additional fields from executive portal room inventory
+        isActive: rt.is_active !== false,
       };
-    });
+    }).filter((rt: any) => rt.available > 0).sort((a: any, b: any) => a.displayOrder - b.displayOrder);
 
     return res.json({ rooms: result });
   });
@@ -1211,12 +1250,30 @@ async function startServer() {
     });
   });
 
+  app.get('/api/public/guest-services', async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const { data, error } = await supabaseAdmin.from('guest_services').select('*').eq('available', true);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({
+      guestServices: (data || []).map((gs: any) => ({
+        id: gs.id,
+        name: gs.name,
+        description: gs.description || '',
+        category: gs.category || 'dining',
+        price: Number(gs.price),
+        available: gs.available,
+      }))
+    });
+  });
+
   app.post('/api/public/bookings', async (req, res) => {
     if (!hasSupabaseAdminConfig || !supabaseAdmin) {
       return res.status(503).json({ error: 'Database not configured' });
     }
 
-    const { checkIn, checkOut, guestName, guestEmail, guestPhone, packageIds, specialRequests, items } = req.body || {};
+    const { checkIn, checkOut, guestName, guestEmail, guestPhone, guestNationality, packageIds, guestServiceIds, specialRequests, items, airportShuttleDetails } = req.body || {};
 
     if (!checkIn || !checkOut || !guestName || !guestEmail) {
       return res.status(400).json({ error: 'checkIn, checkOut, guestName, guestEmail are required' });
@@ -1227,37 +1284,42 @@ async function startServer() {
       return res.status(400).json({ error: 'At least one room is required' });
     }
 
-    const [{ data: rooms }, { data: reservations }, { data: settings }, { data: packages }] = await Promise.all([
+    const [{ data: roomTypes }, { data: rooms }, { data: reservations }, { data: settings }, { data: packages }, { data: guestServices }] = await Promise.all([
+      supabaseAdmin.from('room_types').select('*'),
       supabaseAdmin.from('rooms').select('*'),
       supabaseAdmin.from('reservations').select('*'),
       supabaseAdmin.from('global_settings').select('*').maybeSingle(),
-      supabaseAdmin.from('packages').select('*')
+      supabaseAdmin.from('packages').select('*'),
+      supabaseAdmin.from('guest_services').select('*')
     ]);
 
+    const roomTypesList = roomTypes || [];
     const roomsList = rooms || [];
     const reservationsList = reservations || [];
     const taxPercent = settings?.tax_percent || 0;
     const serviceChargePercent = settings?.service_charge_percent || 0;
     const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
-    const packageIdsList: string[] = packageIds || [];
+    const packageIdsList: string[] = Array.isArray(packageIds) ? packageIds : (packageIds ? [packageIds] : []);
+    const guestServiceIdsList: string[] = Array.isArray(guestServiceIds) ? guestServiceIds : (guestServiceIds ? [guestServiceIds] : []);
 
     // Validate availability and compute pricing per item
     const enrichedItems = [];
     let roomSubtotal = 0;
     for (const item of cartItems) {
-      const type = item.roomType;
-      const qty = Math.max(1, Number(item.quantity) || 1);
-      const availability = getTypeAvailability(type, checkIn, checkOut, roomsList, reservationsList);
-      if (availability.available < qty) {
-        return res.status(409).json({ error: `Only ${availability.available} ${type} room${availability.available === 1 ? '' : 's'} available for selected dates` });
+      const roomTypeId = item.roomType;
+      const roomType = roomTypesList.find((rt: any) => rt.id === roomTypeId);
+      if (!roomType) {
+        return res.status(400).json({ error: `Room type ${roomTypeId} not found` });
       }
-      const roomsOfType = roomsList.filter((r: any) => r.type === type);
-      const avgRate = roomsOfType.length > 0
-        ? Math.round(roomsOfType.reduce((sum: number, r: any) => sum + Number(r.rate), 0) / roomsOfType.length)
-        : 0;
-      const itemRoomTotal = avgRate * nights * qty;
+      const qty = Math.max(1, Number(item.quantity) || 1);
+      const availability = getTypeAvailability(roomType.name, checkIn, checkOut, roomsList, reservationsList);
+      if (availability.available < qty) {
+        return res.status(409).json({ error: `Only ${availability.available} ${roomType.name} room${availability.available === 1 ? '' : 's'} available for selected dates` });
+      }
+      const rate = roomType.base_price;
+      const itemRoomTotal = rate * nights * qty;
       roomSubtotal += itemRoomTotal;
-      enrichedItems.push({ type, qty, avgRate, itemRoomTotal, adults: Number(item.adults) || 1, children: Number(item.children) || 0 });
+      enrichedItems.push({ roomTypeId, roomTypeName: roomType.name, qty, rate, itemRoomTotal, adults: Number(item.adults) || 1, children: Number(item.children) || 0 });
     }
 
     let packageTotal = 0;
@@ -1268,7 +1330,15 @@ async function startServer() {
       }
     }
 
-    const subtotal = roomSubtotal + packageTotal;
+    let guestServicesTotal = 0;
+    for (const gsid of guestServiceIdsList) {
+      const gs = (guestServices || []).find((g: any) => g.id === gsid);
+      if (gs) {
+        guestServicesTotal += Number(gs.price);
+      }
+    }
+
+    const subtotal = roomSubtotal + packageTotal + guestServicesTotal;
     const tax = Math.round(subtotal * (taxPercent / 100));
     const serviceCharge = Math.round(subtotal * (serviceChargePercent / 100));
     const totalAmount = subtotal + tax + serviceCharge;
@@ -1282,6 +1352,7 @@ async function startServer() {
       name: guestName,
       email: guestEmail,
       phone: guestPhone || '',
+      nationality: guestNationality || '',
       status: 'Regular',
       loyalty_points: 0,
       special_requests: specialRequests || '',
@@ -1292,7 +1363,7 @@ async function startServer() {
     if (guestError) return res.status(500).json({ error: guestError.message });
 
     const groupBookingId = `GB-${Math.floor(1000 + Math.random() * 9000)}`;
-    const primaryRoomType = enrichedItems.length === 1 ? enrichedItems[0].type : 'Mixed';
+    const primaryRoomType = enrichedItems.length === 1 ? enrichedItems[0].roomTypeName : 'Mixed';
     const { error: groupError } = await supabaseAdmin.from('group_bookings').insert({
       id: groupBookingId,
       group_name: `${guestName} Group`,
@@ -1310,16 +1381,24 @@ async function startServer() {
 
     const reservationIds: string[] = [];
     let firstReservation = true;
+    let packagesAdded = false;
+    let guestServicesAdded = false;
     for (const item of enrichedItems) {
       for (let i = 0; i < item.qty; i++) {
-        const baseAmount = item.avgRate * nights;
+        const baseAmount = item.rate * nights;
         let itemTotal = Math.round(baseAmount * (1 + taxPercent / 100 + serviceChargePercent / 100));
         const charges: any[] = [{ description: 'Room charge', amount: baseAmount, date: new Date().toISOString() }];
 
-        if (firstReservation && packageTotal > 0) {
+        if (firstReservation && packageTotal > 0 && !packagesAdded) {
           itemTotal += Math.round(packageTotal * (1 + taxPercent / 100 + serviceChargePercent / 100));
           charges.push({ description: 'Packages & add-ons', amount: packageTotal, date: new Date().toISOString() });
-          firstReservation = false;
+          packagesAdded = true;
+        }
+
+        if (firstReservation && guestServicesTotal > 0 && !guestServicesAdded) {
+          itemTotal += Math.round(guestServicesTotal * (1 + taxPercent / 100 + serviceChargePercent / 100));
+          charges.push({ description: 'Guest services', amount: guestServicesTotal, date: new Date().toISOString() });
+          guestServicesAdded = true;
         }
 
         const reservationId = `R-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -1331,13 +1410,14 @@ async function startServer() {
           guest_email: guestEmail,
           guest_phone: guestPhone || '',
           guest_status: 'Regular',
-          room_type: item.type,
+          room_type: item.roomTypeName,
+          room_type_id: item.roomTypeId,
           check_in_date: checkIn,
           check_out_date: checkOut,
           adults: item.adults,
           children: item.children,
           status: 'Waitlisted',
-          rate: item.avgRate,
+          rate: item.rate,
           total_amount: itemTotal,
           channel: 'Direct Website',
           payment_status: 'Unpaid',
@@ -1345,6 +1425,9 @@ async function startServer() {
           tax_percent: taxPercent,
           service_charge_percent: serviceChargePercent,
           package_ids: packageIdsList,
+          guest_service_ids: guestServiceIdsList,
+          guest_services_price: firstReservation ? guestServicesTotal : 0,
+          guest_services_revenue: firstReservation && !guestServicesAdded ? Math.round(guestServicesTotal * (1 + taxPercent / 100 + serviceChargePercent / 100)) : 0,
           charges,
           payments: [],
           is_group: isGroupBooking,
@@ -1352,6 +1435,31 @@ async function startServer() {
           booking_group_id: groupBookingId
         });
         if (resError) return res.status(500).json({ error: resError.message });
+      }
+    }
+
+    // Create airport shuttle request if the service is selected and details are provided
+    const airportShuttleService = (guestServices || []).find((gs: any) => {
+      const name = (gs.name || '').toLowerCase();
+      return name.includes('airport') || name.includes('shuttle');
+    });
+    if (airportShuttleService && guestServiceIdsList.includes(airportShuttleService.id) && airportShuttleDetails && reservationIds.length > 0) {
+      const shuttleId = `shuttle_${Date.now()}`;
+      const { error: shuttleError } = await supabaseAdmin.from('airport_shuttle_requests').insert({
+        id: shuttleId,
+        guest_id: guestId,
+        reservation_id: reservationIds[0],
+        room_number: null,
+        scheduled_date: airportShuttleDetails.scheduledDate,
+        scheduled_time: airportShuttleDetails.scheduledTime,
+        shuttle_type: airportShuttleDetails.shuttleType,
+        flight_number: airportShuttleDetails.flightNumber || null,
+        flight_time: airportShuttleDetails.flightTime || null,
+        status: 'Pending',
+        notes: airportShuttleDetails.notes || null
+      });
+      if (shuttleError) {
+        console.error('Error creating airport shuttle request:', shuttleError);
       }
     }
 

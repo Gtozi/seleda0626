@@ -4,17 +4,17 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Database, 
-  Home, 
-  Users, 
-  ShoppingCart, 
-  DollarSign, 
-  Search, 
-  Plus, 
-  ChevronRight, 
-  Layers, 
-  MapPin, 
+import {
+  Database,
+  Home,
+  Users,
+  ShoppingCart,
+  DollarSign,
+  Search,
+  Plus,
+  ChevronRight,
+  Layers,
+  MapPin,
   Briefcase,
   AlertTriangle,
   Settings,
@@ -30,17 +30,22 @@ import {
   TrendingUp,
   Tag,
   Warehouse,
-  FileCheck
+  FileCheck,
+  Image as ImageIcon,
+  Bed,
+  Wifi,
+  Coffee
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
-import { Room, RoomType, RoomStatus, Guest, GuestStatus } from '../../types/erp';
+import { Room, RoomType, RoomStatus, Guest, GuestStatus, RoomTypeDetail } from '../../types/erp';
 import { InventoryItem } from '../../types/inventory';
 import { ChartOfAccount } from '../../types/finance';
 
 export default function MasterData() {
   const {
     rooms,
+    roomTypes,
     addRoom,
     updateRoom,
     deleteRoom,
@@ -101,6 +106,7 @@ export default function MasterData() {
   const [roomForm, setRoomForm] = useState({
     number: '',
     type: 'Double' as RoomType,
+    roomTypeId: '' as string,
     floor: 1,
     rate: 150,
     status: 'Vacant Clean' as RoomStatus,
@@ -156,12 +162,13 @@ export default function MasterData() {
     addRoom({
       number: roomForm.number,
       type: roomForm.type,
+      roomTypeId: roomForm.roomTypeId || undefined,
       floor: Number(roomForm.floor) || 1,
       status: roomForm.status,
       rate: Number(roomForm.rate) || 100,
       features: roomForm.features
     });
-    setRoomForm({ number: '', type: 'Double', floor: 1, rate: 150, status: 'Vacant Clean', features: [] });
+    setRoomForm({ number: '', type: 'Double', roomTypeId: '', floor: 1, rate: 150, status: 'Vacant Clean', features: [] });
     setShowAddModal(false);
     triggerSuccess(`Room ${roomForm.number} created successfully.`);
   };
@@ -1393,7 +1400,7 @@ export default function MasterData() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">Floor Level</label>
-                      <input 
+                      <input
                         required
                         type="number"
                         value={roomForm.floor}
@@ -1404,17 +1411,64 @@ export default function MasterData() {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest">Room Configuration Category</label>
-                      <select 
+                      <select
                         value={roomForm.type}
-                        onChange={(e) => setRoomForm({ ...roomForm, type: e.target.value as RoomType })}
+                        onChange={(e) => {
+                          const selectedType = e.target.value;
+                          const selectedRoomType = roomTypes.find(rt => rt.name === selectedType);
+                          setRoomForm({ 
+                            ...roomForm, 
+                            type: selectedType as RoomType,
+                            roomTypeId: selectedRoomType?.id || '',
+                            rate: selectedRoomType?.basePrice || roomForm.rate
+                          });
+                        }}
                         className="w-full bg-slate-50 dark:bg-slate-950 border-none rounded-xl px-4 py-3 text-xs font-bold outline-none cursor-pointer text-slate-900 dark:text-white"
                       >
-                        {(globalHotelSettings.roomTypes || ['Single', 'Double', 'Deluxe', 'Suite']).map(t => (
-                          <option key={t} value={t}>{t}</option>
+                        {roomTypes.filter(rt => rt.isActive).map(rt => (
+                          <option key={rt.id} value={rt.name}>{rt.name} - ${rt.basePrice}/night</option>
                         ))}
                       </select>
                     </div>
                   </div>
+
+                  {/* Room Type Preview Card */}
+                  {roomForm.roomTypeId && (() => {
+                    const selectedRoomType = roomTypes.find(rt => rt.id === roomForm.roomTypeId);
+                    if (!selectedRoomType) return null;
+                    return (
+                      <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 rounded-2xl p-4 border border-slate-200 dark:border-slate-700">
+                        <div className="flex gap-3">
+                          {selectedRoomType.imageUrl1 && (
+                            <div className="w-24 h-24 rounded-xl overflow-hidden flex-shrink-0">
+                              <img src={selectedRoomType.imageUrl1} alt={selectedRoomType.name} className="w-full h-full object-cover" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase">{selectedRoomType.name}</h4>
+                            <p className="text-[10px] text-slate-500 line-clamp-2 mb-2">{selectedRoomType.description}</p>
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="flex items-center gap-1 text-[9px] text-slate-600">
+                                <DollarSign size={10} className="text-emerald-500" />
+                                <span className="font-bold">${selectedRoomType.basePrice}/night</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[9px] text-slate-600">
+                                <Users size={10} className="text-indigo-500" />
+                                <span className="font-bold">{selectedRoomType.maxOccupancy} guests</span>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {selectedRoomType.amenities.slice(0, 4).map((amenity, idx) => (
+                                <span key={idx} className="px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded text-[8px]">
+                                  {amenity}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <div className="space-y-1">
                     <label className="text-[8.5px] font-bold text-slate-400 uppercase tracking-widest ml-1 block mb-1">In-Room Amenities features</label>

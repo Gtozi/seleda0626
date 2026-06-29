@@ -130,7 +130,32 @@ create index if not exists idx_reservations_booking_group_id on reservations(boo
 create index if not exists idx_reservations_guest_id on reservations(guest_id);
 
 -- 4. GROUP BOOKINGS TABLE
+create table if not exists group_bookings (
+  id text primary key,
+  group_name text not null,
+  contact_name text not null,
+  contact_email text not null,
+  contact_phone text,
+  room_type_needed text not null,
+  room_count integer not null,
+  check_in_date date not null,
+  check_out_date date not null,
+  discount_percent numeric not null default 0.00,
+  status text check (status in ('Pending', 'Confirmed', 'CheckedIn', 'Completed', 'Cancelled'))
+);
+
 -- 5. CORPORATE ACCOUNTS TABLE
+create table if not exists corporate_accounts (
+  id text primary key,
+  company_name text not null,
+  contact_person text not null,
+  contact_email text not null,
+  contact_phone text,
+  discount_percent numeric not null default 0.00,
+  active_bookings integer not null default 0,
+  unpaid_balance numeric not null default 0.00
+);
+
 -- 6. RATE PLANS TABLE
 create table if not exists rate_plans (
   id text primary key,
@@ -1727,6 +1752,24 @@ create table if not exists airport_shuttle_requests (
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
 );
+
+create index if not exists idx_airport_shuttle_requests_scheduled_date on airport_shuttle_requests(scheduled_date);
+create index if not exists idx_airport_shuttle_requests_status on airport_shuttle_requests(status);
+
+create or replace function update_updated_at_column()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists update_airport_shuttle_requests_updated_at on airport_shuttle_requests;
+
+create trigger update_airport_shuttle_requests_updated_at
+  before update on airport_shuttle_requests
+  for each row
+  execute function update_updated_at_column();
 
 create table if not exists inventory_requisitions (
   id text primary key,
@@ -5591,6 +5634,8 @@ $$;
 
 
 
+drop trigger if exists trg_prevent_version_update on page_versions;
+
 CREATE TRIGGER trg_prevent_version_update
 
   BEFORE UPDATE ON page_versions
@@ -5598,6 +5643,8 @@ CREATE TRIGGER trg_prevent_version_update
   FOR EACH ROW EXECUTE FUNCTION prevent_version_mutation();
 
 
+
+drop trigger if exists trg_prevent_version_delete on page_versions;
 
 CREATE TRIGGER trg_prevent_version_delete
 
@@ -5856,6 +5903,8 @@ END;
 $$;
 
 
+
+drop trigger if exists trg_enforce_legal_review on pages;
 
 CREATE TRIGGER trg_enforce_legal_review
 
@@ -6984,6 +7033,8 @@ ALTER TABLE pages ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow public read access to published pages
 
+drop policy if exists "Allow public read access to published pages" on pages;
+
 CREATE POLICY "Allow public read access to published pages"
 
 ON pages FOR SELECT
@@ -6993,6 +7044,8 @@ USING (status = 'published');
 
 
 -- Policy: Allow service role full access (for admin operations)
+
+drop policy if exists "Allow service role full access to pages" on pages;
 
 CREATE POLICY "Allow service role full access to pages"
 
@@ -7009,6 +7062,8 @@ ALTER TABLE blocks ENABLE ROW LEVEL SECURITY;
 
 
 -- Policy: Allow public read access to blocks from published pages
+
+drop policy if exists "Allow public read access to blocks from published pages" on blocks;
 
 CREATE POLICY "Allow public read access to blocks from published pages"
 
@@ -7032,6 +7087,8 @@ USING (
 
 -- Policy: Allow service role full access to blocks
 
+drop policy if exists "Allow service role full access to blocks" on blocks;
+
 CREATE POLICY "Allow service role full access to blocks"
 
 ON blocks FOR ALL
@@ -7047,6 +7104,8 @@ ALTER TABLE page_versions ENABLE ROW LEVEL SECURITY;
 
 
 -- Policy: Allow public read access to published versions
+
+drop policy if exists "Allow public read access to published page versions" on page_versions;
 
 CREATE POLICY "Allow public read access to published page versions"
 
@@ -7070,6 +7129,8 @@ USING (
 
 -- Policy: Allow service role full access to page_versions
 
+drop policy if exists "Allow service role full access to page_versions" on page_versions;
+
 CREATE POLICY "Allow service role full access to page_versions"
 
 ON page_versions FOR ALL
@@ -7086,6 +7147,8 @@ ALTER TABLE public_testimonials ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Allow public read access to approved testimonials
 
+drop policy if exists "Allow public read access to approved testimonials" on public_testimonials;
+
 CREATE POLICY "Allow public read access to approved testimonials"
 
 ON public_testimonials FOR SELECT
@@ -7096,6 +7159,8 @@ USING (status = 'approved');
 
 -- Policy: Allow authenticated users to insert testimonials
 
+drop policy if exists "Allow authenticated users to insert testimonials" on public_testimonials;
+
 CREATE POLICY "Allow authenticated users to insert testimonials"
 
 ON public_testimonials FOR INSERT
@@ -7105,6 +7170,8 @@ WITH CHECK (auth.role() = 'authenticated');
 
 
 -- Policy: Allow service role full access to testimonials
+
+drop policy if exists "Allow service role full access to testimonials" on public_testimonials;
 
 CREATE POLICY "Allow service role full access to testimonials"
 

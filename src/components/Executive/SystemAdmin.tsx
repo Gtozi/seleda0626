@@ -251,8 +251,8 @@ const TabButton = ({ id, icon, label, current, set }: TabButtonProps) => (
 const SecurityDashboard = ({ logs, users }: { logs: SystemAuditLog[], users: User[] }) => {
   const activeUsers = users.filter(u => u.status === 'Active').length;
   const concurrentLogins = users.filter(u => u.lastLogin && new Date().getTime() - new Date(u.lastLogin).getTime() < 30 * 60 * 1000).length;
-  const failedAttempts = logs.filter(l => l.action === 'FAILED_LOGIN' || l.details?.toLowerCase().includes('failed')).length;
-  const permissionViolations = logs.filter(l => l.action === 'PERMISSION_VIOLATION' || l.details?.toLowerCase().includes('unauthorized')).length;
+  const failedAttempts = logs.filter(l => l.action === 'FAILED_LOGIN' || (typeof l.details === 'string' && l.details.toLowerCase().includes('failed'))).length;
+  const permissionViolations = logs.filter(l => l.action === 'PERMISSION_VIOLATION' || (typeof l.details === 'string' && l.details.toLowerCase().includes('unauthorized'))).length;
 
   return (
     <div className="space-y-6 animate-fade-in">

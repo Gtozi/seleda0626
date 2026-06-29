@@ -15,7 +15,9 @@ import {
   Target,
   Percent,
   ChevronDown,
-  X
+  X,
+  Image as ImageIcon,
+  Maximize
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -34,7 +36,7 @@ import {
 import { useERP } from '../../context/ERPContext';
 
 const ExecutiveDashboard = () => {
-  const { stats, rooms, reservations, salesTransactions, currentSystemDate, expenseRequests, riskCompliance } = useERP();
+  const { stats, rooms, roomTypes, reservations, salesTransactions, currentSystemDate, expenseRequests, riskCompliance, formatAmount } = useERP();
 
   // Date range state
   const [dateRange, setDateRange] = useState<'today' | 'week' | 'month' | 'custom'>('week');
@@ -249,6 +251,65 @@ const ExecutiveDashboard = () => {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Room Type Breakdown */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs mt-6">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Room Type Inventory</h3>
+          <button className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">
+            View All
+          </button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {roomTypes.filter(rt => rt.isActive).map((rt) => {
+            const roomsOfType = rooms.filter(r => r.type === rt.name || r.roomTypeId === rt.id);
+            const availableRooms = roomsOfType.filter(r => r.status === 'Vacant Clean' || r.status === 'Vacant Dirty');
+            const occupiedRooms = roomsOfType.filter(r => r.status.includes('Occupied'));
+            const occupancyRate = roomsOfType.length > 0 ? Math.round((occupiedRooms.length / roomsOfType.length) * 100) : 0;
+
+            return (
+              <div key={rt.id} className="group relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all cursor-pointer">
+                {rt.imageUrl1 && (
+                  <div className="relative h-32 bg-slate-100">
+                    <img
+                      src={rt.imageUrl1}
+                      alt={rt.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <h4 className="text-xs font-black text-white uppercase tracking-tight">{rt.name}</h4>
+                      <p className="text-[10px] text-white/90 font-bold">{formatAmount(rt.basePrice)}/night</p>
+                    </div>
+                  </div>
+                )}
+                <div className="p-3">
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="text-center p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                      <p className="text-[9px] font-black text-slate-400 uppercase">Total</p>
+                      <p className="text-sm font-black text-slate-900 dark:text-white">{roomsOfType.length}</p>
+                    </div>
+                    <div className="text-center p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                      <p className="text-[9px] font-black text-emerald-600 dark:text-emerald-400 uppercase">Available</p>
+                      <p className="text-sm font-black text-emerald-700 dark:text-emerald-300">{availableRooms.length}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between text-[9px]">
+                    <span className="font-bold text-slate-500">Occupancy</span>
+                    <span className="font-black text-slate-900 dark:text-white">{occupancyRate}%</span>
+                  </div>
+                  <div className="h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full mt-1 overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-full"
+                      style={{ width: `${occupancyRate}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* KPI Drill-Down Modal */}
