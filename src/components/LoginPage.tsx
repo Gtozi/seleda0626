@@ -68,7 +68,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center text-white font-serif font-bold text-xl shadow-lg shadow-amber-500/20">H</div>
             <div>
-              <span className="font-serif font-bold text-sm text-slate-900 dark:text-white block uppercase tracking-wide">Grand Hotel ERP</span>
+              <span className="font-serif font-bold text-sm text-slate-900 dark:text-white block uppercase tracking-wide">Gheralta</span>
               <span className="text-xs text-slate-500 dark:text-slate-400 font-sans">Enterprise Portal</span>
             </div>
           </div>

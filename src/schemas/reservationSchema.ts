@@ -10,6 +10,7 @@ const roomSelectionSchema = z.object({
   roomType: z.string().min(1, 'Room type is required'),
   count: z.number().min(1),
   roomNumbers: z.array(z.string()).optional(),
+  roomNights: z.array(z.array(z.string())).optional(),
 });
 
 export const reservationSchema = z.object({
@@ -25,11 +26,13 @@ export const reservationSchema = z.object({
   children: z.number().min(0),
   promoCode: z.string().optional(),
   channel: z.enum(['Booking.com', 'Expedia', 'Walk-In', 'Direct Website', 'Corporate']),
-  notes: z.string().optional(),
+  specialRequests: z.string().optional(),
+  guestNationality: z.string().optional(),
   depositAmount: z.number().min(0),
   isDepositPaid: z.boolean(),
-  ratePlanId: z.string(),
+  ratePlanId: z.string().optional(),
   packageIds: z.array(z.string()),
+  guestServiceIds: z.array(z.string()),
   additionalGuestIds: z.array(z.string()),
   guestTin: z.string().optional(),
   guestVatNo: z.string().optional(),
@@ -39,6 +42,9 @@ export const reservationSchema = z.object({
   groupName: z.string().optional(),
   numberOfRooms: z.number().min(1).optional(),
   corporateAccountId: z.string().optional(),
+  operatorId: z.string().optional(),
+  voucherCode: z.string().optional(),
+  voucherDiscount: z.number().min(0).optional(),
 }).refine((data) => {
   const start = new Date(data.checkInDate);
   const end = new Date(data.checkOutDate);
@@ -55,6 +61,14 @@ export const reservationSchema = z.object({
 }, {
   message: "Individual bookings can only have one room type",
   path: ["roomSelections"],
+}).refine((data) => {
+  if (data.bookingType === 'Group' && (!data.groupName || data.groupName.trim() === '')) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Group name is required for group bookings",
+  path: ["groupName"],
 });
 
 export type ReservationFormData = z.infer<typeof reservationSchema>;

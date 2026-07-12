@@ -3,15 +3,16 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useRef } from 'react';
-import { motion } from 'motion/react';
-import { Layers, Clock, DoorOpen, BedDouble, CheckCircle2, Circle, Tag, X, Image as ImageIcon, DollarSign, Users, Wifi, Coffee, Maximize } from 'lucide-react';
-import { Room, RoomType, RoomTypeDetail } from '../../types/erp';
+import React from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Bed, Minus, Plus } from 'lucide-react';
+import { Room, RoomTypeDetail } from '../../types/erp';
 
 interface RoomSelection {
   roomType?: string;
   count?: number;
   roomNumbers?: string[];
+  roomNights?: string[][];
 }
 
 interface RoomSelectionSectionProps {
@@ -20,18 +21,52 @@ interface RoomSelectionSectionProps {
   checkInDate?: string;
   checkOutDate?: string;
   currentSystemDate: string;
-  uniqueRoomTypes: string[];
   rooms: Room[];
   roomTypes: RoomTypeDetail[];
   getTypeAvailability: (roomType: string, checkInDate: string, checkOutDate: string) => { available: number };
   onRoomTypeChange: (type: string) => void;
   onRoomSelectionsChange: (selections: RoomSelection[]) => void;
   nights: number;
+  formatAmount: (amount: number) => string;
   errors?: {
     roomType?: string;
     roomSelections?: string;
   };
 }
+
+interface QuantityStepperProps {
+  value: number;
+  min?: number;
+  max?: number;
+  onChange: (value: number) => void;
+  size?: 'sm' | 'md';
+}
+
+const QuantityStepper: React.FC<QuantityStepperProps> = ({ value, min = 0, max = Infinity, onChange, size = 'md' }) => {
+  const buttonSize = size === 'sm' ? 'w-6 h-6' : 'w-8 h-8';
+  const iconSize = size === 'sm' ? 12 : 14;
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onChange(Math.max(min, value - 1)); }}
+        disabled={value <= min}
+        className={`${buttonSize} rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 disabled:opacity-40 transition`}
+      >
+        <Minus size={iconSize} />
+      </button>
+      <span className={`text-center font-semibold text-stone-900 ${size === 'sm' ? 'w-4 text-xs' : 'w-6 text-sm'}`}>{value}</span>
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onChange(Math.min(max, value + 1)); }}
+        disabled={value >= max}
+        className={`${buttonSize} rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 disabled:opacity-40 transition`}
+      >
+        <Plus size={iconSize} />
+      </button>
+    </div>
+  );
+};
 
 export default function RoomSelectionSection({
   roomType,
@@ -39,17 +74,15 @@ export default function RoomSelectionSection({
   checkInDate,
   checkOutDate,
   currentSystemDate,
-  uniqueRoomTypes,
   rooms,
   roomTypes,
   getTypeAvailability,
   onRoomTypeChange,
   onRoomSelectionsChange,
   nights,
+  formatAmount,
   errors,
 }: RoomSelectionSectionProps) {
-  const countInputRef = useRef<HTMLInputElement>(null);
-
   const effectiveCheckIn = checkInDate || currentSystemDate;
   const effectiveCheckOut = checkOutDate || (() => {
     const d = new Date(currentSystemDate);
@@ -57,84 +90,57 @@ export default function RoomSelectionSection({
     return d.toISOString().split('T')[0];
   })();
 
-  const handleAddRoomType = () => {
-    const count = parseInt(countInputRef.current?.value || '1');
-    const availability = getTypeAvailability(roomType, effectiveCheckIn, effectiveCheckOut);
-    const availableCount = availability.available;
-    const currentSelections = roomSelections || [];
-    const existingSelection = currentSelections.find(s => s.roomType === roomType);
-    const currentlySelected = existingSelection?.count || 0;
+  const getQuantity = (type: string) =>
+    roomSelections.find(s => s.roomType === type)?.count || 0;
 
-    if (currentlySelected + count > availableCount) {
-      alert(`Only ${availableCount} ${roomType} room(s) available. You have already selected ${currentlySelected}.`);
+  const normalizeRoomNights = (existing: string[][] | undefined, count: number): string[][] => {
+    if (nights <= 0 || count <= 0) return [];
+    const rows: string[][] = [];
+    for (let i = 0; i < nights; i++) {
+      const existingRow = existing?.[i] || [];
+      const row: string[] = [];
+      for (let j = 0; j < count; j++) {
+        row.push(existingRow[j] || '');
+      }
+      rows.push(row);
+    }
+    return rows;
+  };
+
+  const handleSetQuantity = (type: string, quantity: number) => {
+    const availability = getTypeAvailability(type, effectiveCheckIn, effectiveCheckOut);
+    const max = availability.available;
+    const currentSelections = roomSelections || [];
+
+    if (quantity > max) {
+      alert(`Only ${max} ${type} room(s) available.`);
+      quantity = max;
+    }
+
+    if (quantity <= 0) {
+      onRoomSelectionsChange(currentSelections.filter(s => s.roomType !== type));
       return;
     }
 
-    const existingIndex = currentSelections.findIndex(s => s.roomType === roomType);
-    let newSelections: RoomSelection[];
+    const existingIndex = currentSelections.findIndex(s => s.roomType === type);
     if (existingIndex >= 0) {
-      newSelections = currentSelections.map((s, i) =>
-        i === existingIndex ? { ...s, count: (s.count || 0) + count } : s
+      onRoomSelectionsChange(
+        currentSelections.map((s, i) =>
+          i === existingIndex ? { ...s, count: quantity, roomNights: normalizeRoomNights(s.roomNights, quantity) } : s
+        )
       );
     } else {
-      newSelections = [...currentSelections, { roomType, count, roomNumbers: [] }];
+      onRoomSelectionsChange([...currentSelections, { roomType: type, count: quantity, roomNumbers: [], roomNights: normalizeRoomNights([], quantity) }]);
     }
-    onRoomSelectionsChange(newSelections);
-    if (countInputRef.current) {
-      countInputRef.current.value = '1';
-    }
-  };
 
-  const handleDirectRoomSelect = (room: Room) => {
-    if (room.status !== 'Vacant Clean' && room.status !== 'Vacant Dirty') return;
-
-    const currentSelections = roomSelections || [];
-    const existingIndex = currentSelections.findIndex(s => s.roomType === room.type);
-
-    if (existingIndex >= 0) {
-      const existing = currentSelections[existingIndex];
-      const alreadySelected = existing.roomNumbers?.includes(room.number);
-      if (alreadySelected) return;
-
-      const newSelections = currentSelections.map((s, i) =>
-        i === existingIndex
-          ? { ...s, count: (s.count || 0) + 1, roomNumbers: [...(s.roomNumbers || []), room.number] }
-          : s
-      );
-      onRoomSelectionsChange(newSelections);
-    } else {
-      onRoomSelectionsChange([
-        ...currentSelections,
-        { roomType: room.type, count: 1, roomNumbers: [room.number] },
-      ]);
+    if (type !== roomType) {
+      onRoomTypeChange(type);
     }
   };
 
-  const handleRemoveSelection = (idx: number) => {
-    const newSelections = roomSelections.filter((_, i) => i !== idx);
-    onRoomSelectionsChange(newSelections);
-  };
-
-  const handleToggleRoomNumber = (selectionIdx: number, roomNumber: string, checked: boolean) => {
-    const newSelections = roomSelections.map((s, i) => {
-      if (i !== selectionIdx) return s;
-      const newRoomNumbers = checked
-        ? [...(s.roomNumbers || []), roomNumber]
-        : (s.roomNumbers || []).filter(n => n !== roomNumber);
-      return { ...s, roomNumbers: newRoomNumbers };
-    });
-    onRoomSelectionsChange(newSelections);
-  };
-
-  const availability = getTypeAvailability(roomType, effectiveCheckIn, effectiveCheckOut);
-  const availableRooms = rooms.filter(r =>
-    r.type === roomType && (r.status === 'Vacant Clean' || r.status === 'Vacant Dirty')
-  );
-  const availableCount = availability.available;
-
-  // Get room type details
-  const getRoomTypeDetail = (type: string) => {
-    return roomTypes.find(rt => rt.name === type || rt.id === type);
+  const getBaseRate = (type: string) => {
+    const roomOfType = rooms.find(r => r.type === type);
+    return roomOfType?.rate || roomTypes.find(rt => rt.name === type || rt.id === type)?.basePrice || 0;
   };
 
   return (
@@ -142,290 +148,73 @@ export default function RoomSelectionSection({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.25, duration: 0.35, ease: 'easeOut' }}
-      className="bg-gradient-to-br from-white to-slate-50/50 border border-slate-200/80 rounded-2xl p-5 space-y-4 shadow-sm"
+      className="bg-white border border-stone-200 rounded-2xl p-5 shadow-sm space-y-5"
     >
-      <h4 className="text-xs font-mono font-bold text-slate-500 uppercase flex items-center gap-2">
-        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-br from-slate-100 to-slate-200 text-slate-600">
-          <Layers size={12} />
-        </span>
-        Rooms Outlook Timeline
-      </h4>
-      
-      {/* Stay Period Visual */}
-      {checkInDate && checkOutDate && (
-        <div className="bg-gradient-to-r from-slate-50 to-slate-100/80 rounded-xl p-4 border border-slate-200/80 shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Clock size={12} className="text-amber-500" />
-            <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Stay Period</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <div className="text-center">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Check-In</div>
-              <div className="text-sm font-bold text-slate-800">{new Date(checkInDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-            </div>
-            <div className="flex-1 mx-3 h-1.5 bg-slate-200 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 w-full rounded-full" />
-            </div>
-            <div className="text-center">
-              <div className="text-[10px] text-slate-400 uppercase font-medium">Check-Out</div>
-              <div className="text-sm font-bold text-slate-800">{new Date(checkOutDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-            </div>
-          </div>
-          <div className="mt-3 text-center">
-            <span className="text-[11px] font-semibold text-slate-700 bg-white px-3 py-1 rounded-full border border-slate-200/80 inline-block">
-              {nights} night{nights !== 1 ? 's' : ''}
-            </span>
-          </div>
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-stone-900 flex items-center gap-2">
+          <Bed size={18} className="text-amber-500" /> Select your room
+        </h2>
+        <span className="text-xs text-stone-500 font-medium">{nights} night{nights !== 1 ? 's' : ''}</span>
+      </div>
+
+      {roomTypes.filter(rt => rt.isActive).length === 0 ? (
+        <div className="text-center py-14 bg-white border border-stone-200 rounded-2xl">
+          <Bed size={40} className="mx-auto text-stone-300 mb-3" />
+          <p className="text-stone-500 font-medium">No rooms available for the selected dates.</p>
+          <p className="text-xs text-stone-400 mt-1">Try adjusting your dates or contact the hotel.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AnimatePresence mode="popLayout">
+            {roomTypes.filter(rt => rt.isActive).map((rt, index) => {
+              const quantity = getQuantity(rt.name);
+              const available = getTypeAvailability(rt.name, effectiveCheckIn, effectiveCheckOut).available;
+              const soldOut = available === 0;
+              const rate = getBaseRate(rt.name);
+
+              return (
+                <motion.div
+                  key={rt.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                  className={`group flex items-center justify-between gap-4 p-4 border rounded-2xl transition-all ${
+                    quantity > 0
+                      ? 'border-amber-400 ring-1 ring-amber-400 bg-amber-50/30'
+                      : 'border-stone-200 bg-white hover:border-amber-300'
+                  } ${soldOut ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-semibold text-stone-900 truncate">{rt.name}</h3>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                        available > 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'
+                      }`}>
+                        {available} available
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-0.5">{formatAmount(rate)} / night</p>
+                  </div>
+                  <QuantityStepper
+                    value={quantity}
+                    min={0}
+                    max={available}
+                    onChange={(value) => handleSetQuantity(rt.name, value)}
+                    size="sm"
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 
-      <div className="space-y-3">
-        <div className="space-y-2">
-          <label className="text-[10px] font-bold text-slate-600 uppercase flex items-center gap-2">
-            <DoorOpen size={10} className="text-amber-500" />
-            Select Room Type
-          </label>
-          
-          {/* Enhanced Room Type Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {roomTypes.filter(rt => rt.isActive).map((rt) => {
-              const rtDetail = getRoomTypeDetail(rt.name);
-              const isSelected = roomType === rt.name || roomType === rt.id;
-              const availability = getTypeAvailability(rt.name, effectiveCheckIn, effectiveCheckOut);
-              
-              return (
-                <motion.button
-                  key={rt.id}
-                  type="button"
-                  onClick={() => onRoomTypeChange(rt.name)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`relative overflow-hidden rounded-xl border-2 transition-all ${
-                    isSelected 
-                      ? 'border-amber-500 bg-amber-50 shadow-md' 
-                      : 'border-slate-200 bg-white hover:border-amber-300 hover:shadow-sm'
-                  }`}
-                >
-                  {/* Room Type Image */}
-                  {rt.imageUrl1 && (
-                    <div className="relative h-24 bg-slate-100">
-                      <img
-                        src={rt.imageUrl1}
-                        alt={rt.name}
-                        className="w-full h-full object-cover"
-                      />
-                      <div className="absolute top-2 right-2 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded-full">
-                        <span className="text-white text-[9px] font-bold">{availability.available} available</span>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Room Type Info */}
-                  <div className="p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <h5 className="text-xs font-black text-slate-900 uppercase">{rt.name}</h5>
-                      {isSelected && (
-                        <div className="w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center">
-                          <CheckCircle2 size={12} className="text-white" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    <p className="text-[9px] text-slate-500 line-clamp-2 mb-2">{rt.description}</p>
-                    
-                    {/* Key Details */}
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
-                        <DollarSign size={10} className="text-emerald-500" />
-                        <span className="font-bold">${rt.basePrice}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
-                        <Users size={10} className="text-indigo-500" />
-                        <span className="font-bold">{rt.maxOccupancy}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-[9px] text-slate-600">
-                        <Maximize size={10} className="text-amber-500" />
-                        <span className="font-bold">{rt.roomSizeSqm}sqm</span>
-                      </div>
-                    </div>
-                    
-                    {/* Amenities Preview */}
-                    <div className="flex flex-wrap gap-1">
-                      {rt.amenities.slice(0, 3).map((amenity, idx) => (
-                        <span key={idx} className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[8px]">
-                          {amenity}
-                        </span>
-                      ))}
-                      {rt.amenities.length > 3 && (
-                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[8px]">
-                          +{rt.amenities.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </motion.button>
-              );
-            })}
-          </div>
-          
-          {/* Quantity Input and Add Button */}
-          {roomType && (
-            <div className="flex gap-2 items-center p-3 bg-amber-50 border border-amber-200 rounded-xl">
-              <input
-                type="number"
-                min="1"
-                defaultValue="1"
-                ref={countInputRef}
-                placeholder="Qty"
-                className="w-20 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none"
-              />
-              <button
-                type="button"
-                onClick={handleAddRoomType}
-                className="flex-1 px-4 py-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm hover:shadow-md"
-              >
-                Add to Selection
-              </button>
-            </div>
-          )}
-          
-          {errors?.roomType && (
-            <p className="text-[10px] text-rose-500 mt-1" role="alert">{errors.roomType}</p>
-          )}
-        </div>
-
-        {roomType && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-                <BedDouble size={10} />
-                Vacant {roomType} Rooms
-              </label>
-              <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full">{availableCount}</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
-              {availableRooms.map(r => {
-                const isSelected = roomSelections?.some(s =>
-                  s.roomType === r.type && s.roomNumbers?.includes(r.number)
-                );
-                return (
-                  <button
-                    key={r.number}
-                    type="button"
-                    onClick={() => handleDirectRoomSelect(r)}
-                    disabled={isSelected}
-                    className={`text-left flex items-center gap-2 p-2.5 rounded-xl border transition-all ${
-                      isSelected
-                        ? 'bg-amber-50 border-amber-300 shadow-sm cursor-default'
-                        : 'bg-white border-slate-200 hover:border-amber-300 hover:shadow-md cursor-pointer'
-                    }`}
-                  >
-                    <div className={`flex items-center justify-center w-8 h-8 rounded-lg transition ${
-                      isSelected
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {isSelected ? <CheckCircle2 size={14} /> : <DoorOpen size={14} />}
-                    </div>
-                    <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-slate-700">Room {r.number}</span>
-                      <span className="text-[10px] text-slate-400">{r.status}</span>
-                    </div>
-                  </button>
-                );
-              })}
-              {availableCount === 0 && (
-                <div className="col-span-2 text-[10px] text-slate-400 italic p-3 text-center bg-slate-50 rounded-xl border border-slate-100">
-                  No vacant rooms for this type
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {errors?.roomSelections && (
-          <p className="text-[10px] text-rose-500" role="alert">{errors.roomSelections}</p>
-        )}
-
-        {roomSelections && roomSelections.length > 0 && (
-          <div className="space-y-3">
-            <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-2">
-              <CheckCircle2 size={10} />
-              Selected Rooms
-            </label>
-            <div className="space-y-3">
-              {roomSelections.map((selection, idx) => (
-                <div key={idx} className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-3 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 text-amber-600">
-                        <BedDouble size={12} />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-bold text-slate-700">{selection.count || 1}x {selection.roomType || 'Unknown'}</span>
-                        <div className="text-[10px] text-slate-500">Select specific rooms (optional)</div>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSelection(idx)}
-                      className="p-1.5 hover:bg-rose-100 text-rose-500 hover:text-rose-700 rounded-lg transition"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto p-1">
-                    {rooms
-                      .filter(r => r.type === (selection.roomType || ''))
-                      .slice(0, selection.count || 1)
-                      .map(r => (
-                        <label key={r.number} className="relative group cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={selection.roomNumbers?.includes(r.number)}
-                            onChange={(e) => handleToggleRoomNumber(idx, r.number, e.target.checked)}
-                            className="sr-only"
-                          />
-                          <div className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all ${
-                            selection.roomNumbers?.includes(r.number)
-                              ? 'bg-amber-50 border-amber-300 shadow-sm'
-                              : 'bg-white border-slate-200 hover:border-amber-200'
-                          }`}>
-                            <div className={`flex items-center justify-center w-6 h-6 rounded-lg transition ${
-                              selection.roomNumbers?.includes(r.number)
-                                ? 'bg-amber-500 text-white'
-                                : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'
-                            }`}>
-                              {selection.roomNumbers?.includes(r.number) ? <CheckCircle2 size={12} /> : <Circle size={10} />}
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-[11px] font-bold text-slate-700">Room {r.number}</span>
-                              <span className="text-[10px] text-slate-400">{r.status}</span>
-                            </div>
-                          </div>
-                        </label>
-                      ))}
-                    {rooms.filter(r => r.type === (selection.roomType || '') && (r.status === 'Vacant Clean' || r.status === 'Vacant Dirty')).length === 0 && (
-                      <div className="col-span-2 text-[10px] text-slate-400 italic p-3 text-center bg-white rounded-xl border border-slate-100">
-                        No vacant rooms for this type
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        
-        <div className="flex items-start gap-2 p-2.5 bg-blue-50 border border-blue-100 rounded-xl">
-          <div className="flex items-center justify-center w-5 h-5 rounded bg-blue-100 text-blue-600 shrink-0 mt-0.5">
-            <Tag size={10} />
-          </div>
-          <div className="text-[10px] text-blue-700 leading-relaxed">
-            <span className="font-bold">Tip:</span> Select room types and quantities. Specific room assignment is optional—the system will auto-assign based on availability.
-          </div>
-        </div>
-      </div>
+      {errors?.roomType && (
+        <p className="text-[10px] text-rose-500" role="alert">{errors.roomType}</p>
+      )}
+      {errors?.roomSelections && (
+        <p className="text-[10px] text-rose-500" role="alert">{errors.roomSelections}</p>
+      )}
     </motion.div>
   );
 }

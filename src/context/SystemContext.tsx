@@ -65,6 +65,7 @@ export interface SystemContextType {
   setCurrentSystemDate: (date: string) => void;
 
   isSystemLoading: boolean;
+  refreshData: () => Promise<void>;
 
   pendingAdminChanges: PendingAdminChange[];
   submitAdminChange: (change: Omit<PendingAdminChange, 'id' | 'submittedAt' | 'status'>) => void;
@@ -178,11 +179,10 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setNotifications(prev => prev.filter(n => n.id !== id));
   }, []);
 
-  // Load admin data from Supabase on mount with loading tracking
-  useEffect(() => {
+  const refreshData = useCallback(async () => {
     let active = true;
     setIsSystemLoading(true);
-    Promise.all([
+    await Promise.all([
       supabaseService.fetchGlobalSettings().then(dbSettings => {
         if (active && dbSettings) {
           setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
@@ -198,11 +198,10 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setCustomRoles(dbRoles);
         }
       }).catch(console.error),
-      // Only fetch audit events if user is authenticated (requires auth)
       fetch('/api/audit/events?limit=500', { credentials: 'include' })
         .then(r => {
           if (r.ok) return r.json();
-          // Handle any non-2xx status gracefully
+          if (r.status === 401) return [];
           console.warn(`Audit events fetch returned status ${r.status}`);
           return [];
         })
@@ -217,8 +216,33 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     ]).finally(() => {
       if (active) setIsSystemLoading(false);
     });
-    return () => { active = false; };
   }, []);
+
+  // Load admin data from Supabase on mount with loading tracking
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  const refreshPendingAdminChanges = useCallback(async () => {
+    try {
+      const r = await fetch('/api/admin/pending-changes', { credentials: 'include' });
+      if (r.ok) {
+        const data: PendingAdminChange[] = await r.json();
+        if (Array.isArray(data)) setPendingAdminChanges(data);
+      } else if (r.status === 401) {
+        setPendingAdminChanges([]);
+      } else {
+        console.warn(`Pending changes fetch returned status ${r.status}`);
+      }
+    } catch (err) {
+      console.warn('Failed to fetch pending changes:', err);
+    }
+  }, []);
+
+  // Load pending admin changes from DB on mount
+  useEffect(() => {
+    refreshPendingAdminChanges();
+  }, [refreshPendingAdminChanges]);
 
   const addStructuredAuditLog = useCallback((log: Omit<SystemAuditLog, 'id' | 'timestamp'>) => {
     const newLog: SystemAuditLog = {
@@ -283,12 +307,15 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       .then(r => {
         if (r.ok) return r.json();
         if (r.status === 401) return []; // Not authenticated, return empty array
-        throw new Error(`Failed to fetch pending changes: ${r.status}`);
+        console.warn(`Pending changes fetch returned status ${r.status}`);
+        return [];
       })
       .then((data: PendingAdminChange[]) => {
         if (Array.isArray(data)) setPendingAdminChanges(data);
       })
-      .catch(console.error);
+      .catch((err) => {
+        console.warn('Failed to fetch pending changes:', err);
+      });
   }, []);
 
   const submitAdminChange = useCallback((change: Omit<PendingAdminChange, 'id' | 'submittedAt' | 'status'>) => {
@@ -530,7 +557,7 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     theme, toggleTheme,
     userProfile, setUserProfile: setUserProfileFull, updateProfile, updatePassword, syncUserProfile,
     currentSystemDate, setCurrentSystemDate,
-    isSystemLoading,
+    isSystemLoading, refreshData,
     pendingAdminChanges, submitAdminChange, executeAdminChangeDirectly, approveAdminChange, declineAdminChange,
     submitGlobalSettingsChange
   };

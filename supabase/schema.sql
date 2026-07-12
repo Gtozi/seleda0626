@@ -1749,6 +1749,7 @@ create table if not exists airport_shuttle_requests (
   flight_time time,
   status text not null check (status in ('Pending', 'Confirmed', 'Completed', 'Cancelled')) default 'Pending',
   notes text,
+  quantity integer not null default 1,
   created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now()
 );
@@ -2384,7 +2385,7 @@ insert into global_settings (
   vip_spend_threshold, public_page_content, terms_adventure_liability, terms_waitlist_protocol,
   terms_conservation_devotion, terms_billing_cancellation, terms_wilderness_emergency
 ) values (
-  'main', 'Grand Hotel ERP', 'Main Street, City, Country', '', '', '',
+  'main', 'Gheralta', 'Main Street, City, Country', '', '', '',
   15.0, 10.0, 120.0,
   '/src/assets/images/gheralta_hero_banner_1780826654743.png',
   '+251-11-RECEPTION',
@@ -6442,7 +6443,7 @@ INSERT INTO blocks (id, page_id, property_id, block_type, position, config, is_d
 
       "text": "Thank you for choosing our hotel.",
 
-      "copyright": "Â© 2026 Grand Hotel. All rights reserved.",
+      "copyright": "Â© 2026 Gheralta. All rights reserved.",
 
       "links": [],
 

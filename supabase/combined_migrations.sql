@@ -1974,7 +1974,7 @@ INSERT INTO blocks (id, page_id, property_id, block_type, position, config, is_d
     8,
     '{
       "text": "Thank you for choosing our hotel.",
-      "copyright": "Â© 2026 Grand Hotel. All rights reserved.",
+      "copyright": "Â© 2026 Gheralta. All rights reserved.",
       "links": [],
       "showSection": true,
       "primaryColor": "#4f46e5",

@@ -32,6 +32,7 @@ export interface FinanceContextType {
   }) => void;
   addExpenseRequest: (request: Omit<ExpenseRequest, 'id'>) => string;
   updateExpenseRequestStatus: (id: string, status: ExpenseRequest['status']) => void;
+  refreshData: () => Promise<void>;
 }
 
 const FinanceContext = createContext<FinanceContextType | undefined>(undefined);
@@ -90,6 +91,10 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [rooms, reservations, currentSystemDate]);
 
   useEffect(() => {
+    calculateStats();
+  }, [calculateStats]);
+
+  const refreshData = useCallback(async () => {
     calculateStats();
   }, [calculateStats]);
 
@@ -171,8 +176,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const value = {
     journals, salesTransactions, chartOfAccounts, expenseRequests, stats,
-    addSaleTransaction, updateSaleTransactionStatus, addJournalEntry, 
-    addAccount, deleteAccount, postAutoJournal, addExpenseRequest, updateExpenseRequestStatus
+    addSaleTransaction, updateSaleTransactionStatus, addJournalEntry,
+    addAccount, deleteAccount, postAutoJournal, addExpenseRequest, updateExpenseRequestStatus,
+    refreshData
   };
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

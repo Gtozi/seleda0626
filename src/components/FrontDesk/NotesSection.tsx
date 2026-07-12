@@ -8,33 +8,33 @@ import { motion } from 'motion/react';
 import { Tag } from 'lucide-react';
 
 interface NotesSectionProps {
-  notes: string;
-  onNotesChange: (value: string) => void;
+  specialRequests: string;
+  onSpecialRequestsChange: (value: string) => void;
 }
 
 export default function NotesSection({
-  notes,
-  onNotesChange,
+  specialRequests,
+  onSpecialRequestsChange,
 }: NotesSectionProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.35, duration: 0.35, ease: 'easeOut' }}
-      className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 space-y-3 shadow-sm dark:shadow-slate-900/20"
+      className="bg-white border border-stone-200 rounded-2xl p-5 space-y-3 shadow-xl shadow-stone-900/5"
     >
-      <label htmlFor="notes" className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase flex items-center gap-2">
-        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300">
+      <label htmlFor="specialRequests" className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-2">
+        <span className="flex items-center justify-center w-5 h-5 rounded-md bg-stone-100 text-stone-500">
           <Tag size={12} />
         </span>
-        Notes / Concierge Instructions
+        Special requests
       </label>
       <textarea
-        id="notes"
-        value={notes}
-        onChange={(e) => onNotesChange(e.target.value)}
-        rows={3}
-        className="w-full px-4 py-3 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 outline-none transition resize-y"
+        id="specialRequests"
+        value={specialRequests}
+        onChange={(e) => onSpecialRequestsChange(e.target.value)}
+        rows={2}
+        className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition resize-none"
         placeholder="e.g. Late check-in requested, high floor preferred, allergy information..."
       />
     </motion.div>

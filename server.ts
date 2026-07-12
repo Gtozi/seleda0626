@@ -7,6 +7,16 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import type { User, UserRole } from './src/types/erp';
 import { hasSupabaseAdminConfig, supabaseAdmin } from './src/server/supabaseAdmin';
+import { authenticate, requirePermission, requireRole, requireActiveAccount } from './src/server/middleware/auth';
+import {
+  computeFees,
+  getSeasonMultiplier,
+  getRatePlanModifier,
+  getEffectiveNightlyRate,
+  type FeeComponent,
+  type SeasonRow,
+  type RatePlanRow,
+} from './src/utils/pricing';
 
 if (typeof globalThis.DOMException === 'undefined') {
   // @ts-ignore
@@ -91,16 +101,20 @@ function getTypeAvailability(
   checkOutDate: string,
   rooms: any[],
   reservations: any[],
-  excludeReservationId?: string
+  excludeReservationId?: string,
+  requestedQuantity: number = 1
 ) {
+  // Calculate capacity using type column (room_type_id is NULL in all rooms)
   const capacity = rooms.filter((r: any) => r.type === roomType).length;
   const booked = reservations.filter((res: any) =>
     res.id !== excludeReservationId &&
     res.room_type === roomType &&
-    (res.status === 'Confirmed' || res.status === 'CheckedIn') &&
+    (res.status === 'Confirmed' || res.status === 'CheckedIn' ||
+     (res.status === 'Waitlisted' && res.channel === 'Direct Website')) &&
     rangesOverlap(checkInDate, checkOutDate, res.check_in_date, res.check_out_date)
   ).length;
-  return { roomType, capacity, booked, available: Math.max(0, capacity - booked) };
+  const available = Math.max(0, capacity - booked);
+  return { roomType, capacity, booked, available, can_book: available >= requestedQuantity };
 }
 
 function getRoomImageUrl(type: string): string {
@@ -112,6 +126,81 @@ function getRoomImageUrl(type: string): string {
     Penthouse: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&q=80&w=1200',
   };
   return map[type] || map.Deluxe;
+}
+
+function findAvailableRoomForReservation(
+  res: any,
+  rooms: any[],
+  reservations: any[],
+  excludeRoomNumbers: Set<string> = new Set()
+): string | null {
+  const unavailableRoomNumbers = new Set([
+    ...reservations
+      .filter((r: any) =>
+        r.id !== res.id &&
+        r.room_number &&
+        r.room_type === res.room_type &&
+        rangesOverlap(res.check_in_date, res.check_out_date, r.check_in_date, r.check_out_date)
+      )
+      .map((r: any) => r.room_number),
+    ...excludeRoomNumbers
+  ]);
+
+  const candidates = rooms.filter((r: any) =>
+    r.type === res.room_type &&
+    r.status !== 'Out of Order' &&
+    !unavailableRoomNumbers.has(r.number)
+  );
+
+  // Prefer a clean vacant room, then any available room
+  const best = candidates.find((r: any) => r.status === 'Vacant Clean') || candidates[0];
+  return best ? best.number : null;
+}
+
+async function autoAssignRoomsForPublicBookings(
+  reservationIds: string[],
+  supabaseClient: any
+): Promise<Record<string, string>> {
+  const [{ data: rooms }, { data: reservations }] = await Promise.all([
+    supabaseClient.from('rooms').select('*'),
+    supabaseClient.from('reservations').select('*')
+  ]);
+
+  const roomsList = rooms || [];
+  const reservationsList = reservations || [];
+  const assignedRooms: Record<string, string> = {};
+  const assignedRoomNumbers = new Set<string>();
+
+  for (const id of reservationIds) {
+    const res = reservationsList.find((r: any) => r.id === id);
+    if (!res) continue;
+
+    if (res.room_number) {
+      assignedRooms[id] = res.room_number;
+      assignedRoomNumbers.add(res.room_number);
+      continue;
+    }
+
+    const roomNumber = findAvailableRoomForReservation(res, roomsList, reservationsList, assignedRoomNumbers);
+    if (roomNumber) {
+      assignedRooms[id] = roomNumber;
+      assignedRoomNumbers.add(roomNumber);
+    }
+  }
+
+  // Persist the room assignments (best-effort; do not fail the whole booking)
+  for (const [id, roomNumber] of Object.entries(assignedRooms)) {
+    try {
+      const { error } = await supabaseClient.from('reservations').update({ room_number: roomNumber }).eq('id', id);
+      if (error) {
+        console.error(`Failed to assign room ${roomNumber} to reservation ${id}:`, error);
+      }
+    } catch (e) {
+      console.error(`Error assigning room to reservation ${id}:`, e);
+    }
+  }
+
+  return assignedRooms;
 }
 
 const legacyPermissionMap: Record<string, string> = {
@@ -633,7 +722,7 @@ async function ensureAuditEventsTable() {
       await fetch(`${url}/rest/v1/rpc/exec_sql`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', apikey: key, Authorization: `Bearer ${key}` },
-        body: JSON.stringify({ query: `CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(), user_id TEXT, user_name TEXT, action TEXT NOT NULL, entity_type TEXT, entity_id TEXT, module TEXT, ip_address TEXT, user_agent TEXT, outcome TEXT NOT NULL DEFAULT 'success', details JSONB NOT NULL DEFAULT '{}'::jsonb); CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(timestamp DESC); CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);` }),
+        body: JSON.stringify({ query: `CREATE TABLE IF NOT EXISTS audit_events (id TEXT PRIMARY KEY, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), user_id TEXT, user_name TEXT, action TEXT NOT NULL, entity_type TEXT, entity_id TEXT, module TEXT, ip_address TEXT, user_agent TEXT, outcome TEXT NOT NULL DEFAULT 'success', details JSONB NOT NULL DEFAULT '{}'::jsonb); CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp ON audit_events(created_at DESC); CREATE INDEX IF NOT EXISTS idx_audit_events_action ON audit_events(action);` }),
       }).catch(() => null);
     }
   } catch (_) {}
@@ -670,9 +759,8 @@ async function startServer() {
     res.json({ user: enrichedUser, forcePasswordChange: auth.forcePasswordChange || false });
   });
 
-  app.post('/api/auth/logout', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (user) await writeAuditEvent({ req, user, action: 'logout.success', module: 'auth' });
+  app.post('/api/auth/logout', authenticate, async (req, res) => {
+    if (req.user) await writeAuditEvent({ req, user: req.user, action: 'logout.success', module: 'auth' });
     await revokeRequestSession(req);
     clearSessionCookie(res);
     res.json({ success: true });
@@ -685,15 +773,13 @@ async function startServer() {
     res.json({ user: enriched });
   });
 
-  app.post('/api/auth/refresh', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.post('/api/auth/refresh', authenticate, requireActiveAccount, async (req, res) => {
     
     // Validate user account status before refreshing session
-    if (user.status === 'Inactive' || user.status === 'Pending' || user.status === 'Suspended' || user.status === 'Locked') {
+    if (req.user!.status === 'Inactive' || req.user!.status === 'Pending' || req.user!.status === 'Suspended' || req.user!.status === 'Locked') {
       await revokeRequestSession(req);
       clearSessionCookie(res);
-      return res.status(403).json({ error: `Account is ${user.status}` });
+      return res.status(403).json({ error: `Account is ${req.user!.status}` });
     }
     
     // Fetch fresh user data from database to ensure no account switching
@@ -701,10 +787,10 @@ async function startServer() {
       const { data: dbUser, error } = await supabaseAdmin
         .from('system_users')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', req.user!.id)
         .maybeSingle();
       
-      if (error || !dbUser || dbUser.id !== user.id) {
+      if (error || !dbUser || dbUser.id !== req.user!.id) {
         await revokeRequestSession(req);
         clearSessionCookie(res);
         return res.status(401).json({ error: 'Account not found or invalid' });
@@ -718,32 +804,29 @@ async function startServer() {
     }
     
     await revokeRequestSession(req);
-    await createSession(user, req, res);
+    await createSession(req.user!, req, res);
     res.json({ success: true });
   });
 
-  app.post('/api/auth/validate-permission', async (req, res) => {
-    const user = await getRequestUser(req);
+  app.post('/api/auth/validate-permission', authenticate, async (req, res) => {
     const action = String(req.body?.action || '');
-    const allowed = await userCan(user, action);
+    const allowed = await userCan(req.user, action);
     if (!allowed) {
-      await writeAuditEvent({ req, user, action: 'permission.denied', module: 'auth', outcome: 'denied', details: { requestedAction: action, permissionCode: normalizePermission(action) } });
+      await writeAuditEvent({ req, user: req.user, action: 'permission.denied', module: 'auth', outcome: 'denied', details: { requestedAction: action, permissionCode: normalizePermission(action) } });
     }
-    res.status(user ? 200 : 401).json({ allowed, reason: allowed ? undefined : user ? 'Insufficient privileges' : 'Not authenticated' });
+    res.status(req.user ? 200 : 401).json({ allowed, reason: allowed ? undefined : req.user ? 'Insufficient privileges' : 'Not authenticated' });
   });
 
-  app.post('/api/audit/permission-denial', async (req, res) => {
-    const user = await getRequestUser(req);
-    await writeAuditEvent({ req, user, action: 'permission.denial_reported', module: 'auth', outcome: 'denied', details: { requestedAction: req.body?.action, reason: req.body?.reason } });
+  app.post('/api/audit/permission-denial', authenticate, async (req, res) => {
+    await writeAuditEvent({ req, user: req.user, action: 'permission.denial_reported', module: 'auth', outcome: 'denied', details: { requestedAction: req.body?.action, reason: req.body?.reason } });
     res.json({ success: true });
   });
 
-  app.post('/api/audit/log', async (req, res) => {
-    const user = await getRequestUser(req);
+  app.post('/api/audit/log', authenticate, async (req, res) => {
     const body = req.body || {};
     await writeAuditEvent({
       req,
-      user,
+      user: req.user,
       action: body.action || 'client.audit',
       module: body.module || 'client',
       entityType: body.entityType || null,
@@ -753,49 +836,22 @@ async function startServer() {
     res.json({ success: true });
   });
 
-  app.get('/api/audit/events', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    const limit = Math.min(Number(req.query.limit) || 500, 1000);
-    if (hasSupabaseAdminConfig && supabaseAdmin) {
-      let { data, error } = await supabaseAdmin
-        .from('audit_events')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-      if (error && error.code === '42P01') {
-        await ensureAuditEventsTable();
-        const result = await supabaseAdmin
-          .from('audit_events')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(limit);
-        data = result.data;
-        error = result.error;
-      }
-      if (error) return res.status(500).json({ error: error.message });
-      return res.json(data || []);
-    }
-    return res.json(fallbackAuditEvents.slice(-limit));
-  });
 
-  app.post('/api/auth/change-password', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.post('/api/auth/change-password', authenticate, async (req, res) => {
     const { currentPassword, newPassword } = req.body || {};
     if (!currentPassword || !newPassword) return res.status(400).json({ error: 'currentPassword and newPassword are required' });
     if (newPassword.length < 8) return res.status(400).json({ error: 'New password must be at least 8 characters' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const { data: dbUser } = await supabaseAdmin.from('system_users').select('password_hash').eq('id', user.id).maybeSingle();
+      const { data: dbUser } = await supabaseAdmin.from('system_users').select('password_hash').eq('id', req.user!.id).maybeSingle();
       if (!dbUser?.password_hash) return res.status(500).json({ error: 'User record incomplete' });
       const passwordOk = await bcrypt.compare(currentPassword, dbUser.password_hash);
       if (!passwordOk) {
-        await writeAuditEvent({ req, user, action: 'password.change.failure', module: 'auth', outcome: 'failure', details: { reason: 'bad_current_password' } });
+        await writeAuditEvent({ req, user: req.user, action: 'password.change.failure', module: 'auth', outcome: 'failure', details: { reason: 'bad_current_password' } });
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
       const newHash = await bcrypt.hash(newPassword, 10);
-      await supabaseAdmin.from('system_users').update({ password_hash: newHash, password_updated_at: new Date().toISOString(), force_password_change: false }).eq('id', user.id);
-      await writeAuditEvent({ req, user, action: 'password.change.success', module: 'auth' });
+      await supabaseAdmin.from('system_users').update({ password_hash: newHash, password_updated_at: new Date().toISOString(), force_password_change: false }).eq('id', req.user!.id);
+      await writeAuditEvent({ req, user: req.user, action: 'password.change.success', module: 'auth' });
       return res.json({ success: true });
     }
     return res.status(503).json({ error: 'Database not configured' });
@@ -834,40 +890,36 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/auth/verify-mfa', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.post('/api/auth/verify-mfa', authenticate, async (req, res) => {
     const { code } = req.body || {};
     if (!code) return res.status(400).json({ error: 'MFA code is required' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const { data: dbUser } = await supabaseAdmin.from('system_users').select('mfa_enabled').eq('id', user.id).maybeSingle();
-      if (!dbUser?.mfa_enabled) return res.json({ success: true, user });
+      const { data: dbUser } = await supabaseAdmin.from('system_users').select('mfa_enabled').eq('id', req.user!.id).maybeSingle();
+      if (!dbUser?.mfa_enabled) return res.json({ success: true, user: req.user });
       if (!/^\d{6}$/.test(String(code))) return res.status(400).json({ error: 'Invalid MFA code format' });
-      await writeAuditEvent({ req, user, action: 'mfa.verified', module: 'auth' });
-      return res.json({ success: true, user });
+      await writeAuditEvent({ req, user: req.user, action: 'mfa.verified', module: 'auth' });
+      return res.json({ success: true, user: req.user });
     }
-    return res.json({ success: true, user });
+    return res.json({ success: true, user: req.user });
   });
 
-  app.post('/api/auth/verify-password', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.post('/api/auth/verify-password', authenticate, async (req, res) => {
     const { password } = req.body || {};
     if (!password) return res.status(400).json({ error: 'Password is required' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const { data: dbUser } = await supabaseAdmin.from('system_users').select('password_hash').eq('id', user.id).maybeSingle();
+      const { data: dbUser } = await supabaseAdmin.from('system_users').select('password_hash').eq('id', req.user!.id).maybeSingle();
       if (!dbUser?.password_hash) return res.status(500).json({ error: 'User record incomplete' });
       const passwordOk = await bcrypt.compare(password, dbUser.password_hash);
       if (!passwordOk) {
-        await writeAuditEvent({ req, user, action: 'password.verify.failure', module: 'auth', outcome: 'failure', details: { reason: 'bad_password' } });
+        await writeAuditEvent({ req, user: req.user, action: 'password.verify.failure', module: 'auth', outcome: 'failure', details: { reason: 'bad_password' } });
         return res.status(401).json({ error: 'Incorrect password' });
       }
-      await writeAuditEvent({ req, user, action: 'password.verify.success', module: 'auth' });
+      await writeAuditEvent({ req, user: req.user, action: 'password.verify.success', module: 'auth' });
       return res.json({ success: true });
     }
     // Development fallback: accept any non-empty password when database is not configured
     if (password.length > 0) {
-      await writeAuditEvent({ req, user, action: 'password.verify.success', module: 'auth', details: { mode: 'development-fallback' } });
+      await writeAuditEvent({ req, user: req.user, action: 'password.verify.success', module: 'auth', details: { mode: 'development-fallback' } });
       return res.json({ success: true });
     }
     return res.status(400).json({ error: 'Password is required' });
@@ -877,10 +929,7 @@ async function startServer() {
   // Admin API — Users, Roles, Settings
   // =====================
 
-  app.get('/api/admin/users', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'users:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/admin/users', authenticate, requirePermission('users:manage'), async (req, res) => {
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin.from('system_users').select('*').order('name');
       if (error) return res.status(500).json({ error: error.message });
@@ -891,10 +940,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/admin/users', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'users:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/admin/users', authenticate, requirePermission('users:manage'), async (req, res) => {
     const body = req.body || {};
     if (!body.name || !body.email || !body.role) return res.status(400).json({ error: 'name, email, and role are required' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
@@ -922,19 +968,16 @@ async function startServer() {
         force_password_change: true
       }).select().single();
       if (error) return res.status(500).json({ error: error.message });
-      await writeAuditEvent({ req, user, action: 'user.created', entityType: 'User', entityId: newId, module: 'admin', details: { name: body.name, email: body.email, role: body.role } });
+      await writeAuditEvent({ req, user: req.user, action: 'user.created', entityType: 'User', entityId: newId, module: 'admin', details: { name: body.name, email: body.email, role: body.role } });
       return res.json({ success: true, user: mapSystemUserFromDb(data) });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/admin/users/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'users:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/admin/users/:id', authenticate, requirePermission('users:manage'), async (req, res) => {
     const targetId = req.params.id;
     const updates = req.body || {};
-    if (user.id === targetId) {
+    if (req.user!.id === targetId) {
       if (updates.role !== undefined || updates.allowedTabs !== undefined || updates.allowedSettings !== undefined || updates.permissionMatrix !== undefined) {
         return res.status(403).json({ error: 'You cannot modify your own role or permissions' });
       }
@@ -964,31 +1007,25 @@ async function startServer() {
       }
       const { data, error } = await supabaseAdmin.from('system_users').update(payload).eq('id', targetId).select().single();
       if (error) return res.status(500).json({ error: error.message });
-      await writeAuditEvent({ req, user, action: 'user.updated', entityType: 'User', entityId: targetId, module: 'admin', details: { updates: Object.keys(updates) } });
+      await writeAuditEvent({ req, user: req.user!, action: 'user.updated', entityType: 'User', entityId: targetId, module: 'admin', details: { updates: Object.keys(updates) } });
       return res.json({ success: true, user: mapSystemUserFromDb(data) });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.delete('/api/admin/users/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'users:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.delete('/api/admin/users/:id', authenticate, requirePermission('users:manage'), async (req, res) => {
     const targetId = req.params.id;
-    if (user.id === targetId) return res.status(403).json({ error: 'You cannot delete your own account' });
+    if (req.user!.id === targetId) return res.status(403).json({ error: 'You cannot delete your own account' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { error } = await supabaseAdmin.from('system_users').delete().eq('id', targetId);
       if (error) return res.status(500).json({ error: error.message });
-      await writeAuditEvent({ req, user, action: 'user.deleted', entityType: 'User', entityId: targetId, module: 'admin' });
+      await writeAuditEvent({ req, user: req.user!, action: 'user.deleted', entityType: 'User', entityId: targetId, module: 'admin' });
       return res.json({ success: true });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.get('/api/admin/roles', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'roles:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/admin/roles', authenticate, requirePermission('roles:manage'), async (req, res) => {
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin.from('custom_roles').select('*').order('name');
       if (error) return res.status(500).json({ error: error.message });
@@ -997,10 +1034,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/admin/roles', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'roles:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/admin/roles', authenticate, requirePermission('roles:manage'), async (req, res) => {
     const body = req.body || {};
     if (!body.name) return res.status(400).json({ error: 'name is required' });
     if (hasSupabaseAdminConfig && supabaseAdmin) {
@@ -1018,16 +1052,13 @@ async function startServer() {
       }, { onConflict: 'id' }).select().single();
       if (error) return res.status(500).json({ error: error.message });
       const isNew = body.id ? false : true;
-      await writeAuditEvent({ req, user, action: isNew ? 'role.created' : 'role.updated', entityType: 'CustomRole', entityId: data.id, module: 'admin', details: { name: body.name } });
+      await writeAuditEvent({ req, user: req.user!, action: isNew ? 'role.created' : 'role.updated', entityType: 'CustomRole', entityId: data.id, module: 'admin', details: { name: body.name } });
       return res.json({ success: true, role: data });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/admin/roles/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'roles:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/admin/roles/:id', authenticate, requirePermission('roles:manage'), async (req, res) => {
     const roleId = req.params.id;
     const updates = req.body || {};
     if (hasSupabaseAdminConfig && supabaseAdmin) {
@@ -1042,29 +1073,24 @@ async function startServer() {
       if (updates.isSystem !== undefined) payload.is_system = updates.isSystem;
       const { data, error } = await supabaseAdmin.from('custom_roles').update(payload).eq('id', roleId).select().single();
       if (error) return res.status(500).json({ error: error.message });
-      await writeAuditEvent({ req, user, action: 'role.updated', entityType: 'CustomRole', entityId: roleId, module: 'admin', details: { updates: Object.keys(updates) } });
+      await writeAuditEvent({ req, user: req.user!, action: 'role.updated', entityType: 'CustomRole', entityId: roleId, module: 'admin', details: { updates: Object.keys(updates) } });
       return res.json({ success: true, role: data });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.delete('/api/admin/roles/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'roles:manage'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.delete('/api/admin/roles/:id', authenticate, requirePermission('roles:manage'), async (req, res) => {
     const roleId = req.params.id;
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { error } = await supabaseAdmin.from('custom_roles').delete().eq('id', roleId);
       if (error) return res.status(500).json({ error: error.message });
-      await writeAuditEvent({ req, user, action: 'role.deleted', entityType: 'CustomRole', entityId: roleId, module: 'admin' });
+      await writeAuditEvent({ req, user: req.user!, action: 'role.deleted', entityType: 'CustomRole', entityId: roleId, module: 'admin' });
       return res.json({ success: true });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.get('/api/admin/settings', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.get('/api/admin/settings', authenticate, async (req, res) => {
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin.from('global_settings').select('*').maybeSingle();
       if (error) return res.status(500).json({ error: error.message });
@@ -1073,12 +1099,137 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
+  // Admin atomic booking endpoint — mirrors /api/public/bookings but allows
+  // the front desk to specify channel/status (e.g. Walk-In → Confirmed).
+  app.post('/api/admin/bookings', authenticate, requirePermission('reservation:create'), async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    const payload = req.body || {};
+    const required = ['p_guest_name', 'p_guest_email', 'p_check_in', 'p_check_out', 'p_items'];
+    const missing = required.filter(k => !payload[k]);
+    if (missing.length > 0) {
+      return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+    }
+
+    if (!Array.isArray(payload.p_items) || payload.p_items.length === 0) {
+      return res.status(400).json({ error: 'p_items must be a non-empty array' });
+    }
+
+    // create_booking_atomic does not know about voucher fields; strip them and
+    // handle them after the booking is created.
+    const { p_voucher_code, p_voucher_discount, ...rpcPayload } = payload;
+    const operatorId = payload.p_operator_id || null;
+
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc('create_booking_atomic', rpcPayload);
+
+    if (rpcError) {
+      const msg: string = rpcError.message || '';
+      console.error('Admin atomic booking RPC error:', { message: msg, details: rpcError.details, hint: rpcError.hint, code: rpcError.code, payload });
+      if (msg.includes('AVAILABILITY_ERROR:')) {
+        return res.status(409).json({ error: msg.replace('AVAILABILITY_ERROR:', '').trim() });
+      }
+      return res.status(500).json({ error: 'Booking failed. Please try again.', details: msg });
+    }
+
+    const result = rpcResult as any;
+    const reservationIds = result.reservationIds || [];
+    const groupId = result.groupId || null;
+    const firstReservationId = reservationIds[0];
+
+    // Apply voucher discount and mark voucher as redeemed.
+    if (firstReservationId && p_voucher_code) {
+      try {
+        const { data: redeemData, error: redeemError } = await supabaseAdmin.rpc('redeem_voucher', {
+          p_voucher_no: p_voucher_code,
+          p_reservation_id: firstReservationId,
+          p_redeemed_by: req.user!.name || req.user!.email || 'staff'
+        });
+        if (!redeemError && redeemData) {
+          const redeemResult = redeemData as any;
+          const voucherDiscount = Number(redeemResult.net_value || p_voucher_discount || 0);
+          const { data: firstRes } = await supabaseAdmin
+            .from('reservations')
+            .select('total_amount, charges')
+            .eq('id', firstReservationId)
+            .single();
+          if (firstRes) {
+            const newTotal = Math.max(0, Number(firstRes.total_amount) - voucherDiscount);
+            const newCharges = Array.isArray(firstRes.charges) ? [...firstRes.charges] : [];
+            newCharges.push({
+              description: 'Voucher discount',
+              amount: -voucherDiscount,
+              date: new Date().toISOString()
+            });
+            await supabaseAdmin
+              .from('reservations')
+              .update({ total_amount: newTotal, charges: newCharges })
+              .eq('id', firstReservationId);
+          }
+        } else if (redeemError) {
+          console.error('Admin voucher redeem failed:', redeemError);
+        }
+      } catch (e) {
+        console.error('Voucher redemption error:', e);
+      }
+    }
+
+    // Record operator allotment pickup for each item/day.
+    if (firstReservationId && operatorId) {
+      try {
+        const { data: allotments } = await supabaseAdmin
+          .from('allotments')
+          .select('*')
+          .eq('operator_id', operatorId)
+          .gte('stay_date', payload.p_check_in)
+          .lt('stay_date', payload.p_check_out);
+
+        if (allotments && allotments.length > 0) {
+          const checkIn = new Date(payload.p_check_in);
+          const checkOut = new Date(payload.p_check_out);
+          const current = new Date(checkIn);
+          while (current < checkOut) {
+            const dateStr = current.toISOString().split('T')[0];
+            for (const item of payload.p_items) {
+              const roomTypeId = item.roomTypeId;
+              const qty = item.qty || 1;
+              const allotment = (allotments as any[]).find((a: any) =>
+                a.room_type_id === roomTypeId && a.stay_date === dateStr
+              );
+              if (allotment) {
+                await supabaseAdmin.from('allotment_pickup_log').insert({
+                  allotment_id: allotment.id,
+                  reservation_id: firstReservationId,
+                  pickup_date: dateStr,
+                  quantity: qty,
+                  picked_up_by: req.user!.name || req.user!.email || 'staff',
+                  notes: 'Admin group booking'
+                });
+                await supabaseAdmin.from('allotments')
+                  .update({ picked_up_qty: (allotment.picked_up_qty || 0) + qty })
+                  .eq('id', allotment.id);
+              }
+            }
+            current.setDate(current.getDate() + 1);
+          }
+        }
+      } catch (e) {
+        console.error('Allotment pickup error:', e);
+      }
+    }
+
+    return res.status(201).json({
+      reservationIds: reservationIds,
+      guestIds: result.guestIds || [],
+      groupId: groupId,
+    });
+  });
+
   // Endpoint specifically for updating public page content (more relaxed permissions)
-  app.patch('/api/admin/public-booking-content', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.patch('/api/admin/public-booking-content', authenticate, async (req, res) => {
     
-    console.log('User attempting to update public content:', user.id, user.role, user.username);
+    console.log('User attempting to update public content:', req.user!.id, req.user!.role, req.user!.username);
 
     const { publicPageContent } = req.body || {};
     console.log('Received publicPageContent:', JSON.stringify(publicPageContent, null, 2));
@@ -1097,27 +1248,27 @@ async function startServer() {
         const { data, error } = await supabaseAdmin.from('global_settings').update({
           public_page_content: convertedContent,
           updated_at: new Date().toISOString(),
-          updated_by: user.id
+          updated_by: req.user!.id
         }).eq('id', existing.id).select().single();
         if (error) {
           console.error('Error updating public content:', error);
           return res.status(500).json({ error: error.message });
         }
         console.log('Successfully updated public content. Result:', JSON.stringify(data, null, 2));
-        await writeAuditEvent({ req, user, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: 'publicPageContent' } });
+        await writeAuditEvent({ req, user: req.user!, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: 'publicPageContent' } });
         return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
       } else {
         const { data, error } = await supabaseAdmin.from('global_settings').insert({
           public_page_content: convertedContent,
           updated_at: new Date().toISOString(),
-          updated_by: user.id
+          updated_by: req.user!.id
         }).select().single();
         if (error) {
           console.error('Error inserting public content:', error);
           return res.status(500).json({ error: error.message });
         }
         console.log('Successfully inserted public content. Result:', JSON.stringify(data, null, 2));
-        await writeAuditEvent({ req, user, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: data.id, module: 'admin', details: { updates: 'publicPageContent' } });
+        await writeAuditEvent({ req, user: req.user!, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: data.id, module: 'admin', details: { updates: 'publicPageContent' } });
         return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
       }
     }
@@ -1165,6 +1316,7 @@ async function startServer() {
         // Business admin extended fields
         hotelTin: data.hotel_tin || '',
         hotelVatNo: data.hotel_vat_no || '',
+        invoiceBankDetails: data.invoice_bank_details || '',
         checkInTime: data.check_in_time || '01:00 PM',
         checkOutTime: data.check_out_time || '10:00 AM',
         starRating: '5',
@@ -1179,7 +1331,26 @@ async function startServer() {
         // Policy sections
         policySections: data.policy_sections || [],
         cancellationGraceHours: data.cancellation_grace_hours || 24,
-        cancellationPenaltyPercent: data.cancellation_penalty_percent || 50
+        cancellationPenaltyPercent: data.cancellation_penalty_percent || 50,
+        // Booking page content fields
+        bookingHeroTitle: data.booking_hero_title || 'Find your perfect stay',
+        bookingHeroDescription: data.booking_hero_description || 'Book directly with us for the best available rates, personalized service, and instant confirmation.',
+        bookingStep1Label: data.booking_step1_label || 'Select Room',
+        bookingStep2Label: data.booking_step2_label || 'Add-ons',
+        bookingStep3Label: data.booking_step3_label || 'Details',
+        bookingRoomsSectionTitle: data.booking_rooms_section_title || 'Select your room',
+        bookingPackagesSectionTitle: data.booking_packages_section_title || 'Packages',
+        bookingGuestServicesSectionTitle: data.booking_guest_services_section_title || 'Guest Services',
+        bookingYourRoomsTitle: data.booking_your_rooms_title || 'Your Rooms',
+        bookingGuestDetailsTitle: data.booking_guest_details_title || 'Guest Details',
+        bookingSummaryTitle: data.booking_summary_title || 'Booking Summary',
+        bookingHeaderSubtitle: data.booking_header_subtitle || 'Direct Reservations',
+        bookingNoRoomsMessage: data.booking_no_rooms_message || 'No rooms available for the selected dates.',
+        bookingNoRoomsSubtext: data.booking_no_rooms_subtext || 'Try adjusting your dates or contact the hotel.',
+        bookingTermsAgreement: data.booking_terms_agreement || 'I agree to the hotel terms and conditions and cancellation policy.',
+        bookingReadTermsText: data.booking_read_terms_text || 'Read terms',
+        bookingConfirmButtonText: data.booking_confirm_button_text || 'Confirm booking',
+        bookingSecureBookingText: data.booking_secure_booking_text || 'Secure booking · No card required'
       }
     });
   });
@@ -1194,10 +1365,11 @@ async function startServer() {
       return res.status(400).json({ error: 'checkIn and checkOut are required' });
     }
 
-    const [{ data: roomTypes, error: rtError }, { data: rooms, error: roomsError }, { data: reservations, error: resError }] = await Promise.all([
+    const [{ data: roomTypes, error: rtError }, { data: rooms, error: roomsError }, { data: reservations, error: resError }, { data: seasons }] = await Promise.all([
       supabaseAdmin.from('room_types').select('*').eq('is_active', true),
       supabaseAdmin.from('rooms').select('*'),
-      supabaseAdmin.from('reservations').select('*')
+      supabaseAdmin.from('reservations').select('*'),
+      supabaseAdmin.from('seasons').select('*')
     ]);
     if (rtError) return res.status(500).json({ error: rtError.message });
     if (roomsError) return res.status(500).json({ error: roomsError.message });
@@ -1206,6 +1378,7 @@ async function startServer() {
     const roomTypesList = roomTypes || [];
     const roomsList = rooms || [];
     const reservationsList = reservations || [];
+    const season = getSeasonMultiplier(checkIn, (seasons || []) as SeasonRow[]);
 
     const result = roomTypesList.map((rt: any) => {
       const roomsOfType = roomsList.filter((r: any) => r.room_type_id === rt.id || r.type === rt.name);
@@ -1215,6 +1388,7 @@ async function startServer() {
         title: rt.name,
         description: rt.description || `${rt.name} room`,
         rate: rt.base_price,
+        baseRate: rt.base_price,
         capacity: rt.max_occupancy,
         available: availability.available,
         features: rt.amenities || [],
@@ -1230,7 +1404,36 @@ async function startServer() {
       };
     }).filter((rt: any) => rt.available > 0).sort((a: any, b: any) => a.displayOrder - b.displayOrder);
 
-    return res.json({ rooms: result });
+    return res.json({ rooms: result, season });
+  });
+
+  app.get('/api/public/rate-plans', async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const { data, error } = await supabaseAdmin.from('rate_plans').select('*').eq('active', true);
+    if (error) return res.status(500).json({ error: error.message });
+    // De-duplicate by name (the DB seeds two "Standard Rate" rows) keeping the
+    // first, and surface a clean list for the public selector.
+    const seen = new Set<string>();
+    const ratePlans = (data || [])
+      .filter((rp: any) => {
+        const key = (rp.name || '').toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((rp: any) => ({
+        id: rp.id,
+        name: rp.name,
+        description: rp.description || '',
+        baseModifier: Number(rp.base_modifier) || 1,
+        minStay: rp.min_stay || 1,
+        maxStay: rp.max_stay || null,
+        cancellationPolicy: rp.cancellation_policy || '',
+      }))
+      .sort((a: any, b: any) => a.baseModifier - b.baseModifier);
+    return res.json({ ratePlans });
   });
 
   app.get('/api/public/packages', async (req, res) => {
@@ -1273,9 +1476,11 @@ async function startServer() {
       return res.status(503).json({ error: 'Database not configured' });
     }
 
-    const { checkIn, checkOut, guestName, guestEmail, guestPhone, guestNationality, packageIds, guestServiceIds, specialRequests, items, airportShuttleDetails } = req.body || {};
+    const { checkIn, checkOut, guestName, guestEmail, guestPhone, guestNationality, packageIds, guestServiceIds, specialRequests, items, airportShuttleRequests, groupName, primaryContact, operator_id, voucher_code, voucher_discount, ratePlanId } = req.body || {};
 
-    if (!checkIn || !checkOut || !guestName || !guestEmail) {
+    const effectiveGuestName = guestName || primaryContact;
+
+    if (!checkIn || !checkOut || !effectiveGuestName || !guestEmail) {
       return res.status(400).json({ error: 'checkIn, checkOut, guestName, guestEmail are required' });
     }
 
@@ -1284,23 +1489,53 @@ async function startServer() {
       return res.status(400).json({ error: 'At least one room is required' });
     }
 
-    const [{ data: roomTypes }, { data: rooms }, { data: reservations }, { data: settings }, { data: packages }, { data: guestServices }] = await Promise.all([
+    // Check if public booking is enabled and not in maintenance mode
+    const { data: settings } = await supabaseAdmin.from('global_settings').select('*').maybeSingle();
+    if (!settings?.public_booking_enabled) {
+      return res.status(503).json({ error: 'Public booking is currently disabled' });
+    }
+    if (settings?.maintenance_mode) {
+      return res.status(503).json({ error: settings.maintenance_message || 'System is under maintenance. Please try again later.' });
+    }
+
+    const [{ data: roomTypes }, { data: rooms }, { data: reservations }, { data: packages }, { data: guestServices }, { data: allotments }, { data: seasons }, { data: ratePlans }] = await Promise.all([
       supabaseAdmin.from('room_types').select('*'),
       supabaseAdmin.from('rooms').select('*'),
       supabaseAdmin.from('reservations').select('*'),
-      supabaseAdmin.from('global_settings').select('*').maybeSingle(),
       supabaseAdmin.from('packages').select('*'),
-      supabaseAdmin.from('guest_services').select('*')
+      supabaseAdmin.from('guest_services').select('*'),
+      operator_id ? supabaseAdmin.from('allotments').select('*').eq('operator_id', operator_id).gte('stay_date', checkIn).lte('stay_date', checkOut).eq('is_released', false) : Promise.resolve({ data: [] }),
+      supabaseAdmin.from('seasons').select('*'),
+      supabaseAdmin.from('rate_plans').select('*')
     ]);
 
     const roomTypesList = roomTypes || [];
     const roomsList = rooms || [];
     const reservationsList = reservations || [];
-    const taxPercent = settings?.tax_percent || 0;
-    const serviceChargePercent = settings?.service_charge_percent || 0;
+    const allotmentsList = allotments || [];
+    const taxPercent = (settings as any)?.tax_percent || 0;
+    const serviceChargePercent = (settings as any)?.service_charge_percent || 0;
+    const feeComponents = ((settings as any)?.fee_components || []) as FeeComponent[];
     const nights = Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)));
+
+    // ── Pricing parity with the front desk: seasonal multiplier + rate plan ──
+    const season = getSeasonMultiplier(checkIn, (seasons || []) as SeasonRow[]);
+    const ratePlan = getRatePlanModifier(ratePlanId, (ratePlans || []) as RatePlanRow[]);
     const packageIdsList: string[] = Array.isArray(packageIds) ? packageIds : (packageIds ? [packageIds] : []);
     const guestServiceIdsList: string[] = Array.isArray(guestServiceIds) ? guestServiceIds : (guestServiceIds ? [guestServiceIds] : []);
+
+    // Build a map of allotment availability by room type and date
+    const allotmentAvailability = new Map<string, Map<string, number>>(); // roomTypeId -> date -> available
+    if (operator_id && allotmentsList.length > 0) {
+      for (const allotment of allotmentsList) {
+        const key = `${allotment.room_type_id}`;
+        if (!allotmentAvailability.has(key)) {
+          allotmentAvailability.set(key, new Map());
+        }
+        const available = (allotment.blocked_qty || 0) - (allotment.picked_up_qty || 0);
+        allotmentAvailability.get(key)!.set(allotment.stay_date, available);
+      }
+    }
 
     // Validate availability and compute pricing per item
     const enrichedItems = [];
@@ -1312,11 +1547,31 @@ async function startServer() {
         return res.status(400).json({ error: `Room type ${roomTypeId} not found` });
       }
       const qty = Math.max(1, Number(item.quantity) || 1);
-      const availability = getTypeAvailability(roomType.name, checkIn, checkOut, roomsList, reservationsList);
-      if (availability.available < qty) {
-        return res.status(409).json({ error: `Only ${availability.available} ${roomType.name} room${availability.available === 1 ? '' : 's'} available for selected dates` });
+      // Apply seasonal + rate-plan adjustment so public rates match front desk.
+      const rate = getEffectiveNightlyRate(Number(roomType.base_price) || 0, season.multiplier, ratePlan.modifier);
+      
+      // Check allotment availability if operator is selected
+      if (operator_id && allotmentAvailability.has(roomTypeId)) {
+        const dateMap = allotmentAvailability.get(roomTypeId)!;
+        let minAllotmentAvailable = Infinity;
+        let currentDate = new Date(checkIn);
+        while (currentDate < new Date(checkOut)) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const available = dateMap.get(dateStr) || 0;
+          minAllotmentAvailable = Math.min(minAllotmentAvailable, available);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+        if (minAllotmentAvailable < qty) {
+          return res.status(409).json({ error: `Only ${minAllotmentAvailable} ${roomType.name} room${minAllotmentAvailable === 1 ? '' : 's'} available in operator allotment for selected dates` });
+        }
+      } else {
+        // Use regular availability check
+        const availability = getTypeAvailability(roomType.name, checkIn, checkOut, roomsList, reservationsList, undefined, qty);
+        if (!availability.can_book) {
+          return res.status(409).json({ error: `Only ${availability.available} ${roomType.name} room${availability.available === 1 ? '' : 's'} available for selected dates` });
+        }
       }
-      const rate = roomType.base_price;
+      
       const itemRoomTotal = rate * nights * qty;
       roomSubtotal += itemRoomTotal;
       enrichedItems.push({ roomTypeId, roomTypeName: roomType.name, qty, rate, itemRoomTotal, adults: Number(item.adults) || 1, children: Number(item.children) || 0 });
@@ -1330,136 +1585,126 @@ async function startServer() {
       }
     }
 
+    const shuttleRequestsList = Array.isArray(airportShuttleRequests) ? airportShuttleRequests : [];
+    const shuttleQuantity = shuttleRequestsList.reduce((sum, req) => sum + (Number(req.quantity) || 0), 0);
+
     let guestServicesTotal = 0;
+    let shuttleServiceCounted = false;
     for (const gsid of guestServiceIdsList) {
       const gs = (guestServices || []).find((g: any) => g.id === gsid);
       if (gs) {
-        guestServicesTotal += Number(gs.price);
+        const isShuttle = (gs.name || '').toLowerCase().includes('airport') || (gs.name || '').toLowerCase().includes('shuttle');
+        if (isShuttle) {
+          if (!shuttleServiceCounted) {
+            guestServicesTotal += Number(gs.price) * Math.max(1, shuttleQuantity);
+            shuttleServiceCounted = true;
+          }
+        } else {
+          guestServicesTotal += Number(gs.price);
+        }
       }
     }
 
     const subtotal = roomSubtotal + packageTotal + guestServicesTotal;
-    const tax = Math.round(subtotal * (taxPercent / 100));
-    const serviceCharge = Math.round(subtotal * (serviceChargePercent / 100));
-    const totalAmount = subtotal + tax + serviceCharge;
+    // Unified fee engine (compounded VAT, honors all fee components) — shared
+    // with the client and the front desk so displayed == stored == invoiced.
+    const fees = computeFees(subtotal, feeComponents, taxPercent, serviceChargePercent);
+    const tax = fees.tax;
+    const serviceCharge = fees.serviceCharge;
+    const additionalFees = fees.additionalFees;
+    const voucherDiscountAmount = Number(voucher_discount) || 0;
+    const totalAmount = subtotal + tax + serviceCharge + additionalFees - voucherDiscountAmount;
 
     const totalRoomCount = enrichedItems.reduce((sum, item) => sum + item.qty, 0);
-    const isGroupBooking = true; // All direct website bookings are treated as group bookings pending front desk promotion
+    const isGroupBooking = totalRoomCount > 1;
 
-    const guestId = `G-${Math.floor(1000 + Math.random() * 9000)}`;
-    const { error: guestError } = await supabaseAdmin.from('guests').insert({
-      id: guestId,
-      name: guestName,
-      email: guestEmail,
-      phone: guestPhone || '',
-      nationality: guestNationality || '',
-      status: 'Regular',
-      loyalty_points: 0,
-      special_requests: specialRequests || '',
-      notes: 'Primary contact for direct website booking pending front desk promotion',
-      total_spend: 0,
-      preferences: {}
-    });
-    if (guestError) return res.status(500).json({ error: guestError.message });
+    // ── Idempotency key: derived from email + dates + item fingerprint ──
+    const idempotencyKey = req.headers['idempotency-key'] as string
+      || `${guestEmail}::${checkIn}::${checkOut}::${enrichedItems.map(i => `${i.roomTypeName}x${i.qty}`).join(',')}::${Date.now()}`;
 
-    const groupBookingId = `GB-${Math.floor(1000 + Math.random() * 9000)}`;
-    const primaryRoomType = enrichedItems.length === 1 ? enrichedItems[0].roomTypeName : 'Mixed';
-    const { error: groupError } = await supabaseAdmin.from('group_bookings').insert({
-      id: groupBookingId,
-      group_name: `${guestName} Group`,
-      contact_name: guestName,
-      contact_email: guestEmail,
-      contact_phone: guestPhone || '',
-      room_type_needed: primaryRoomType,
-      room_count: totalRoomCount,
-      check_in_date: checkIn,
-      check_out_date: checkOut,
-      discount_percent: 0,
-      status: 'Pending'
-    });
-    if (groupError) return res.status(500).json({ error: groupError.message });
+    // ── Single atomic RPC call — all inserts happen inside one Postgres txn ──
+    const rpcPayload = {
+      p_idempotency_key:   idempotencyKey,
+      p_guest_name:        effectiveGuestName,
+      p_guest_email:       guestEmail,
+      p_guest_phone:       guestPhone || '',
+      p_guest_nationality: guestNationality || '',
+      p_special_requests:  specialRequests || '',
+      p_check_in:          checkIn,
+      p_check_out:         checkOut,
+      p_items:             enrichedItems.map(i => ({
+        roomTypeName: i.roomTypeName,
+        roomTypeId:   i.roomTypeId,
+        qty:          i.qty,
+        rate:         i.rate,
+        adults:       i.adults,
+        children:     i.children,
+      })),
+      p_package_ids:       packageIdsList,
+      p_guest_service_ids: guestServiceIdsList,
+      p_package_total:     packageTotal,
+      p_guest_svc_total:   guestServicesTotal,
+      p_tax_percent:       taxPercent,
+      p_svc_charge_pct:    serviceChargePercent,
+      p_group_name:        groupName || null,
+      p_operator_id:       operator_id && typeof operator_id === 'string' ? operator_id : null,
+      // Absolute fee amounts from the unified engine so the RPC stores exactly
+      // what the guest was shown (compounded VAT + additional fees).
+      p_tax_amount:        tax,
+      p_svc_amount:        serviceCharge,
+      p_addon_amount:      additionalFees,
+      p_channel:           'Direct Website',
+      p_status:            'Waitlisted',
+    };
 
-    const reservationIds: string[] = [];
-    let firstReservation = true;
-    let packagesAdded = false;
-    let guestServicesAdded = false;
-    for (const item of enrichedItems) {
-      for (let i = 0; i < item.qty; i++) {
-        const baseAmount = item.rate * nights;
-        let itemTotal = Math.round(baseAmount * (1 + taxPercent / 100 + serviceChargePercent / 100));
-        const charges: any[] = [{ description: 'Room charge', amount: baseAmount, date: new Date().toISOString() }];
+    const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc('create_booking_atomic', rpcPayload);
 
-        if (firstReservation && packageTotal > 0 && !packagesAdded) {
-          itemTotal += Math.round(packageTotal * (1 + taxPercent / 100 + serviceChargePercent / 100));
-          charges.push({ description: 'Packages & add-ons', amount: packageTotal, date: new Date().toISOString() });
-          packagesAdded = true;
-        }
-
-        if (firstReservation && guestServicesTotal > 0 && !guestServicesAdded) {
-          itemTotal += Math.round(guestServicesTotal * (1 + taxPercent / 100 + serviceChargePercent / 100));
-          charges.push({ description: 'Guest services', amount: guestServicesTotal, date: new Date().toISOString() });
-          guestServicesAdded = true;
-        }
-
-        const reservationId = `R-${Math.floor(1000 + Math.random() * 9000)}`;
-        reservationIds.push(reservationId);
-        const { error: resError } = await supabaseAdmin.from('reservations').insert({
-          id: reservationId,
-          guest_id: guestId,
-          guest_name: guestName,
-          guest_email: guestEmail,
-          guest_phone: guestPhone || '',
-          guest_status: 'Regular',
-          room_type: item.roomTypeName,
-          room_type_id: item.roomTypeId,
-          check_in_date: checkIn,
-          check_out_date: checkOut,
-          adults: item.adults,
-          children: item.children,
-          status: 'Waitlisted',
-          rate: item.rate,
-          total_amount: itemTotal,
-          channel: 'Direct Website',
-          payment_status: 'Unpaid',
-          notes: specialRequests || '',
-          tax_percent: taxPercent,
-          service_charge_percent: serviceChargePercent,
-          package_ids: packageIdsList,
-          guest_service_ids: guestServiceIdsList,
-          guest_services_price: firstReservation ? guestServicesTotal : 0,
-          guest_services_revenue: firstReservation && !guestServicesAdded ? Math.round(guestServicesTotal * (1 + taxPercent / 100 + serviceChargePercent / 100)) : 0,
-          charges,
-          payments: [],
-          is_group: isGroupBooking,
-          group_booking_id: groupBookingId,
-          booking_group_id: groupBookingId
-        });
-        if (resError) return res.status(500).json({ error: resError.message });
+    if (rpcError) {
+      const msg: string = rpcError.message || '';
+      const details: string = rpcError.details || '';
+      const hint: string = rpcError.hint || '';
+      console.error('Atomic booking RPC error:', { message: msg, details, hint, code: rpcError.code, payload: rpcPayload });
+      if (msg.includes('AVAILABILITY_ERROR:')) {
+        return res.status(409).json({ error: msg.replace('AVAILABILITY_ERROR:', '').trim() });
       }
+      return res.status(500).json({ error: 'Booking failed. Please try again.', details: msg });
     }
 
-    // Create airport shuttle request if the service is selected and details are provided
+    const result = rpcResult as any;
+    const reservationIds: string[] = result.reservationIds || [];
+    const guestIds: string[] = result.guestIds || [];
+    const guestId: string = guestIds[0] || result.guestId;
+    const groupBookingId: string | null = result.groupId || null;
+
+    // ── Auto-assign rooms to the new public reservations (individual or group) ──
+    const roomAssignments: Record<string, string> = await autoAssignRoomsForPublicBookings(reservationIds, supabaseAdmin);
+
+    // ── Airport shuttle requests (non-critical, outside atomic txn) ──
     const airportShuttleService = (guestServices || []).find((gs: any) => {
       const name = (gs.name || '').toLowerCase();
       return name.includes('airport') || name.includes('shuttle');
     });
-    if (airportShuttleService && guestServiceIdsList.includes(airportShuttleService.id) && airportShuttleDetails && reservationIds.length > 0) {
-      const shuttleId = `shuttle_${Date.now()}`;
-      const { error: shuttleError } = await supabaseAdmin.from('airport_shuttle_requests').insert({
-        id: shuttleId,
-        guest_id: guestId,
-        reservation_id: reservationIds[0],
-        room_number: null,
-        scheduled_date: airportShuttleDetails.scheduledDate,
-        scheduled_time: airportShuttleDetails.scheduledTime,
-        shuttle_type: airportShuttleDetails.shuttleType,
-        flight_number: airportShuttleDetails.flightNumber || null,
-        flight_time: airportShuttleDetails.flightTime || null,
-        status: 'Pending',
-        notes: airportShuttleDetails.notes || null
-      });
-      if (shuttleError) {
-        console.error('Error creating airport shuttle request:', shuttleError);
+    if (airportShuttleService && guestServiceIdsList.includes(airportShuttleService.id) && shuttleRequestsList.length > 0 && reservationIds.length > 0) {
+      let shuttleIndex = 0;
+      for (const shuttleReq of shuttleRequestsList) {
+        const shuttleId = `shuttle_${Date.now()}_${shuttleIndex++}`;
+        const { error: shuttleError } = await supabaseAdmin.from('airport_shuttle_requests').insert({
+          id: shuttleId,
+          guest_id: guestId,
+          reservation_id: reservationIds[0],
+          room_number: null,
+          scheduled_date: shuttleReq.scheduledDate,
+          scheduled_time: shuttleReq.scheduledTime,
+          shuttle_type: shuttleReq.shuttleType,
+          flight_number: shuttleReq.flightNumber || null,
+          flight_time: shuttleReq.flightTime || null,
+          status: 'Pending',
+          notes: shuttleReq.notes || null,
+          quantity: Math.max(1, Number(shuttleReq.quantity) || 1)
+        });
+        if (shuttleError) {
+          console.error('Error creating airport shuttle request:', shuttleError);
+        }
       }
     }
 
@@ -1470,24 +1715,150 @@ async function startServer() {
       entityId: groupBookingId || reservationIds[0] || guestId,
       module: 'public_booking',
       outcome: 'success',
-      details: { guestEmail, reservationIds, groupBookingId, checkIn, checkOut, totalAmount, itemCount: cartItems.length, roomCount: totalRoomCount, isGroupBooking }
+      details: { guestEmail, reservationIds, groupBookingId, checkIn, checkOut, totalAmount, itemCount: cartItems.length, roomCount: totalRoomCount, isGroupBooking, idempotent: result.idempotent, roomAssignments }
     });
+
+    // Handle voucher redemption if a voucher code was provided
+    if (voucher_code && voucherDiscountAmount > 0) {
+      try {
+        await supabaseAdmin.rpc('redeem_voucher', {
+          p_voucher_number: voucher_code,
+          p_reservation_id: reservationIds[0] || groupBookingId,
+          p_discount_amount: voucherDiscountAmount
+        });
+      } catch (e) {
+        console.error('Failed to redeem voucher:', e);
+        // Continue anyway - booking is successful even if voucher redemption fails
+      }
+    }
+
+    // Update allotment pickup log if operator is selected
+    if (operator_id && allotmentAvailability.size > 0) {
+      try {
+        const currentDate = new Date(checkIn);
+        while (currentDate < new Date(checkOut)) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          for (const item of enrichedItems) {
+            const allotment = allotmentsList.find((a: any) => 
+              a.room_type_id === item.roomTypeId && 
+              a.stay_date === dateStr &&
+              a.operator_id === operator_id
+            );
+            if (allotment) {
+              await supabaseAdmin.from('allotment_pickup_log').insert({
+                allotment_id: allotment.id,
+                reservation_id: reservationIds[0] || groupBookingId,
+                pickup_date: dateStr,
+                quantity: item.qty,
+                picked_up_by: 'system',
+                notes: 'Auto-pickup from public booking'
+              });
+              // Update allotment picked_up_qty
+              await supabaseAdmin.from('allotments')
+                .update({ picked_up_qty: (allotment.picked_up_qty || 0) + item.qty })
+                .eq('id', allotment.id);
+            }
+          }
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } catch (e) {
+        console.error('Failed to update allotment pickup log:', e);
+        // Continue anyway - booking is successful even if allotment update fails
+      }
+    }
 
     return res.json({
       success: true,
       reservationIds,
       guestId,
       totalAmount,
+      subtotal,
+      tax,
+      serviceCharge,
+      additionalFees,
+      voucherDiscount: voucherDiscountAmount,
+      season: { name: season.name, multiplier: season.multiplier },
+      ratePlan: { name: ratePlan.name, modifier: ratePlan.modifier },
       isGroupBooking,
       groupBookingId,
-      status: isGroupBooking ? 'Waitlisted' : 'Confirmed'
+      status: 'Waitlisted',
+      idempotent: result.idempotent || false,
+      roomAssignments,
     });
   });
 
-  app.patch('/api/admin/settings', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'settings:update'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/public/bookings/confirm-payment', async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+    const { reservationIds, paymentMethod, paymentDetails } = req.body || {};
+    if (!Array.isArray(reservationIds) || reservationIds.length === 0) {
+      return res.status(400).json({ error: 'reservationIds is required' });
+    }
+    try {
+      // 1. Ensure rooms are assigned before confirming payment (promotion)
+      const roomAssignments = await autoAssignRoomsForPublicBookings(reservationIds, supabaseAdmin);
+
+      // 2. Fetch current reservations to retrieve total_amount & existing payments
+      const { data: reservations, error: fetchError } = await supabaseAdmin
+        .from('reservations')
+        .select('id, total_amount, payments, notes')
+        .in('id', reservationIds);
+        
+      if (fetchError) throw fetchError;
+      if (!reservations || reservations.length === 0) {
+        return res.status(404).json({ error: 'Reservations not found' });
+      }
+
+      // 3. Loop through and update each reservation with a real payment record
+      for (const r of reservations) {
+        const paymentObj = {
+          description: `Direct Website Deposit Payment (${paymentMethod || 'Credit Card'})`,
+          amount: r.total_amount,
+          date: new Date().toISOString(),
+          method: paymentMethod || 'Credit Card',
+          details: paymentDetails || {}
+        };
+        const currentPayments = Array.isArray(r.payments) ? r.payments : [];
+        const updatedPayments = [...currentPayments, paymentObj];
+        
+        const paymentNote = `Website direct payment confirmed via ${paymentMethod || 'Credit Card'}. Details: ${JSON.stringify(paymentDetails || {})}`;
+        const updatedNotes = r.notes 
+          ? `${r.notes}\n${paymentNote}`
+          : paymentNote;
+
+        const { error: updateError } = await supabaseAdmin
+          .from('reservations')
+          .update({
+            status: 'Confirmed',
+            payment_status: 'Paid',
+            payments: updatedPayments,
+            notes: updatedNotes
+          })
+          .eq('id', r.id);
+          
+        if (updateError) throw updateError;
+      }
+
+      // 3. Write a system audit log for the payment confirmation
+      await writeAuditEvent({
+        req,
+        action: 'public_payment.confirmed',
+        entityType: 'Reservation',
+        entityId: reservationIds[0],
+        module: 'public_booking',
+        outcome: 'success',
+        details: { reservationIds, paymentMethod, roomAssignments }
+      });
+      
+      return res.json({ success: true, status: 'Confirmed', paymentStatus: 'Paid', roomAssignments });
+    } catch (e: any) {
+      console.error('Payment confirmation error:', e);
+      return res.status(500).json({ error: e.message || 'Payment confirmation failed' });
+    }
+  });
+
+  app.patch('/api/admin/settings', authenticate, requirePermission('settings:update'), async (req, res) => {
     const updates = filterKnownColumns(camelToSnakeRecord(req.body || {}));
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data: existing } = await supabaseAdmin.from('global_settings').select('id').maybeSingle();
@@ -1495,10 +1866,10 @@ async function startServer() {
         const { data, error } = await supabaseAdmin.from('global_settings').update({
           ...updates,
           updated_at: new Date().toISOString(),
-          updated_by: user.id
+          updated_by: req.user!.id
         }).eq('id', existing.id).select().single();
         if (error) return res.status(500).json({ error: error.message });
-        await writeAuditEvent({ req, user, action: 'settings.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: Object.keys(updates) } });
+        await writeAuditEvent({ req, user: req.user!, action: 'settings.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: Object.keys(updates) } });
         return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
       } else {
         const newId = crypto.randomUUID();
@@ -1507,11 +1878,11 @@ async function startServer() {
           ...filterKnownColumns(updates),
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          created_by: user.id,
-          updated_by: user.id
+          created_by: req.user!.id,
+          updated_by: req.user!.id
         }).select().single();
         if (error) return res.status(500).json({ error: error.message });
-        await writeAuditEvent({ req, user, action: 'settings.created', entityType: 'GlobalSettings', entityId: newId, module: 'admin', details: { updates: Object.keys(updates) } });
+        await writeAuditEvent({ req, user: req.user!, action: 'settings.created', entityType: 'GlobalSettings', entityId: newId, module: 'admin', details: { updates: Object.keys(updates) } });
         return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
       }
     }
@@ -1521,9 +1892,7 @@ async function startServer() {
   // =====================
   // Audit Exceptions API
   // =====================
-  app.get('/api/audit/exceptions', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'audit:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/audit/exceptions', authenticate, requirePermission('audit:view'), async (req, res) => {
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin
@@ -1538,9 +1907,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/audit/exceptions', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'audit:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/audit/exceptions', authenticate, requirePermission('audit:view'), async (req, res) => {
 
     const { description, reservationId, roomNumber, businessDate, owner } = req.body || {};
     if (!description) return res.status(400).json({ error: 'description is required' });
@@ -1553,7 +1920,7 @@ async function startServer() {
           reservation_id: reservationId || null,
           room_number: roomNumber || null,
           business_date: businessDate || new Date().toISOString().slice(0, 10),
-          owner: owner || user?.name || 'Front Office'
+          owner: owner || req.user?.name || 'Front Office'
         })
         .select()
         .single();
@@ -1565,15 +1932,13 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/audit/exceptions/:id/resolve', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'audit:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/audit/exceptions/:id/resolve', authenticate, requirePermission('audit:view'), async (req, res) => {
 
     const id = req.params.id;
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin
         .from('audit_exceptions')
-        .update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: user?.id || null })
+        .update({ status: 'resolved', resolved_at: new Date().toISOString(), resolved_by: req.user?.id || null })
         .eq('id', id)
         .select()
         .maybeSingle();
@@ -1585,29 +1950,34 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.get('/api/audit/events', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'audit:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
-
+  app.get('/api/audit/events', authenticate, async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 500, 1000);
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const { data, error } = await supabaseAdmin
+      let { data, error } = await supabaseAdmin
         .from('audit_events')
         .select('*')
-        .order('timestamp', { ascending: false })
-        .limit(500);
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error && error.code === '42P01') {
+        await ensureAuditEventsTable();
+        const result = await supabaseAdmin
+          .from('audit_events')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+        data = result.data;
+        error = result.error;
+      }
       if (error) return res.status(500).json({ error: error.message });
-      return res.json({ events: data || [] });
+      return res.json(data || []);
     }
-
-    res.json({ events: fallbackAuditEvents.slice(-500).reverse() });
+    return res.json(fallbackAuditEvents.slice(-limit));
   });
 
   // =====================
   // Report Schedules / Versions / Historical Stats
   // =====================
-  app.get('/api/report-schedules', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/report-schedules', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin
@@ -1622,9 +1992,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/report-schedules', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:export'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/report-schedules', authenticate, requirePermission('reports:export'), async (req, res) => {
 
     const { reportName, frequency, recipients, status, nextRun } = req.body || {};
     if (!reportName || !frequency) return res.status(400).json({ error: 'reportName and frequency are required' });
@@ -1638,7 +2006,7 @@ async function startServer() {
           recipients: recipients || [],
           status: status || 'Active',
           next_run: nextRun || null,
-          created_by: user?.id || null
+          created_by: req.user?.id || null
         })
         .select()
         .single();
@@ -1649,9 +2017,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/report-versions', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:export'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/report-versions', authenticate, requirePermission('reports:export'), async (req, res) => {
 
     const { reportName, fileSize, status } = req.body || {};
     if (!reportName) return res.status(400).json({ error: 'reportName is required' });
@@ -1663,7 +2029,7 @@ async function startServer() {
           report_name: reportName,
           file_size: fileSize || null,
           status: status || 'Draft',
-          generated_by: user?.name || user?.id || null
+          generated_by: req.user?.name || req.user?.id || null
         })
         .select()
         .single();
@@ -1678,9 +2044,7 @@ async function startServer() {
   // Pending Admin Changes — Executive Governance Approval Queue
   // =====================
 
-  app.get('/api/admin/pending-changes', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.get('/api/admin/pending-changes', authenticate, async (req, res) => {
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       let { data, error } = await supabaseAdmin
         .from('pending_admin_changes')
@@ -1712,9 +2076,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/admin/pending-changes', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.post('/api/admin/pending-changes', authenticate, async (req, res) => {
     const body = req.body || {};
     if (!body.id || !body.title || !body.changeType || !body.payload) {
       return res.status(400).json({ error: 'id, title, changeType, and payload are required' });
@@ -1726,7 +2088,7 @@ async function startServer() {
         description: body.description || '',
         change_type: body.changeType,
         submitted_at: body.submittedAt || new Date().toISOString(),
-        submitted_by: body.submittedBy || user.name || user.email,
+        submitted_by: body.submittedBy || req.user!.name || req.user!.email,
         status: 'Pending',
         payload: body.payload,
       });
@@ -1738,21 +2100,19 @@ async function startServer() {
           description: body.description || '',
           change_type: body.changeType,
           submitted_at: body.submittedAt || new Date().toISOString(),
-          submitted_by: body.submittedBy || user.name || user.email,
+          submitted_by: body.submittedBy || req.user!.name || req.user!.email,
           status: 'Pending',
           payload: body.payload,
         });
       }
       if (result.error) return res.status(500).json({ error: result.error.message });
-      await writeAuditEvent({ req, user, action: 'admin_change.submitted', module: 'governance', details: { changeId: body.id, title: body.title, changeType: body.changeType } });
+      await writeAuditEvent({ req, user: req.user, action: 'admin_change.submitted', module: 'governance', details: { changeId: body.id, title: body.title, changeType: body.changeType } });
       return res.json({ success: true });
     }
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/admin/pending-changes/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+  app.patch('/api/admin/pending-changes/:id', authenticate, async (req, res) => {
     const changeId = req.params.id;
     const { status } = req.body || {};
     if (status !== 'Approved' && status !== 'Declined') {
@@ -1771,7 +2131,7 @@ async function startServer() {
           .eq('id', changeId);
       }
       if (result.error) return res.status(500).json({ error: result.error.message });
-      await writeAuditEvent({ req, user, action: `admin_change.${status.toLowerCase()}`, module: 'governance', details: { changeId, status } });
+      await writeAuditEvent({ req, user: req.user, action: `admin_change.${status.toLowerCase()}`, module: 'governance', details: { changeId, status } });
       return res.json({ success: true });
     }
     return res.status(503).json({ error: 'Database not configured' });
@@ -1780,9 +2140,7 @@ async function startServer() {
   // Dispatch a report to a distribution list. Records a "Sent" version and audit
   // trail. Performs an actual SMTP send when SMTP_* env vars are configured;
   // otherwise the message is queued/logged so the workflow stays functional.
-  app.post('/api/reports/email', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:export'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reports/email', authenticate, requirePermission('reports:export'), async (req, res) => {
 
     const { reportName, recipients, fileSize, summary } = req.body || {};
     const recipientList: string[] = Array.isArray(recipients)
@@ -1826,7 +2184,7 @@ async function startServer() {
           report_name: reportName,
           file_size: fileSize || null,
           status: 'Sent',
-          generated_by: user?.name || user?.id || null,
+          generated_by: req.user?.name || req.user?.id || null,
         })
         .select()
         .maybeSingle();
@@ -1835,7 +2193,7 @@ async function startServer() {
 
     await writeAuditEvent({
       req,
-      user,
+      user: req.user,
       action: 'report.email_dispatched',
       entityType: 'Report',
       entityId: reportName,
@@ -1858,9 +2216,7 @@ async function startServer() {
     });
   });
 
-  app.get('/api/historical-stats', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/historical-stats', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin
@@ -1875,9 +2231,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/historical-stats', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!(await userCan(user, 'reports:export'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/historical-stats', authenticate, requirePermission('reports:export'), async (req, res) => {
 
     const { businessDate, occupancy, roomRevenue, ancillaryRevenue, adr, revpar, guestSatisfaction } = req.body || {};
     if (!businessDate) return res.status(400).json({ error: 'businessDate is required' });
@@ -1903,10 +2257,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/group-bookings', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:create'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/group-bookings', authenticate, requirePermission('reservation:create'), async (req, res) => {
 
     const { groupName, contactName, contactEmail, contactPhone, roomTypeNeeded, roomCount, checkInDate, checkOutDate, discountPercent, status } = req.body;
 
@@ -1926,7 +2277,7 @@ async function startServer() {
         p_check_out_date: checkOutDate,
         p_discount_percent: discountPercent || 0,
         p_status: status || 'Pending',
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -1938,10 +2289,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/group-bookings/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:update'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/group-bookings/:id', authenticate, requirePermission('reservation:update'), async (req, res) => {
 
     const groupId = req.params.id;
     const { status } = req.body;
@@ -1963,10 +2311,7 @@ async function startServer() {
   // GROUP PROFILE API ENDPOINTS
   // ============================================================================
 
-  app.get('/api/group-profiles', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/group-profiles', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin
@@ -1981,10 +2326,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.get('/api/group-profiles/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/group-profiles/:id', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     const groupId = req.params.id;
 
@@ -2003,10 +2345,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/group-profiles', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:create'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/group-profiles', authenticate, requirePermission('reservation:create'), async (req, res) => {
 
     const groupData = req.body;
 
@@ -2063,8 +2402,8 @@ async function startServer() {
           default_routing_profile_id: groupData.defaultRoutingProfileId || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          created_by: user.id,
-          updated_by: user.id,
+          created_by: req.user!.id,
+          updated_by: req.user!.id,
         })
         .select()
         .single();
@@ -2073,7 +2412,7 @@ async function startServer() {
       
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'group_profile_created', 
         entityType: 'GroupProfile', 
         entityId: newId,
@@ -2087,10 +2426,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/group-profiles/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:update'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/group-profiles/:id', authenticate, requirePermission('reservation:update'), async (req, res) => {
 
     const groupId = req.params.id;
     const updates = req.body;
@@ -2109,7 +2445,7 @@ async function startServer() {
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-          updated_by: user.id,
+          updated_by: req.user!.id,
         })
         .eq('id', groupId)
         .select()
@@ -2119,7 +2455,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'group_profile_updated', 
         entityType: 'GroupProfile', 
         entityId: groupId,
@@ -2133,10 +2469,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.delete('/api/group-profiles/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:delete'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.delete('/api/group-profiles/:id', authenticate, requirePermission('reservation:delete'), async (req, res) => {
 
     const groupId = req.params.id;
 
@@ -2158,7 +2491,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'group_profile_deleted', 
         entityType: 'GroupProfile', 
         entityId: groupId,
@@ -2172,10 +2505,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.get('/api/group-profiles/:id/members', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/group-profiles/:id/members', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     const groupId = req.params.id;
 
@@ -2195,10 +2525,7 @@ async function startServer() {
   // GUEST GROUP RELATIONSHIP API ENDPOINTS
   // ============================================================================
 
-  app.get('/api/guest-group-relationships/:guestId', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reports:view'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/guest-group-relationships/:guestId', authenticate, requirePermission('reports:view'), async (req, res) => {
 
     const guestId = req.params.guestId;
 
@@ -2216,10 +2543,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/guest-group-relationships', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:create'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/guest-group-relationships', authenticate, requirePermission('reservation:create'), async (req, res) => {
 
     const { guestId, groupId, relationshipType, isPrimaryContact, reservationId, roleTitle } = req.body;
 
@@ -2234,7 +2558,7 @@ async function startServer() {
         p_relationship_type: relationshipType || null,
         p_is_primary_contact: isPrimaryContact || false,
         p_reservation_id: reservationId || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2242,7 +2566,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'guest_linked_to_group', 
         entityType: 'GuestGroupRelationship', 
         entityId: data.relationshipId,
@@ -2256,10 +2580,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.patch('/api/guest-group-relationships/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:update'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.patch('/api/guest-group-relationships/:id', authenticate, requirePermission('reservation:update'), async (req, res) => {
 
     const relationshipId = req.params.id;
     const updates = req.body;
@@ -2278,7 +2599,7 @@ async function startServer() {
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
-          updated_by: user.id,
+          updated_by: req.user!.id,
         })
         .eq('id', relationshipId)
         .select()
@@ -2288,7 +2609,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'relationship_updated', 
         entityType: 'GuestGroupRelationship', 
         entityId: relationshipId,
@@ -2302,10 +2623,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.delete('/api/guest-group-relationships/:id', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:delete'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.delete('/api/guest-group-relationships/:id', authenticate, requirePermission('reservation:delete'), async (req, res) => {
 
     const relationshipId = req.params.id;
     const { reason } = req.body;
@@ -2323,7 +2641,7 @@ async function startServer() {
         p_guest_id: existing.guest_id,
         p_group_id: existing.group_id,
         p_reason: reason || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2331,7 +2649,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'guest_unlinked_from_group', 
         entityType: 'GuestGroupRelationship', 
         entityId: relationshipId,
@@ -2345,10 +2663,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/group-profiles/:id/link-guest', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:create'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/group-profiles/:id/link-guest', authenticate, requirePermission('reservation:create'), async (req, res) => {
 
     const groupId = req.params.id;
     const { guestId, relationshipType, isPrimaryContact, reservationId, roleTitle } = req.body;
@@ -2364,7 +2679,7 @@ async function startServer() {
         p_relationship_type: relationshipType || null,
         p_is_primary_contact: isPrimaryContact || false,
         p_reservation_id: reservationId || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2372,7 +2687,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'guest_linked_to_group', 
         entityType: 'GuestGroupRelationship', 
         entityId: data.relationshipId,
@@ -2386,10 +2701,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/group-profiles/:id/unlink-guest', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:delete'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/group-profiles/:id/unlink-guest', authenticate, requirePermission('reservation:delete'), async (req, res) => {
 
     const groupId = req.params.id;
     const { guestId, reason } = req.body;
@@ -2403,7 +2715,7 @@ async function startServer() {
         p_guest_id: guestId,
         p_group_id: groupId,
         p_reason: reason || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2411,7 +2723,7 @@ async function startServer() {
 
       await writeAuditEvent({ 
         req, 
-        user, 
+        user: req.user, 
         action: 'guest_unlinked_from_group', 
         entityType: 'GuestGroupRelationship', 
         module: 'group_management',
@@ -2424,10 +2736,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:id/change-room', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:update'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:id/change-room', authenticate, requirePermission('reservation:update'), async (req, res) => {
 
     const reservationId = req.params.id;
     const { roomNumber } = req.body;
@@ -2440,7 +2749,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('change_room', {
         p_reservation_id: reservationId,
         p_new_room_number: roomNumber,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2452,10 +2761,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:id/check-in', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'reservation:check_in'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:id/check-in', authenticate, requirePermission('reservation:check_in'), async (req, res) => {
 
     const reservationId = req.params.id;
     const { roomNumber } = req.body;
@@ -2468,7 +2774,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('check_in_reservation', {
         p_reservation_id: reservationId,
         p_room_number: roomNumber,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2569,10 +2875,7 @@ async function startServer() {
     return folioId;
   }
 
-  app.post('/api/reservations/:id/charges', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:charge:add'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:id/charges', authenticate, requirePermission('folio:charge:add'), async (req, res) => {
 
     const reservationId = req.params.id;
     const { description, amount, quantity, lineType, revenueAccountCode, sourceReference } = req.body;
@@ -2582,7 +2885,7 @@ async function startServer() {
     }
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const folioId = await ensureFolio(reservationId, user.id);
+      const folioId = await ensureFolio(reservationId, req.user!.id);
       if (!folioId) return res.status(404).json({ error: 'Reservation not found or cannot create folio' });
 
       const { data, error } = await supabaseAdmin.rpc('post_folio_charge', {
@@ -2592,7 +2895,7 @@ async function startServer() {
         p_quantity: quantity || 1,
         p_line_type: lineType || 'Extra',
         p_revenue_account_code: revenueAccountCode || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
         p_source_reference: sourceReference || null,
       });
 
@@ -2605,20 +2908,17 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:id/payments', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:payment:add'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:id/payments', authenticate, requirePermission('folio:payment:add'), async (req, res) => {
 
     const reservationId = req.params.id;
-    const { amount, paymentMethod, reference } = req.body;
+    const { amount, paymentMethod, reference, receiptUrl, idempotencyKey } = req.body;
 
     if (typeof amount !== 'number' || amount <= 0 || !paymentMethod) {
       return res.status(400).json({ error: 'positive amount and paymentMethod are required' });
     }
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
-      const folioId = await ensureFolio(reservationId, user.id);
+      const folioId = await ensureFolio(reservationId, req.user!.id);
       if (!folioId) return res.status(404).json({ error: 'Reservation not found or cannot create folio' });
 
       const { data, error } = await supabaseAdmin.rpc('post_folio_payment', {
@@ -2626,22 +2926,32 @@ async function startServer() {
         p_amount: amount,
         p_payment_method: paymentMethod,
         p_reference: reference || null,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
+        p_receipt_url: receiptUrl || null,
+        p_idempotency_key: idempotencyKey || null,
       });
 
       if (error) return res.status(500).json({ error: error.message });
       if (!data?.success) return res.status(409).json({ error: data?.error || 'Payment failed' });
 
-      return res.json({ success: true, folioId, newBalance: data.newBalance });
+      // Handle idempotent response (duplicate request with same key)
+      if (data?.idempotent) {
+        return res.json({ 
+          success: true, 
+          folioId, 
+          paymentId: data.paymentId,
+          idempotent: true,
+          message: data.message 
+        });
+      }
+
+      return res.json({ success: true, folioId, paymentId: data.paymentId, newBalance: data.newBalance });
     }
 
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:reservationId/charges/:chargeId/void', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:charge:void'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:reservationId/charges/:chargeId/void', authenticate, requirePermission('folio:charge:void'), async (req, res) => {
 
     const { chargeId } = req.params;
     const { reason, approvedBy } = req.body;
@@ -2652,7 +2962,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('void_folio_line', {
         p_line_id: chargeId,
         p_reason: reason,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
         p_approved_by: approvedBy || null,
       });
 
@@ -2665,10 +2975,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:reservationId/charges/:chargeId/move', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:charge:add'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/reservations/:reservationId/charges/:chargeId/move', authenticate, requirePermission('folio:charge:add'), async (req, res) => {
 
     const { chargeId, reservationId: sourceReservationId } = req.params;
     const { targetReservationId } = req.body;
@@ -2698,13 +3005,13 @@ async function startServer() {
 
       if (!targetFolio) {
         // Create folio for target reservation if it doesn't exist
-        const targetFolioId = await ensureFolio(targetReservationId, user.id);
+        const targetFolioId = await ensureFolio(targetReservationId, req.user!.id);
         if (!targetFolioId) return res.status(404).json({ error: 'Target reservation not found or cannot create folio' });
 
         const { data, error } = await supabaseAdmin.rpc('move_folio_line', {
           p_line_id: chargeId,
           p_target_folio_id: targetFolioId,
-          p_user_id: user.id,
+          p_user_id: req.user!.id,
         });
 
         if (error) return res.status(500).json({ error: error.message });
@@ -2716,7 +3023,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('move_folio_line', {
         p_line_id: chargeId,
         p_target_folio_id: targetFolio.id,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2728,10 +3035,83 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/reservations/:reservationId/payments/:paymentId/void', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:payment:void'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.get('/api/folio-payments/audit', authenticate, async (req, res) => {
+    const { startDate, endDate, paymentMethod, search } = req.query;
+
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      // Simple query without complex joins first
+      let query = supabaseAdmin
+        .from('folio_payments')
+        .select('*')
+        .order('payment_date', { ascending: false });
+
+      if (startDate) {
+        query = query.gte('payment_date', startDate);
+      }
+      if (endDate) {
+        query = query.lte('payment_date', endDate);
+      }
+      if (paymentMethod) {
+        query = query.eq('payment_method', paymentMethod);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        console.error('Error fetching folio payments audit:', error);
+        return res.status(500).json({ error: 'Failed to fetch folio payments', details: error.message });
+      }
+
+      // Fetch folio details for each payment
+      const paymentsWithDetails = await Promise.all(
+        (data || []).map(async (payment) => {
+          const { data: folio } = await supabaseAdmin
+            .from('folios')
+            .select('reservation_id, folio_type, status')
+            .eq('id', payment.folio_id)
+            .single();
+
+          let reservation = null;
+          if (folio?.reservation_id) {
+            const { data: res } = await supabaseAdmin
+              .from('reservations')
+              .select('id, guest_name, room_number, check_in_date, check_out_date')
+              .eq('id', folio.reservation_id)
+              .single();
+            reservation = res;
+          }
+
+          return {
+            ...payment,
+            folios: folio,
+            reservations: reservation
+          };
+        })
+      );
+
+      // Client-side filtering for search
+      let filteredPayments = paymentsWithDetails || [];
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredPayments = filteredPayments.filter(p =>
+          (p.reservations?.guest_name?.toLowerCase().includes(searchLower)) ||
+          (p.reservations?.room_number?.toLowerCase().includes(searchLower)) ||
+          (p.reference_number?.toLowerCase().includes(searchLower))
+        );
+      }
+
+      return res.json({ payments: filteredPayments });
+    } catch (err: any) {
+      console.error('Unexpected error fetching folio payments:', err);
+      return res.status(500).json({ error: 'Failed to fetch folio payments', details: err.message });
+    }
+  });
+
+  app.post('/api/reservations/:reservationId/payments/:paymentId/void', authenticate, requirePermission('folio:payment:void'), async (req, res) => {
 
     const { paymentId } = req.params;
     const { reason, approvedBy } = req.body;
@@ -2751,7 +3131,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('void_folio_line', {
         p_line_id: paymentId,
         p_reason: reason,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
         p_approved_by: approvedBy || null,
       });
 
@@ -2764,10 +3144,7 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/folio-lines/:lineId/move', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'folio:charge:add'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/folio-lines/:lineId/move', authenticate, requirePermission('folio:charge:add'), async (req, res) => {
 
     const { lineId } = req.params;
     const { targetFolioId } = req.body;
@@ -2778,7 +3155,7 @@ async function startServer() {
       const { data, error } = await supabaseAdmin.rpc('move_folio_line', {
         p_line_id: lineId,
         p_target_folio_id: targetFolioId,
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2790,14 +3167,11 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  app.post('/api/night-audit/run', async (req, res) => {
-    const user = await getRequestUser(req);
-    if (!user) return res.status(401).json({ error: 'Not authenticated' });
-    if (!(await userCan(user, 'night_audit:run'))) return res.status(403).json({ error: 'Insufficient privileges' });
+  app.post('/api/night-audit/run', authenticate, requirePermission('night_audit:run'), async (req, res) => {
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const { data, error } = await supabaseAdmin.rpc('run_night_audit', {
-        p_user_id: user.id,
+        p_user_id: req.user!.id,
       });
 
       if (error) return res.status(500).json({ error: error.message });
@@ -2807,6 +3181,161 @@ async function startServer() {
     }
 
     return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // ═══════════════════════════════════════════════════════════
+  // B2B ROUTES — Tour Operators
+  // ═══════════════════════════════════════════════════════════
+  app.get('/api/b2b/operators', async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('tour_operators').select('*').order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/operators', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('tour_operators').insert(req.body).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  });
+  app.put('/api/b2b/operators/:id', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('tour_operators').update({ ...req.body, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+
+  // ── Allotments ────────────────────────────────────────────────
+  app.get('/api/b2b/allotments', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { operator_id, from_date, to_date } = req.query as Record<string, string>;
+    let q = supabaseAdmin.from('allotments').select('*, tour_operators(name,code), room_types(name)').order('stay_date');
+    if (operator_id) q = q.eq('operator_id', operator_id);
+    if (from_date)   q = q.gte('stay_date', from_date);
+    if (to_date)     q = q.lte('stay_date', to_date);
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/allotments', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('allotments').insert(req.body).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  });
+  app.post('/api/b2b/allotments/release-expired', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.rpc('release_expired_allotments');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ released: data });
+  });
+
+  // ── Operator Contracts ────────────────────────────────────────
+  app.get('/api/b2b/contracts', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { operator_id } = req.query as Record<string, string>;
+    let q = supabaseAdmin.from('operator_contracts').select('*, tour_operators(name,code), room_types(name)').order('valid_from', { ascending: false });
+    if (operator_id) q = q.eq('operator_id', operator_id);
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/contracts', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('operator_contracts').insert(req.body).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  });
+  app.put('/api/b2b/contracts/:id', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('operator_contracts').update({ ...req.body, updated_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+
+  // ── Vouchers ──────────────────────────────────────────────────
+  app.get('/api/b2b/vouchers', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { operator_id, status } = req.query as Record<string, string>;
+    let q = supabaseAdmin.from('vouchers').select('*, tour_operators(name,code), room_types(name)').order('issued_at', { ascending: false });
+    if (operator_id) q = q.eq('operator_id', operator_id);
+    if (status)      q = q.eq('status', status);
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/vouchers', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('vouchers').insert(req.body).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  });
+  app.post('/api/b2b/vouchers/redeem', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { voucher_no, reservation_id } = req.body || {};
+    if (!voucher_no) return res.status(400).json({ error: 'voucher_no is required' });
+
+    // Preview mode: return the voucher value without redeeming it.
+    if (!reservation_id) {
+      const { data: voucher, error: voucherError } = await supabaseAdmin
+        .from('vouchers')
+        .select('*')
+        .eq('voucher_no', voucher_no)
+        .single();
+      if (voucherError || !voucher) return res.status(404).json({ error: 'Voucher not found' });
+      if (voucher.status !== 'issued') return res.status(409).json({ error: `Voucher is ${voucher.status}` });
+      if (voucher.valid_to && new Date(voucher.valid_to) < new Date()) return res.status(409).json({ error: 'Voucher expired' });
+      return res.json({
+        ...voucher,
+        discount_amount: Number(voucher.net_value) || 0,
+      });
+    }
+
+    const { data, error } = await supabaseAdmin.rpc('redeem_voucher', {
+      p_voucher_no: voucher_no, p_reservation_id: reservation_id,
+      p_redeemed_by: req.user!.name || req.user!.email || 'staff'
+    });
+    if (error) {
+      const msg: string = error.message || '';
+      if (msg.includes('VOUCHER_')) return res.status(409).json({ error: msg });
+      return res.status(500).json({ error: msg });
+    }
+    return res.json({
+      ...data,
+      discount_amount: Number((data as any).net_value) || 0,
+    });
+  });
+
+  // ── Accounts Receivable Ledger ────────────────────────────────
+  app.get('/api/b2b/ar-ledger', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { operator_id, reconciled } = req.query as Record<string, string>;
+    let q = supabaseAdmin.from('ar_ledger').select('*, tour_operators(name,code)').order('posting_date', { ascending: false }).limit(500);
+    if (operator_id) q = q.eq('operator_id', operator_id);
+    if (reconciled !== undefined) q = q.eq('is_reconciled', reconciled === 'true');
+    const { data, error } = await q;
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/ar-ledger', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('ar_ledger').insert(req.body).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.status(201).json(data);
+  });
+  app.post('/api/b2b/ar-ledger/reconcile/:id', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { data, error } = await supabaseAdmin.from('ar_ledger').update({ is_reconciled: true, reconciled_at: new Date().toISOString() }).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  });
+  app.post('/api/b2b/ar-ledger/post-folio', authenticate, async (req, res) => {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return res.status(503).json({ error: 'DB not configured' });
+    const { folio_id, due_date } = req.body || {};
+    if (!folio_id || !due_date) return res.status(400).json({ error: 'folio_id and due_date required' });
+    const { data, error } = await supabaseAdmin.rpc('post_folio_to_ar', { p_folio_id: folio_id, p_due_date: due_date });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ ar_entry_id: data });
   });
 
   // Set up Vite/static middleware AFTER all API routes

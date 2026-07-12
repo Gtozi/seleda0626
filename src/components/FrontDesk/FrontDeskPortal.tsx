@@ -6,6 +6,7 @@
  */
 
 import React, { useState } from 'react';
+import { useModalReturn } from '../../context/ModalReturnContext';
 import DashboardModule from './DashboardModule';
 import ReservationsModule from './ReservationsModule';
 import CheckInOutModule from './CheckInOutModule';
@@ -13,30 +14,30 @@ import CRMModule from './CRMModule';
 import ReportsAuditModule from './ReportsAuditModule';
 import GiftShopPOS from './GiftShopPOS';
 import OfficeInventoryModule from './OfficeInventoryModule';
-import SalesMarketingModule from './SalesMarketingModule';
-import {
-  LayoutDashboard,
-  Calendar,
-  Coins,
-  Users,
-  FileBarChart,
-  ShoppingCart,
-  Package,
-  Megaphone
-} from 'lucide-react';
+import FolioPaymentAudit from './FolioPaymentAudit';
+import FolioPortal from './FolioPortal';
+type FrontDeskTab = 'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory';
+type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast';
 
 export default function FrontDeskPortal({
   currentUser,
   onPrintGuest,
-  onPrintGroup
+  onPrintGroup,
+  activeTab: externalActiveTab,
+  onTabChange
 }: {
   currentUser?: any;
   onPrintGuest?: (data: { guestName: string; guestEmail: string; guestPhone: string; reservationId: string; roomNumber: string; checkInDate: string }) => void;
   onPrintGroup?: (data: { groupName: string; contactName: string; contactEmail: string; contactPhone: string; groupId: string; roomCount: number; checkInDate: string }) => void;
+  activeTab?: FrontDeskTab;
+  onTabChange?: (tab: FrontDeskTab) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory' | 'sales'
-  >('dashboard');
+  const [internalActiveTab, setInternalActiveTab] = useState<FrontDeskTab>('dashboard');
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: FrontDeskTab) => {
+    if (onTabChange) onTabChange(tab);
+    else setInternalActiveTab(tab);
+  };
 
   // Internal routing state
   const [checkoutFolioId, setCheckoutFolioId] = useState<string | undefined>(undefined);
@@ -56,7 +57,12 @@ export default function FrontDeskPortal({
       }
     | undefined
   >(undefined);
+  const { push, pop } = useModalReturn();
+
   const [viewGuestId, setViewGuestId] = useState<string | undefined>(undefined);
+  const [viewGroupId, setViewGroupId] = useState<string | undefined>(undefined);
+  const [reservationsActiveTab, setReservationsActiveTab] = useState<ReservationsTab>('form');
+  const [selectedReservation, setSelectedReservation] = useState<any | null>(null);
 
   const handleNavigateToCRM = (resData: {
     id: string;
@@ -82,8 +88,31 @@ export default function FrontDeskPortal({
     setActiveTab('folio');
   };
 
-  const handleViewGuestProfile = (guestId: string) => {
+  const handleViewGuestProfile = (guestId: string, restore?: () => void) => {
+    const returnTab = activeTab;
+    push({
+      id: `frontdesk-tab-${returnTab}`,
+      name: returnTab,
+      restore: () => {
+        setActiveTab(returnTab);
+        restore?.();
+      }
+    });
     setViewGuestId(guestId);
+    setActiveTab('crm');
+  };
+
+  const handleViewGroupProfile = (groupId: string, restore?: () => void) => {
+    const returnTab = activeTab;
+    push({
+      id: `frontdesk-tab-${returnTab}`,
+      name: returnTab,
+      restore: () => {
+        setActiveTab(returnTab);
+        restore?.();
+      }
+    });
+    setViewGroupId(groupId);
     setActiveTab('crm');
   };
 
@@ -110,40 +139,8 @@ export default function FrontDeskPortal({
     setActiveTab('crm');
   };
 
-  const tabs = [
-    { id: 'dashboard' as const, label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'reservations' as const, label: 'Reservations', icon: Calendar },
-    { id: 'folio' as const, label: 'Folio', icon: Coins },
-    { id: 'crm' as const, label: 'CRM Board', icon: Users },
-    { id: 'reports' as const, label: 'Reports & Audit', icon: FileBarChart },
-    { id: 'giftshop' as const, label: 'Gift Shop', icon: ShoppingCart },
-    { id: 'inventory' as const, label: 'Office Inventory', icon: Package },
-    { id: 'sales' as const, label: 'Sales & Campaigns', icon: Megaphone },
-  ];
-
   return (
     <div className="flex flex-col h-full">
-      {/* Sub-navigation bar */}
-      <div className="flex flex-wrap bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 rounded-xl self-center text-xs font-sans font-medium select-none gap-1 transition-colors duration-300 card-shadow mb-4">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition flex items-center gap-1.5 ${
-                activeTab === tab.id
-                  ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]'
-                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 text-[11px]'
-              }`}
-            >
-              <Icon size={13} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
       {/* Module content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
         {activeTab === 'dashboard' && (
@@ -160,12 +157,17 @@ export default function FrontDeskPortal({
             onProcessCheckout={handleProcessCheckout}
             onGroupCheckIn={handleGroupCheckIn}
             onViewGuestProfile={handleViewGuestProfile}
+            onViewGroupProfile={handleViewGroupProfile}
             currentUser={currentUser}
+            activeTab={reservationsActiveTab}
+            onTabChange={setReservationsActiveTab}
+            selectedCalendarRes={selectedReservation}
+            onSelectedCalendarResChange={setSelectedReservation}
           />
         )}
 
         {activeTab === 'folio' && (
-          <CheckInOutModule
+          <FolioPortal
             initialFolioResId={checkoutFolioId}
             onClearFolioResId={() => setCheckoutFolioId(undefined)}
           />
@@ -177,6 +179,8 @@ export default function FrontDeskPortal({
             onClearInitialData={() => setCrmInitialData(undefined)}
             viewGuestId={viewGuestId}
             onClearViewGuestId={() => setViewGuestId(undefined)}
+            viewGroupId={viewGroupId}
+            onClearViewGroupId={() => setViewGroupId(undefined)}
             onOnboardSuccess={(data) => onPrintGuest?.(data)}
             onGroupOnboardSuccess={(data) => onPrintGroup?.(data)}
           />
@@ -185,7 +189,6 @@ export default function FrontDeskPortal({
         {activeTab === 'reports' && <ReportsAuditModule />}
         {activeTab === 'giftshop' && <GiftShopPOS />}
         {activeTab === 'inventory' && <OfficeInventoryModule />}
-        {activeTab === 'sales' && <SalesMarketingModule />}
       </div>
     </div>
   );

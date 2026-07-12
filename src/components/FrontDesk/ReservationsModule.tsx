@@ -1,11 +1,11 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useERP } from '../../context/ERPContext';
-import { RoomType, Reservation, BookingChannel, ReservationStatus, RatePlan, Package, Season } from '../../types/erp';
+import { RoomType, Reservation, BookingChannel, ReservationStatus } from '../../types/erp';
 import { rangesOverlap } from '../../services/allocationService';
 import { toISODate } from '../../utils/date';
 import ReservationsForecasting from './ReservationsForecasting';
 import ModernCalendar from './ModernCalendar';
-import SalesMarketingModule from './SalesMarketingModule';
+import PricingRevenueManagement from '../Executive/PricingRevenueManagement';
 import {
   Plus,
   Calendar,
@@ -20,7 +20,6 @@ import {
   Tag,
   AlertCircle,
   Zap,
-  TrendingUp,
   ArrowRight,
   Sparkles,
   RefreshCw,
@@ -35,25 +34,40 @@ import {
   ExternalLink,
   Send,
   ChevronDown,
-  ChevronRight as ChevronRightIcon,
-  Megaphone
+  ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { calculateNights, calculateDailyRate, getSeasonalMultiplier } from '../../utils/billing';
+import { computeFees, FeeComponent } from '../../utils/pricing';
+import { supabase, hasSupabaseConfig } from '../../lib/supabase';
 import ReservationModal from './ReservationModal';
 import { ReservationFormData } from '../../schemas/reservationSchema';
+
+const allReservationStatuses = ['CheckedIn', 'Confirmed', 'CheckedOut', 'Waitlisted', 'Cancelled'] as const;
+
+type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast';
 
 export default function ReservationsModule({ 
   onNavigateToCRM, 
   onProcessCheckout,
   onGroupCheckIn,
   onViewGuestProfile,
-  currentUser
+  onViewGroupProfile,
+  currentUser,
+  activeTab: externalActiveTab,
+  onTabChange,
+  selectedCalendarRes: externalSelectedCalendarRes,
+  onSelectedCalendarResChange
 }: { 
   onNavigateToCRM?: (resData: { id: string, roomNumber?: string, guestName: string, guestEmail: string, guestPhone?: string, checkInDate: string }) => void;
   onProcessCheckout?: (resId: string) => void;
   onGroupCheckIn?: (data: { id: string, groupName: string, contactName: string, contactEmail: string, contactPhone: string, roomCount: number, checkInDate: string }) => void;
-  onViewGuestProfile?: (guestId: string) => void;
+  onViewGuestProfile?: (guestId: string, restore?: () => void) => void;
+  onViewGroupProfile?: (groupId: string, restore?: () => void) => void;
   currentUser?: any;
+  activeTab?: ReservationsTab;
+  onTabChange?: (tab: ReservationsTab) => void;
+  selectedCalendarRes?: any | null;
+  onSelectedCalendarResChange?: (res: any | null) => void;
 }) {
   const {
     rooms,
@@ -70,24 +84,15 @@ export default function ReservationsModule({
     currentSystemDate,
     triggerLiveSyncSimulation,
     promotions,
-    addPromotion,
     currency,
     formatAmount,
     updateReservation,
     updateDepositStatus,
     promoteFromWaitlist,
+    autoAssignRoom,
     ratePlans,
-    addRatePlan,
-    updateRatePlan,
-    deleteRatePlan,
     seasons,
-    addSeason,
-    updateSeason,
-    deleteSeason,
     packages,
-    addPackage,
-    updatePackage,
-    deletePackage,
     guestServices,
     corporateAccounts,
     groupBookings,
@@ -98,24 +103,31 @@ export default function ReservationsModule({
     setActiveGuestPortalResId,
     getTypeAvailability,
     yieldPolicies,
-    addYieldPolicy,
-    updateYieldPolicy,
-    deleteYieldPolicy,
     globalHotelSettings
   } = useERP();
 
   // Screen Toggles
-  const [activeTab, setActiveTab] = useState<'form' | 'calendar' | 'ota' | 'yield' | 'walkin' | 'pricing' | 'forecast' | 'sales'>('form');
+  const [internalActiveTab, setInternalActiveTab] = useState<ReservationsTab>('form');
+  const activeTab = externalActiveTab ?? internalActiveTab;
+  const setActiveTab = (tab: ReservationsTab) => {
+    onTabChange?.(tab);
+    setInternalActiveTab(tab);
+  };
 
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [promotingGroupRes, setPromotingGroupRes] = useState<Reservation | null>(null);
+  const closeModalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // All features allowed for all users
-  const canViewRoomOutlook = true;
-  const canViewRatePlans = true;
-  const canEditRatePlans = true;
-  const canViewSalesCampaigns = true;
-  const canManageSalesCampaigns = true;
+  const clearCloseModalTimeout = () => {
+    if (closeModalTimeoutRef.current) {
+      clearTimeout(closeModalTimeoutRef.current);
+      closeModalTimeoutRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => clearCloseModalTimeout();
+  }, []);
 
   // Dynamic Yield config state & rules (Now persisted in ERP context)
   const [demandTier, setDemandTier] = useState<string>('Standard');
@@ -125,126 +137,6 @@ export default function ReservationsModule({
     return activePolicy ? activePolicy.multiplier : 1.0;
   };
 
-  const handleAddYieldPolicy = () => {
-    const newPolicy = {
-      name: 'New Custom Yield Tier',
-      description: 'Custom occupancy or event rate adjustment rules.',
-      multiplier: 1.20,
-      isDefault: false
-    };
-    addYieldPolicy(newPolicy);
-  };
-
-  const handleUpdateYieldPolicy = (id: string, updates: Partial<{ name: string; description: string; multiplier: number }>) => {
-    updateYieldPolicy(id, updates);
-  };
-
-  const handleDeleteYieldPolicy = (id: string) => {
-    // If the active demand tier is being deleted, fallback to Standard
-    if (demandTier === id) {
-      setDemandTier('Standard');
-    }
-    deleteYieldPolicy(id);
-  };
-
-  // Rate/Package/Season Management Modals
-  const [isRateModalOpen, setIsRateModalOpen] = useState(false);
-  const [editingRatePlan, setEditingRatePlan] = useState<RatePlan | null>(null);
-  const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
-  const [editingPackage, setEditingPackage] = useState<Package | null>(null);
-  const [isSeasonModalOpen, setIsSeasonModalOpen] = useState(false);
-  const [editingSeason, setEditingSeason] = useState<Season | null>(null);
-
-  const handleOpenRateModal = (plan: RatePlan | null = null) => {
-    setEditingRatePlan(plan);
-    setRpName(plan?.name || '');
-    setRpDesc(plan?.description || '');
-    setRpModifier(plan?.baseModifier || 1.0);
-    setRpActive(plan?.active !== false);
-    setIsRateModalOpen(true);
-  };
-
-  const handleOpenPackageModal = (pkg: Package | null = null) => {
-    setEditingPackage(pkg);
-    setPkgName(pkg?.name || '');
-    setPkgDesc(pkg?.description || '');
-    setPkgPrice(pkg?.price || 0);
-    setPkgFrequency(pkg?.chargeFrequency || 'once');
-    setIsPackageModalOpen(true);
-  };
-
-  const handleOpenSeasonModal = (season: Season | null = null) => {
-    setEditingSeason(season);
-    setSzName(season?.name || '');
-    setSzStartMonth(season?.startMonth || 0);
-    setSzStartDay(season?.startDay || 1);
-    setSzEndMonth(season?.endMonth || 0);
-    setSzEndDay(season?.endDay || 1);
-    setSzMultiplier(season?.multiplier || 1.0);
-    setIsSeasonModalOpen(true);
-  };
-
-  const handleSaveRatePlan = (e: React.FormEvent) => {
-    e.preventDefault();
-    const planData = {
-      name: rpName,
-      description: rpDesc,
-      baseModifier: rpModifier,
-      active: rpActive
-    };
-    if (editingRatePlan) updateRatePlan(editingRatePlan.id, planData);
-    else addRatePlan(planData);
-    setIsRateModalOpen(false);
-  };
-
-  const handleSavePackage = (e: React.FormEvent) => {
-    e.preventDefault();
-    const pkgData = {
-      name: pkgName,
-      description: pkgDesc,
-      price: pkgPrice,
-      chargeFrequency: pkgFrequency
-    };
-    if (editingPackage) updatePackage(editingPackage.id, pkgData);
-    else addPackage(pkgData);
-    setIsPackageModalOpen(false);
-  };
-
-  const handleSaveSeason = (e: React.FormEvent) => {
-    e.preventDefault();
-    const szData = {
-      name: szName,
-      startMonth: szStartMonth,
-      startDay: szStartDay,
-      endMonth: szEndMonth,
-      endDay: szEndDay,
-      multiplier: szMultiplier
-    };
-    if (editingSeason) updateSeason(editingSeason.id, szData);
-    else addSeason(szData);
-    setIsSeasonModalOpen(false);
-  };
-
-  // Rate Plan Form State
-  const [rpName, setRpName] = useState('');
-  const [rpDesc, setRpDesc] = useState('');
-  const [rpModifier, setRpModifier] = useState(1.0);
-  const [rpActive, setRpActive] = useState(true);
-
-  // Package Form State
-  const [pkgName, setPkgName] = useState('');
-  const [pkgDesc, setPkgDesc] = useState('');
-  const [pkgPrice, setPkgPrice] = useState(0);
-  const [pkgFrequency, setPkgFrequency] = useState<'once' | 'daily'>('once');
-
-  // Season Form State
-  const [szName, setSzName] = useState('');
-  const [szStartMonth, setSzStartMonth] = useState(0);
-  const [szStartDay, setSzStartDay] = useState(1);
-  const [szEndMonth, setSzEndMonth] = useState(0);
-  const [szEndDay, setSzEndDay] = useState(1);
-  const [szMultiplier, setSzMultiplier] = useState(1.0);
-
   // Walk-in form states
   const [waName, setWaName] = useState('');
   const [waEmail, setWaEmail] = useState('');
@@ -252,6 +144,21 @@ export default function ReservationsModule({
   const [waType, setWaType] = useState<RoomType>('Double');
   const [waNights, setWaNights] = useState(1);
   const [waSuccess, setWaSuccess] = useState('');
+
+  // Tour operators for B2B booking display
+  const [tourOperators, setTourOperators] = useState<any[]>([]);
+
+  useEffect(() => {
+    const loadTourOperators = async () => {
+      try {
+        const res = await fetch('/api/b2b/operators');
+        if (res.ok) setTourOperators(await res.json());
+      } catch (e) {
+        console.error('Failed to load tour operators:', e);
+      }
+    };
+    loadTourOperators();
+  }, []);
 
   // Group booking expand/collapse state
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
@@ -281,6 +188,20 @@ export default function ReservationsModule({
 
   const collapseAllGroups = () => {
     setExpandedGroups(new Set());
+  };
+
+  // Helpers to guard against malformed numeric data from the database
+  const safeNumber = (value: any, fallback = 0): number => {
+    const n = Number(value);
+    return Number.isNaN(n) ? fallback : n;
+  };
+
+  const safeNights = (checkIn: string, checkOut: string): number => {
+    const start = new Date(checkIn).getTime();
+    const end = new Date(checkOut).getTime();
+    const diff = end - start;
+    if (Number.isNaN(diff)) return 1;
+    return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
   };
 
   // Find a vacant clean room matching selected type for rapid walkin,
@@ -405,17 +326,122 @@ export default function ReservationsModule({
 
   // Search filter inside reservations
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('All');
+  const [filterStatus, setFilterStatus] = useState<string[]>(['All']);
   const [filterRoomType, setFilterRoomType] = useState<string>('All');
   const [filterCheckInDate, setFilterCheckInDate] = useState<string>('');
   const [filterCheckOutDate, setFilterCheckOutDate] = useState<string>('');
+
+  // Auto-expand groups when a search query matches any child reservation.
+  // This must run in an effect, not during render, to avoid an infinite loop.
+  useEffect(() => {
+    if (!searchQuery) return;
+
+    const filterRes = (res: Reservation) => {
+      const matchesQuery =
+        res.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        res.guestEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        res.guestPhone.includes(searchQuery) ||
+        res.id.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = filterStatus.includes('All') || filterStatus.includes(res.status);
+      const matchesRoomType = filterRoomType === 'All' ? true : res.roomType === filterRoomType;
+      const matchesCheckIn = !filterCheckInDate ? true : res.checkInDate === filterCheckInDate;
+      const matchesCheckOut = !filterCheckOutDate ? true : res.checkOutDate === filterCheckOutDate;
+      return matchesQuery && matchesStatus && matchesRoomType && matchesCheckIn && matchesCheckOut;
+    };
+
+    const groupMap = new Map<string, Reservation[]>();
+    reservations.forEach(res => {
+      const groupId = res.bookingGroupId || res.groupBookingId;
+      if (groupId) {
+        if (!groupMap.has(groupId)) groupMap.set(groupId, []);
+        groupMap.get(groupId)!.push(res);
+      }
+    });
+
+    let changed = false;
+    const next = new Set(expandedGroups);
+    groupMap.forEach((groupRes, groupId) => {
+      if (groupRes.some(filterRes) && !next.has(groupId)) {
+        next.add(groupId);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      setExpandedGroups(next);
+    }
+  }, [searchQuery, filterStatus, filterRoomType, filterCheckInDate, filterCheckOutDate, reservations, expandedGroups]);
+
+  const toggleStatusFilter = (status: string) => {
+    setFilterStatus(prev => {
+      if (status === 'All') {
+        return prev.includes('All') ? [] : ['All'];
+      }
+      const next = new Set(prev);
+      next.delete('All');
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return Array.from(next);
+    });
+  };
+
+  // Auto-expand groups when a search query matches any child reservation or group metadata
+  useEffect(() => {
+    if (!searchQuery) return;
+
+    const groupMap = new Map<string, Reservation[]>();
+    reservations.forEach(res => {
+      const groupId = res.bookingGroupId || res.groupBookingId;
+      if (groupId) {
+        if (!groupMap.has(groupId)) groupMap.set(groupId, []);
+        groupMap.get(groupId)!.push(res);
+      }
+    });
+
+    const filterRes = (res: Reservation) => {
+      const matchesQuery = (
+        res.guestName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        res.guestEmail.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        res.guestPhone.includes(searchQuery) ||
+        res.id.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      const matchesStatus = filterStatus.includes('All') || filterStatus.includes(res.status);
+      const matchesRoomType = filterRoomType === 'All' ? true : res.roomType === filterRoomType;
+      const matchesCheckIn = !filterCheckInDate ? true : res.checkInDate === filterCheckInDate;
+      const matchesCheckOut = !filterCheckOutDate ? true : res.checkOutDate === filterCheckOutDate;
+      return matchesQuery && matchesStatus && matchesRoomType && matchesCheckIn && matchesCheckOut;
+    };
+
+    const matchedGroupIds = new Set<string>();
+    groupMap.forEach((groupRes, groupId) => {
+      const group = groupBookings.find(g => g.id === groupId);
+      const matchesGroupName = group?.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesGroupId = groupId.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesAnyReservation = groupRes.some(filterRes);
+      if (matchesGroupName || matchesGroupId || matchesAnyReservation) {
+        matchedGroupIds.add(groupId);
+      }
+    });
+
+    setExpandedGroups(prev => {
+      if ([...matchedGroupIds].every(id => prev.has(id))) return prev;
+      const next = new Set(prev);
+      matchedGroupIds.forEach(id => next.add(id));
+      return next;
+    });
+  }, [searchQuery, filterStatus, filterRoomType, filterCheckInDate, filterCheckOutDate, reservations, groupBookings]);
 
   // Calendar view state (synced with booking table filters)
   const [calendarSelectedDate, setCalendarSelectedDate] = useState<Date>(new Date(currentSystemDate));
 
   // Popup Modal Toggle
   const [isNewBookingOpen, setIsNewBookingOpen] = useState(false);
-  const [selectedCalendarRes, setSelectedCalendarRes] = useState<any | null>(null);
+  const [internalSelectedCalendarRes, setInternalSelectedCalendarRes] = useState<any | null>(null);
+  const selectedCalendarRes = externalSelectedCalendarRes ?? internalSelectedCalendarRes;
+  const setSelectedCalendarRes = (res: any | null) => {
+    onSelectedCalendarResChange?.(res);
+    setInternalSelectedCalendarRes(res);
+  };
   const [successMsg, setSuccessMsg] = useState('');
 
   const renderAddonsCell = (res: Reservation) => {
@@ -451,24 +477,28 @@ export default function ReservationsModule({
 
   const handleCreateReservation = async (data: ReservationFormData) => {
     if (editingReservation) {
+      const firstSelection = data.roomSelections && data.roomSelections.length > 0 ? data.roomSelections[0] : null;
+      const selectedRoomFromNights = firstSelection?.roomNights?.flat().find(r => r && r.trim() !== '') || undefined;
       updateReservation(editingReservation.id, {
         guestName: data.guestName,
         guestEmail: data.guestEmail,
         guestPhone: data.guestPhone || '',
-        roomType: data.roomSelections && data.roomSelections.length > 0 ? data.roomSelections[0].roomType : data.roomType,
-        roomNumber: data.roomSelections && data.roomSelections.length > 0 && data.roomSelections[0].roomNumbers && data.roomSelections[0].roomNumbers.length > 0 ? data.roomSelections[0].roomNumbers[0] : undefined,
+        roomType: firstSelection ? firstSelection.roomType : data.roomType,
+        roomNumber: selectedRoomFromNights || firstSelection?.roomNumbers?.[0] || undefined,
+        roomNights: firstSelection?.roomNights || undefined,
         checkInDate: data.checkInDate,
         checkOutDate: data.checkOutDate,
         adults: data.adults,
         children: data.children,
-        rate: calculateDailyRate(data.roomType, data.ratePlanId || 'RP-STD', ratePlans, promotions, data.promoCode),
+        rate: calculateDailyRate((firstSelection?.roomType || data.roomType) as RoomType, data.ratePlanId || 'RP-STD', ratePlans, promotions, data.promoCode),
         channel: data.channel as BookingChannel,
         status: editingReservation.status,
-        notes: data.notes,
+        notes: data.specialRequests,
         depositAmount: data.depositAmount,
         isDepositPaid: data.isDepositPaid,
         ratePlanId: data.ratePlanId,
         packageIds: data.packageIds,
+        guestServiceIds: data.guestServiceIds,
         additionalGuestIds: data.additionalGuestIds,
         guestTin: data.guestTin,
         guestVatNo: data.guestVatNo,
@@ -476,7 +506,8 @@ export default function ReservationsModule({
         isGroup: data.bookingType === 'Group',
         bookingGroupId: data.bookingGroupId || undefined,
         groupBookingId: data.groupName || undefined,
-        corporateAccountId: data.corporateAccountId || undefined
+        corporateAccountId: data.corporateAccountId || undefined,
+        operatorId: data.operatorId || undefined
       });
       // If this was a waitlisted reservation, promote it after update so room assignment is part of the promotion flow
       if (editingReservation.status === 'Waitlisted') {
@@ -486,17 +517,260 @@ export default function ReservationsModule({
         setSuccessMsg(`Reservation ${editingReservation.id} successfully updated!`);
       }
     } else {
-      // If promoting a waitlisted group booking, cancel the old waitlisted reservations first
+      // If promoting a waitlisted group booking, update existing reservations with form data then promote to Confirmed
       if (promotingGroupRes) {
         const oldGroupId = promotingGroupRes.bookingGroupId || promotingGroupRes.groupBookingId;
-        if (oldGroupId) {
-          reservations
-            .filter(r => (r.bookingGroupId === oldGroupId || r.groupBookingId === oldGroupId) && r.status === 'Waitlisted')
-            .forEach(r => updateReservationStatus(r.id, 'Cancelled'));
-        } else {
-          updateReservationStatus(promotingGroupRes.id, 'Cancelled');
+        const groupReservations = oldGroupId 
+          ? reservations.filter(r => (r.bookingGroupId === oldGroupId || r.groupBookingId === oldGroupId) && r.status === 'Waitlisted')
+          : [promotingGroupRes];
+        
+        // Build room assignment map from form data
+        const roomAssignmentMap = new Map<string, string>();
+        if (data.roomSelections && data.roomSelections.length > 0) {
+          data.roomSelections.forEach(selection => {
+            if (selection.roomNumbers && selection.roomNumbers.length > 0) {
+              selection.roomNumbers.forEach((roomNum, idx) => {
+                // Assign rooms to reservations of matching room type
+                const matchingRes = groupReservations.filter(r => r.roomType === selection.roomType)[idx];
+                if (matchingRes) {
+                  roomAssignmentMap.set(matchingRes.id, roomNum);
+                }
+              });
+            }
+          });
         }
+        
+        // Ensure group profile exists and get the proper groupId
+        let finalGroupId = data.bookingGroupId || oldGroupId;
+        if (data.bookingType === 'Group' && data.groupName) {
+          const existingGroup = groupBookings.find(g => g.id === finalGroupId);
+          if (!existingGroup) {
+            const createdGroup = await addGroupBooking({
+              groupName: data.groupName,
+              contactName: data.guestName,
+              contactEmail: data.guestEmail,
+              contactPhone: data.guestPhone || '',
+              roomTypeNeeded: data.roomType,
+              roomCount: groupReservations.length,
+              checkInDate: data.checkInDate,
+              checkOutDate: data.checkOutDate,
+              discountPercent: 0,
+              status: 'Confirmed'
+            });
+            if (createdGroup) {
+              finalGroupId = createdGroup.id;
+            }
+          }
+        }
+        
+        // Update each reservation with form data and room assignment, then promote
+        groupReservations.forEach((res, idx) => {
+          const assignedRoom = roomAssignmentMap.get(res.id) || 
+            (data.roomSelections && data.roomSelections.length > 0 && data.roomSelections[0].roomNumbers && data.roomSelections[0].roomNumbers[idx]) ||
+            undefined;
+          
+          // Find or create guest profile with proper group linkage
+          let guestId = guests.find(g => 
+            g.email.toLowerCase() === res.guestEmail.toLowerCase() && 
+            g.name.toLowerCase() === res.guestName.toLowerCase()
+          )?.id;
+          
+          if (!guestId) {
+            guestId = addGuest({
+              name: res.guestName,
+              lastName: res.guestName.split(' ').pop() || res.guestName,
+              email: res.guestEmail,
+              phone: res.guestPhone || data.guestPhone || '',
+              status: 'Regular',
+              loyaltyPoints: 0,
+              specialRequests: '',
+              notes: `Group booking: ${data.groupName || finalGroupId} - Room ${idx + 1}`,
+              history: [],
+              totalSpend: 0,
+              parentGroupId: finalGroupId,
+              isPrimaryContact: idx === 0,
+              nationality: undefined,
+              tin: data.guestTin,
+              vatNo: data.guestVatNo,
+              vatDate: data.guestVatDate,
+              passportNumber: undefined,
+              dateOfBirth: undefined
+            });
+          } else {
+            // Update existing guest with group linkage
+            updateGuestData(guestId, {
+              parentGroupId: finalGroupId,
+              isPrimaryContact: idx === 0,
+              notes: (guests.find(g => g.id === guestId)?.notes || '') + `\nGroup booking: ${data.groupName || finalGroupId} - Room ${idx + 1}`
+            });
+          }
+          
+          updateReservation(res.id, {
+            guestName: data.guestName,
+            guestEmail: data.guestEmail,
+            guestPhone: data.guestPhone || '',
+            roomType: data.roomType,
+            roomNumber: assignedRoom,
+            checkInDate: data.checkInDate,
+            checkOutDate: data.checkOutDate,
+            adults: data.adults,
+            children: data.children,
+            rate: calculateDailyRate(data.roomType, data.ratePlanId || 'RP-STD', ratePlans, promotions, data.promoCode),
+            channel: data.channel as BookingChannel,
+            status: 'Confirmed',
+            notes: data.specialRequests,
+            depositAmount: data.depositAmount,
+            isDepositPaid: data.isDepositPaid,
+            ratePlanId: data.ratePlanId,
+            packageIds: data.packageIds,
+            guestServiceIds: data.guestServiceIds,
+            additionalGuestIds: data.additionalGuestIds,
+            guestTin: data.guestTin,
+            guestVatNo: data.guestVatNo,
+            guestVatDate: data.guestVatDate,
+            isGroup: true,
+            bookingGroupId: finalGroupId,
+            groupBookingId: data.groupName || res.groupBookingId,
+            corporateAccountId: data.corporateAccountId || undefined,
+            operatorId: data.operatorId || undefined
+          });
+        });
+        
         setPromotingGroupRes(null);
+        setSuccessMsg(`Group booking successfully updated and promoted to Confirmed!`);
+        return; // Skip creating new reservations since we updated existing ones
+      }
+
+      // Use the shared atomic booking path for non-corporate new bookings.
+      if (hasSupabaseConfig && data.bookingType !== 'Corporate') {
+        try {
+          const nights = calculateNights(data.checkInDate, data.checkOutDate);
+          const selections = data.roomSelections && data.roomSelections.length > 0
+            ? data.roomSelections
+            : [{ roomType: data.roomType, count: 1, roomNumbers: [], roomNights: [] }];
+
+          let roomSubtotal = 0;
+          const p_items = selections.map((sel) => {
+            const typeRate = getDailyRateForType(sel.roomType as RoomType, data.ratePlanId, data.promoCode);
+            let selRoomTotal = 0;
+            for (let idx = 0; idx < nights; idx++) {
+              const d = new Date(data.checkInDate);
+              d.setDate(d.getDate() + idx);
+              const multi = getSeasonalMultiplier(toISODate(d), seasons);
+              selRoomTotal += typeRate * multi * getYieldMultiplier();
+            }
+            roomSubtotal += selRoomTotal;
+            const qty = sel.count || 1;
+            const rate = qty > 0 && nights > 0 ? Math.round(selRoomTotal / (nights * qty)) : 0;
+            const roomTypeId = roomTypes.find((rt: any) => rt.name === sel.roomType)?.id || sel.roomType;
+            return {
+              roomTypeName: sel.roomType,
+              roomTypeId,
+              qty,
+              rate,
+              adults: data.adults,
+              children: data.children,
+              roomNights: sel.roomNights || [],
+            };
+          });
+
+          let packageTotal = 0;
+          data.packageIds?.forEach(pkgId => {
+            const pkg = packages.find(p => p.id === pkgId);
+            if (pkg) {
+              packageTotal += pkg.chargeFrequency === 'daily' ? pkg.price * nights : pkg.price;
+            }
+          });
+
+          let serviceTotal = 0;
+          data.guestServiceIds?.forEach(svcId => {
+            const svc = guestServices.find(s => s.id === svcId);
+            if (svc) serviceTotal += svc.price;
+          });
+
+          const subtotal = roomSubtotal + packageTotal + serviceTotal;
+          const fees = computeFees(subtotal, globalHotelSettings.feeComponents as FeeComponent[] | undefined, globalHotelSettings.taxPercent, globalHotelSettings.serviceChargePercent);
+
+          const payload = {
+            p_idempotency_key: `${data.guestEmail}::${data.checkInDate}::${data.checkOutDate}::${Date.now()}`,
+            p_guest_name: data.guestName,
+            p_guest_email: data.guestEmail,
+            p_guest_phone: data.guestPhone || '',
+            p_guest_nationality: data.guestNationality || '',
+            p_special_requests: data.specialRequests || '',
+            p_check_in: data.checkInDate,
+            p_check_out: data.checkOutDate,
+            p_items,
+            p_package_ids: data.packageIds || [],
+            p_guest_service_ids: data.guestServiceIds || [],
+            p_package_total: packageTotal,
+            p_guest_svc_total: serviceTotal,
+            p_tax_percent: globalHotelSettings.taxPercent || 0,
+            p_svc_charge_pct: globalHotelSettings.serviceChargePercent || 0,
+            p_group_name: data.bookingType === 'Group' ? (data.groupName || data.guestName) : null,
+            p_operator_id: data.operatorId || null,
+            p_tax_amount: fees.tax,
+            p_svc_amount: fees.serviceCharge,
+            p_addon_amount: fees.additionalFees,
+            p_channel: data.channel,
+            p_status: data.channel === 'Walk-In' ? 'Confirmed' : 'Waitlisted',
+            p_voucher_code: data.voucherCode || null,
+            p_voucher_discount: data.voucherDiscount || 0,
+          };
+
+          const response = await fetch('/api/admin/bookings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const err = await response.json();
+            alert(`Booking failed: ${err.error || response.statusText}`);
+            return;
+          }
+
+          const { reservationIds, groupId: atomicGroupId } = await response.json() as { reservationIds: string[]; groupId: string | null };
+
+          if (atomicGroupId && data.channel === 'Walk-In') {
+            await updateGroupBookingStatus(atomicGroupId, 'Confirmed');
+          }
+
+          let currentIdIndex = 0;
+          for (const sel of selections) {
+            const count = sel.count || 1;
+            if (sel.roomNumbers && Array.isArray(sel.roomNumbers)) {
+              for (let i = 0; i < count && currentIdIndex < reservationIds.length; i++) {
+                const roomNumber = sel.roomNumbers[i];
+                if (roomNumber) {
+                  await supabase.from('reservations').update({ room_number: roomNumber }).eq('id', reservationIds[currentIdIndex]);
+                }
+                currentIdIndex++;
+              }
+            } else {
+              currentIdIndex += count;
+            }
+          }
+
+          if (data.channel !== 'Walk-In') {
+            setSuccessMsg(`Guest ${data.guestName} successfully added to waitlist registry. ${reservationIds.length} reservation(s) created: ${reservationIds.join(', ')}`);
+          } else {
+            setSuccessMsg(`${reservationIds.length} reservation(s) successfully created for ${data.guestName}: ${reservationIds.join(', ')}`);
+          }
+        } catch (e: any) {
+          console.error('Atomic booking error:', e);
+          alert(`Booking failed: ${e.message || 'Unknown error'}`);
+          return;
+        }
+
+        closeModalTimeoutRef.current = setTimeout(() => {
+          setSuccessMsg('');
+          setIsNewBookingOpen(false);
+          setEditingReservation(null);
+          setPromotingGroupRes(null);
+        }, 2000);
+        return;
       }
 
       let groupId = data.bookingGroupId || (data.bookingType !== 'Individual' ? 'GRP-' + Math.floor(1000 + Math.random() * 9000) : undefined);
@@ -545,8 +819,7 @@ export default function ReservationsModule({
       let guestIdsForRooms: string[] = []; // Store guest IDs for each room in group booking
 
       if (data.bookingType === 'Group' && data.groupName) {
-        // Guest profiles are now created by the database function create_group_booking
-        // We just need to find the existing guest profile created by the database
+        // Find or create guest profile with proper group linkage
         const existingGuest = guests.find(g =>
           g.email.toLowerCase() === data.guestEmail.toLowerCase() &&
           g.parentGroupId === groupId
@@ -554,6 +827,29 @@ export default function ReservationsModule({
 
         if (existingGuest) {
           guestId = existingGuest.id;
+          guestIdsForRooms.push(guestId);
+        } else {
+          // Create new guest profile linked to group
+          guestId = addGuest({
+            name: data.guestName,
+            lastName: data.guestName.split(' ').pop() || data.guestName,
+            email: data.guestEmail,
+            phone: data.guestPhone || '',
+            status: 'Regular',
+            loyaltyPoints: 0,
+            specialRequests: '',
+            notes: `Group booking: ${data.groupName} - Primary contact`,
+            history: [],
+            totalSpend: 0,
+            parentGroupId: groupId,
+            isPrimaryContact: true,
+            nationality: undefined,
+            tin: data.guestTin,
+            vatNo: data.guestVatNo,
+            vatDate: data.guestVatDate,
+            passportNumber: undefined,
+            dateOfBirth: undefined
+          });
           guestIdsForRooms.push(guestId);
         }
       } else if (data.bookingType === 'Corporate' && data.corporateAccountId) {
@@ -665,7 +961,13 @@ export default function ReservationsModule({
           }
         });
 
-        const totalAmount = Math.round(roomTotal + packageTotal);
+        let serviceTotal = 0;
+        data.guestServiceIds?.forEach(svcId => {
+          const svc = guestServices.find(s => s.id === svcId);
+          if (svc) serviceTotal += svc.price;
+        });
+
+        const totalAmount = Math.round(roomTotal + packageTotal + serviceTotal);
 
         for (let i = 0; i < sel.count; i++) {
           const roomNumber = sel.roomNumbers && sel.roomNumbers.length > i ? sel.roomNumbers[i] : undefined;
@@ -673,9 +975,9 @@ export default function ReservationsModule({
           // For group bookings, create a guest profile for each room
           let roomGuestId = guestId;
           if (data.bookingType === 'Group' && data.groupName) {
-            const roomGuestName = i === 0 ? data.guestName : `${data.guestName} (Room ${i + 1})`;
-            // Give each room a unique derived email so they each get their own guest profile
-            const roomGuestEmail = i === 0 ? data.guestEmail : `${data.guestEmail.replace('@', `+room${i + 1}@`)}`;
+            const roomGuestName = i === 0 ? data.guestName : `Guest ${i + 1} - ${data.groupName}`;
+            // Use a placeholder email that can be updated later with real guest info
+            const roomGuestEmail = i === 0 ? data.guestEmail : `guest${i + 1}.${data.guestEmail.split('@')[0]}@${data.guestEmail.split('@')[1]}`;
 
             const existingRoomGuest = guests.find(g =>
               g.email.toLowerCase() === roomGuestEmail.toLowerCase() ||
@@ -700,7 +1002,7 @@ export default function ReservationsModule({
                 status: 'Regular',
                 loyaltyPoints: 0,
                 specialRequests: '',
-                notes: `Group booking: ${data.groupName} - Room ${i + 1}`,
+                notes: `Group booking: ${data.groupName} - Room ${i + 1}. Update with guest details.`,
                 history: [],
                 totalSpend: 0,
                 parentGroupId: groupId,
@@ -732,11 +1034,12 @@ export default function ReservationsModule({
             totalAmount,
             channel: data.channel as BookingChannel,
             paymentStatus: 'Unpaid',
-            notes: data.notes,
+            notes: data.specialRequests,
             depositAmount: data.depositAmount,
             isDepositPaid: data.isDepositPaid,
             ratePlanId: data.ratePlanId,
             packageIds: data.packageIds,
+            guestServiceIds: data.guestServiceIds,
             additionalGuestIds: data.bookingType === 'Group' && data.groupName ? guestIdsForRooms : data.additionalGuestIds,
             guestTin: data.guestTin,
             guestVatNo: data.guestVatNo,
@@ -759,7 +1062,7 @@ export default function ReservationsModule({
       }
     }
 
-    setTimeout(() => {
+    closeModalTimeoutRef.current = setTimeout(() => {
       setSuccessMsg('');
       setIsNewBookingOpen(false);
       setEditingReservation(null);
@@ -768,15 +1071,55 @@ export default function ReservationsModule({
   };
 
   const startEditing = (res: Reservation) => {
+    clearCloseModalTimeout();
     setEditingReservation(res);
     setPromotingGroupRes(null);
     setIsNewBookingOpen(true);
   };
 
   const startPromotingGroup = (res: Reservation) => {
+    clearCloseModalTimeout();
     setEditingReservation(null);
     setPromotingGroupRes(res);
     setIsNewBookingOpen(true);
+  };
+
+  const handleAutoPromote = (res: Reservation) => {
+    const roomNumber = autoAssignRoom(res.id);
+    if (roomNumber) {
+      assignRoomToReservation(res.id, roomNumber);
+    }
+    promoteFromWaitlist(res.id);
+    setSuccessMsg(
+      `Reservation ${res.id} promoted${roomNumber ? ` and assigned Room ${roomNumber}` : ' (no room available)'}.`
+    );
+  };
+
+  const handleAutoPromoteGroup = (groupId: string) => {
+    const groupReservations = reservations.filter(
+      r => r.bookingGroupId === groupId && r.status === 'Waitlisted'
+    );
+    if (groupReservations.length === 0) {
+      setSuccessMsg('No waitlisted reservations found for this group.');
+      return;
+    }
+
+    const assignedInBatch = new Set<string>();
+    let assignedCount = 0;
+    groupReservations.forEach(res => {
+      const roomNumber = autoAssignRoom(res.id, assignedInBatch);
+      if (roomNumber) {
+        assignRoomToReservation(res.id, roomNumber);
+        assignedInBatch.add(roomNumber);
+        assignedCount++;
+      }
+      promoteFromWaitlist(res.id);
+    });
+
+    updateGroupBookingStatus(groupId, 'Confirmed');
+    setSuccessMsg(
+      `Group ${groupId} promoted. ${assignedCount} of ${groupReservations.length} rooms assigned.`
+    );
   };
 
   return (
@@ -848,32 +1191,6 @@ export default function ReservationsModule({
           {activeTab === 'ota' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
-          onClick={() => setActiveTab('yield')}
-          className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
-            activeTab === 'yield' 
-              ? 'bg-gradient-to-r from-white to-white dark:from-slate-800 dark:to-slate-800 text-slate-900 dark:text-white font-bold shadow-md shadow-slate-200/50 dark:shadow-slate-900/50' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <TrendingUp size={12} sm:size={14} className={activeTab === 'yield' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
-          <span className="hidden sm:inline">Yield Pricing</span>
-          <span className="sm:hidden">Yield</span>
-          {activeTab === 'yield' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
-        </button>
-        <button
-          onClick={() => setActiveTab('pricing')}
-          className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
-            activeTab === 'pricing' 
-              ? 'bg-gradient-to-r from-white to-white dark:from-slate-800 dark:to-slate-800 text-slate-900 dark:text-white font-bold shadow-md shadow-slate-200/50 dark:shadow-slate-900/50' 
-              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
-          }`}
-        >
-          <Tag size={12} sm:size={14} className={activeTab === 'pricing' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
-          <span className="hidden sm:inline">Rate Plans</span>
-          <span className="sm:hidden">Rates</span>
-          {activeTab === 'pricing' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
-        </button>
-        <button
           onClick={() => setActiveTab('forecast')}
           className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
             activeTab === 'forecast' 
@@ -887,17 +1204,17 @@ export default function ReservationsModule({
           {activeTab === 'forecast' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
-          onClick={() => setActiveTab('sales')}
+          onClick={() => setActiveTab('revenue')}
           className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
-            activeTab === 'sales' 
+            activeTab === 'revenue' 
               ? 'bg-gradient-to-r from-white to-white dark:from-slate-800 dark:to-slate-800 text-slate-900 dark:text-white font-bold shadow-md shadow-slate-200/50 dark:shadow-slate-900/50' 
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <Megaphone size={12} sm:size={14} className={activeTab === 'sales' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
-          <span className="hidden sm:inline">Sales & Campaigns</span>
-          <span className="sm:hidden">Sales</span>
-          {activeTab === 'sales' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          <DollarSign size={12} sm:size={14} className={activeTab === 'revenue' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <span className="hidden sm:inline">Revenue & Sales</span>
+          <span className="sm:hidden">Revenue</span>
+          {activeTab === 'revenue' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
         </button>
       </div>
 
@@ -1029,8 +1346,9 @@ export default function ReservationsModule({
               <button
                 type="button"
                 onClick={() => {
+                  clearCloseModalTimeout();
                   setEditingReservation(null);
-                  
+                  setPromotingGroupRes(null);
                   setIsNewBookingOpen(true);
                 }}
                 className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-sans font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
@@ -1067,19 +1385,30 @@ export default function ReservationsModule({
                   </select>
                 </div>
 
-                <div className="flex-1 md:w-40">
-                  <select
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 cursor-pointer transition-all duration-200 shadow-sm appearance-none"
+                <div className="flex-1 md:w-auto flex flex-wrap items-center gap-1">
+                  <button
+                    onClick={() => toggleStatusFilter('All')}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold font-mono uppercase transition-all duration-200 ${
+                      filterStatus.includes('All')
+                        ? 'bg-slate-900 text-white shadow-md'
+                        : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200/80'
+                    }`}
                   >
-                    <option value="All">All Statuses</option>
-                    <option value="Confirmed">Confirmed</option>
-                    <option value="CheckedIn">Checked In</option>
-                    <option value="CheckedOut">Checked Out</option>
-                    <option value="Cancelled">Cancelled</option>
-                    <option value="Waitlisted">Waitlisted</option>
-                  </select>
+                    All
+                  </button>
+                  {allReservationStatuses.map(status => (
+                    <button
+                      key={status}
+                      onClick={() => toggleStatusFilter(status)}
+                      className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold font-mono uppercase transition-all duration-200 ${
+                        filterStatus.includes(status)
+                          ? 'bg-slate-900 text-white shadow-md'
+                          : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-200/80'
+                      }`}
+                    >
+                      {status.replace(/([A-Z])/g, ' $1').trim()}
+                    </button>
+                  ))}
                 </div>
 
                 <button
@@ -1141,11 +1470,11 @@ export default function ReservationsModule({
                   </div>
                </div>
 
-               {(searchQuery || filterStatus !== 'All' || filterRoomType !== 'All' || filterCheckInDate || filterCheckOutDate) && (
+               {(searchQuery || !filterStatus.includes('All') || filterRoomType !== 'All' || filterCheckInDate || filterCheckOutDate) && (
                  <button
                    onClick={() => {
                      setSearchQuery('');
-                     setFilterStatus('All');
+                     setFilterStatus(['All']);
                      setFilterRoomType('All');
                      setFilterCheckInDate('');
                      setFilterCheckOutDate('');
@@ -1172,6 +1501,7 @@ export default function ReservationsModule({
                   <th className="py-4 px-5 w-[50px] text-center">Nights</th>
                   <th className="py-4 px-5 w-[80px]">Room No</th>
                   <th className="py-4 px-5 w-[80px]">Channel</th>
+                  <th className="py-4 px-5 w-[120px]">Tour Operator</th>
                   <th className="py-4 px-5 w-[80px]">Rate</th>
                   <th className="py-4 px-5 w-[80px]">Total</th>
                   <th className="py-4 px-5 w-[100px]">Add-ons / Packages</th>
@@ -1218,7 +1548,7 @@ export default function ReservationsModule({
                       res.guestPhone.includes(searchQuery) ||
                       res.id.toLowerCase().includes(searchQuery.toLowerCase())
                     );
-                    const matchesStatus = filterStatus === 'All' ? true : res.status === filterStatus;
+                    const matchesStatus = filterStatus.includes('All') || filterStatus.includes(res.status);
                     const matchesRoomType = filterRoomType === 'All' ? true : res.roomType === filterRoomType;
                     const matchesCheckIn = !filterCheckInDate ? true : res.checkInDate === filterCheckInDate;
                     const matchesCheckOut = !filterCheckOutDate ? true : res.checkOutDate === filterCheckOutDate;
@@ -1228,7 +1558,7 @@ export default function ReservationsModule({
                   const filterGroup = (groupId: string, groupRes: Reservation[]) => {
                     if (!searchQuery) return true;
                     const group = groupBookings.find(g => g.id === groupId);
-                    const matchesGroupName = group?.groupName.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchesGroupName = group?.groupName?.toLowerCase().includes(searchQuery.toLowerCase());
                     const matchesGroupId = groupId.toLowerCase().includes(searchQuery.toLowerCase());
                     const matchesAnyReservation = groupRes.some(filterRes);
                     return matchesGroupName || matchesGroupId || matchesAnyReservation;
@@ -1237,41 +1567,31 @@ export default function ReservationsModule({
                   groupsToShow = groupsToShow.filter(g => filterGroup(g.groupId, g.reservations));
                   individualsToShow = individualsToShow.filter(filterRes);
 
-                  // Auto-expand groups if search matches any child
-                  if (searchQuery) {
-                    groupsToShow.forEach(g => {
-                      if (g.reservations.some(filterRes)) {
-                        setExpandedGroups(prev => new Set([...prev, g.groupId]));
-                      }
-                    });
-                  }
-
                   return (
                     <>
                       {/* Render Group Parent Rows */}
                       {groupsToShow.map(({ groupId, reservations: groupRes }) => {
                         const group = groupBookings.find(g => g.id === groupId);
+                        const visibleGroupRes = groupRes.filter(filterRes);
                         const derivedGroupStatus = (() => {
-                          if (groupRes.length === 0) return group?.status || 'Confirmed';
-                          if (groupRes.every(r => r.status === 'CheckedOut')) return 'CheckedOut';
-                          if (groupRes.every(r => r.status === 'CheckedIn')) return 'CheckedIn';
-                          if (groupRes.some(r => r.status === 'CheckedIn')) return 'CheckedIn';
-                          if (groupRes.some(r => r.status === 'Confirmed')) return 'Confirmed';
-                          if (groupRes.some(r => r.status === 'Waitlisted')) return 'Pending';
-                          if (groupRes.every(r => r.status === 'Cancelled')) return 'Cancelled';
+                          if (visibleGroupRes.length === 0) return group?.status || 'Confirmed';
+                          if (visibleGroupRes.every(r => r.status === 'CheckedOut')) return 'CheckedOut';
+                          if (visibleGroupRes.every(r => r.status === 'CheckedIn')) return 'CheckedIn';
+                          if (visibleGroupRes.some(r => r.status === 'CheckedIn')) return 'CheckedIn';
+                          if (visibleGroupRes.some(r => r.status === 'Confirmed')) return 'Confirmed';
+                          if (visibleGroupRes.some(r => r.status === 'Waitlisted')) return 'Pending';
+                          if (visibleGroupRes.every(r => r.status === 'Cancelled')) return 'Cancelled';
                           return group?.status || 'Confirmed';
                         })();
                         const isExpanded = expandedGroups.has(groupId);
-                        const totalRooms = groupRes.length;
-                        const totalGuests = groupRes.reduce((sum, r) => sum + r.adults + r.children, 0);
-                        const checkedIn = groupRes.filter(r => r.status === 'CheckedIn').length;
-                        const checkedOut = groupRes.filter(r => r.status === 'CheckedOut').length;
-                        const pending = groupRes.filter(r => r.status === 'Confirmed').length;
-                        const totalRevenue = groupRes.reduce((sum, r) => sum + r.totalAmount, 0);
-                        const isPaid = groupRes.every(r => r.paymentStatus === 'Paid');
-                        const groupStart = new Date(groupRes[0]?.checkInDate || '');
-                        const groupEnd = new Date(groupRes[0]?.checkOutDate || '');
-                        const groupNights = Math.max(1, Math.round((groupEnd.getTime() - groupStart.getTime()) / (1000 * 60 * 60 * 24)));
+                        const totalRooms = visibleGroupRes.length;
+                        const totalGuests = visibleGroupRes.reduce((sum, r) => sum + safeNumber(r.adults) + safeNumber(r.children), 0);
+                        const checkedIn = visibleGroupRes.filter(r => r.status === 'CheckedIn').length;
+                        const checkedOut = visibleGroupRes.filter(r => r.status === 'CheckedOut').length;
+                        const pending = visibleGroupRes.filter(r => r.status === 'Confirmed').length;
+                        const totalRevenue = visibleGroupRes.reduce((sum, r) => sum + safeNumber(r.totalAmount), 0);
+                        const isPaid = visibleGroupRes.every(r => r.paymentStatus === 'Paid');
+                        const groupNights = safeNights(visibleGroupRes[0]?.checkInDate || '', visibleGroupRes[0]?.checkOutDate || '');
 
                         return (
                           <React.Fragment key={`group-${groupId}`}>
@@ -1289,7 +1609,7 @@ export default function ReservationsModule({
                               <td className="py-3 px-5">
                                 <div className="flex items-center gap-2">
                                   <Users2 size={14} className="text-indigo-500" />
-                                  <span className="font-semibold text-indigo-700">{group?.groupName || 'Unknown Group'}</span>
+                                  <span className="font-semibold text-indigo-700">{group?.groupName || 'No Group'}</span>
                                 </div>
                               </td>
                               <td className="py-3 px-5">
@@ -1308,6 +1628,15 @@ export default function ReservationsModule({
                               <td className="py-3 px-5 text-center text-xs text-slate-600 font-semibold">{groupNights}</td>
                               <td className="py-3 px-5 text-xs text-slate-600 italic">—</td>
                               <td className="py-3 px-5 text-xs text-slate-600 italic">—</td>
+                              <td className="py-3 px-5 text-xs text-slate-600">
+                                {groupRes[0]?.operator_id ? (
+                                  <span className="font-semibold text-indigo-700">
+                                    {tourOperators.find(op => op.id === groupRes[0]?.operator_id)?.name || groupRes[0]?.operator_id}
+                                  </span>
+                                ) : (
+                                  <span className="text-slate-400 italic">—</span>
+                                )}
+                              </td>
                               <td className="py-3 px-5 text-xs text-slate-600 italic">—</td>
                               <td className="py-3 px-5 text-xs text-slate-600">
                                 {formatAmount(totalRevenue)}
@@ -1341,7 +1670,7 @@ export default function ReservationsModule({
                                   {derivedGroupStatus === 'CheckedIn' ? (
                                     <button
                                       onClick={async () => {
-                                        const checkedInReservations = groupRes.filter(r => r.status === 'CheckedIn');
+                                        const checkedInReservations = visibleGroupRes.filter(r => r.status === 'CheckedIn');
                                         // Prevent checkout if any folio is not closed
                                         const unpaid = checkedInReservations.find(r => r.paymentStatus !== 'Paid');
                                         if (unpaid) {
@@ -1359,12 +1688,9 @@ export default function ReservationsModule({
                                     </button>
                                   ) : derivedGroupStatus === 'CheckedOut' ? (
                                     <span className="text-xs font-mono text-slate-400 italic">Checked Out</span>
-                                  ) : groupRes.some(r => r.status === 'Waitlisted') ? (
+                                  ) : visibleGroupRes.some(r => r.status === 'Waitlisted') ? (
                                     <button
-                                      onClick={() => {
-                                        const firstWaitlisted = groupRes.find(r => r.status === 'Waitlisted');
-                                        if (firstWaitlisted) startPromotingGroup(firstWaitlisted);
-                                      }}
+                                      onClick={() => handleAutoPromoteGroup(groupId)}
                                       className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
                                     >
                                       <Zap size={12} /> Promote Group
@@ -1386,15 +1712,7 @@ export default function ReservationsModule({
                                     </button>
                                   )}
                                   <button
-                                    onClick={() => onGroupCheckIn?.({
-                                      id: groupId,
-                                      groupName: group?.groupName || '',
-                                      contactName: group?.contactName || '',
-                                      contactEmail: group?.contactEmail || '',
-                                      contactPhone: group?.contactPhone || '',
-                                      roomCount: totalRooms,
-                                      checkInDate: groupRes[0]?.checkInDate || ''
-                                    })}
+                                    onClick={() => onViewGroupProfile?.(groupId)}
                                     className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold rounded-lg transition-colors"
                                   >
                                     Group Profile
@@ -1405,12 +1723,19 @@ export default function ReservationsModule({
 
                             {/* Child Reservation Rows */}
                             {isExpanded && groupRes.filter(filterRes).map(res => {
-                              const start = new Date(res.checkInDate);
-                              const end = new Date(res.checkOutDate);
-                              const nights = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                              const nights = safeNights(res.checkInDate, res.checkOutDate);
 
                               return (
-                                <tr key={res.id} className="bg-slate-50/30 hover:bg-slate-100/50 transition-colors duration-200 border-l-4 border-indigo-300">
+                                <tr
+                                  key={res.id}
+                                  className="bg-slate-50/30 hover:bg-slate-100/50 transition-colors duration-200 border-l-4 border-indigo-300 cursor-pointer"
+                                  onClick={(e) => {
+                                    const target = e.target as HTMLElement;
+                                    if (target.closest('button, select, input, a, [role="button"]')) return;
+                                    setSelectedCalendarRes(res);
+                                  }}
+                                  title="Click to view booking details"
+                                >
                                   <td className="py-3 px-5 pl-12 font-mono text-xs text-slate-500">
                                     <div className="font-semibold text-slate-700">{res.id}</div>
                                   </td>
@@ -1418,6 +1743,20 @@ export default function ReservationsModule({
                                   <td className="py-3 px-5 pl-12 font-sans max-w-[150px]">
                                     <div className="flex items-center gap-2 flex-wrap">
                                       <span className="font-semibold text-slate-800">{res.guestName}</span>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          const guest = guests.find(g => g.email.toLowerCase() === res.guestEmail.toLowerCase());
+                                          if (guest) {
+                                            // Open CRM with this guest for editing
+                                            window.location.href = `#crm?guestId=${guest.id}`;
+                                          }
+                                        }}
+                                        className="text-[10px] text-indigo-600 hover:text-indigo-800 underline cursor-pointer"
+                                        title="Edit guest profile"
+                                      >
+                                        Edit Profile
+                                      </button>
                                       {res.groupBookingId && (
                                         <span className="text-[10px] font-mono text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100 truncate max-w-[120px]">
                                           {res.groupBookingId}
@@ -1436,10 +1775,41 @@ export default function ReservationsModule({
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.checkInDate}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.checkOutDate}</td>
                                   <td className="py-3 px-5 pl-12 text-center text-xs text-slate-600">{nights}</td>
-                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.roomNumber || 'Unassigned'}</td>
+                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">
+                                    {(() => {
+                                      const hasMultipleRooms = res.roomNights && res.roomNights.length > 0 &&
+                                        res.roomNights.some(night => night.length > 0 && night[0] !== res.roomNumber);
+                                      if (hasMultipleRooms) {
+                                        const uniqueRooms = new Set(res.roomNights?.flat().filter(r => r));
+                                        return (
+                                          <div className="space-y-1">
+                                            <span className="px-2 py-0.5 bg-indigo-50 text-indigo-800 font-mono text-[9px] font-semibold rounded border border-indigo-200 uppercase">
+                                              {uniqueRooms.size} Room{uniqueRooms.size > 1 ? 's' : ''}
+                                            </span>
+                                            {res.roomNights?.slice(0, nights).map((nightRooms, idx) => {
+                                              const room = nightRooms[0];
+                                              return room ? (
+                                                <div key={idx} className="text-[9px] font-mono text-slate-600">{room}</div>
+                                              ) : null;
+                                            })}
+                                          </div>
+                                        );
+                                      }
+                                      return res.roomNumber || 'Unassigned';
+                                    })()}
+                                  </td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.channel}</td>
-                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(res.rate)}</td>
-                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(res.totalAmount)}</td>
+                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">
+                                    {res.operator_id ? (
+                                      <span className="font-semibold text-indigo-700">
+                                        {tourOperators.find(op => op.id === res.operator_id)?.name || res.operator_id}
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-400 italic">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(safeNumber(res.rate))}</td>
+                                  <td className="py-3 px-5 pl-12 text-xs text-slate-600">{formatAmount(safeNumber(res.totalAmount))}</td>
                                   <td className="py-3 px-5 pl-12">{renderAddonsCell(res)}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-600">{res.depositAmount > 0 ? formatAmount(res.depositAmount) : '—'}</td>
                                   <td className="py-3 px-5 pl-12 text-xs text-slate-500 max-w-[120px] truncate">{res.notes || '—'}</td>
@@ -1471,7 +1841,9 @@ export default function ReservationsModule({
                                           ) : (
                                             <button
                                               onClick={() => {
+                                                clearCloseModalTimeout();
                                                 setEditingReservation(res);
+                                                setPromotingGroupRes(null);
                                                 setIsNewBookingOpen(true);
                                               }}
                                               className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
@@ -1488,7 +1860,9 @@ export default function ReservationsModule({
                                           </button>
                                           <button
                                             onClick={() => {
+                                              clearCloseModalTimeout();
                                               setEditingReservation(res);
+                                              setPromotingGroupRes(null);
                                               setIsNewBookingOpen(true);
                                             }}
                                             className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
@@ -1538,12 +1912,19 @@ export default function ReservationsModule({
                       {individualsToShow.filter(filterRes).map(res => {
                     const vacantRoomsOfType = rooms.filter(r => r.type === res.roomType);
                     
-                    const start = new Date(res.checkInDate);
-                    const end = new Date(res.checkOutDate);
-                    const nights = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+                    const nights = safeNights(res.checkInDate, res.checkOutDate);
 
                     return (
-                      <tr key={res.id} className="hover:bg-slate-50/80 transition-colors duration-200 group">
+                      <tr
+                        key={res.id}
+                        className="hover:bg-slate-50/80 transition-colors duration-200 group cursor-pointer"
+                        onClick={(e) => {
+                          const target = e.target as HTMLElement;
+                          if (target.closest('button, select, input, a, [role="button"]')) return;
+                          setSelectedCalendarRes(res);
+                        }}
+                        title="Click to view booking details"
+                      >
                         {/* Booking ID */}
                         <td className="py-4 px-5 font-mono text-xs text-slate-500">
                           <div className="font-semibold text-slate-900">{res.id}</div>
@@ -1632,7 +2013,7 @@ export default function ReservationsModule({
                         <td className="py-4 px-5 font-sans">
                           <span className="font-semibold text-slate-800">{res.roomType}</span>
                           <div className="text-xs text-slate-400 font-mono mt-1">
-                            {res.adults}A{res.children ? ` / ${res.children}C` : ''}
+                            {safeNumber(res.adults)}A{safeNumber(res.children) ? ` / ${safeNumber(res.children)}C` : ''}
                           </div>
                         </td>
 
@@ -1653,32 +2034,59 @@ export default function ReservationsModule({
 
                         {/* Room No */}
                         <td className="py-4 px-5">
-                          {res.roomNumber ? (
-                            <span className="px-3 py-1.5 bg-slate-100/80 text-slate-800 font-mono font-semibold rounded-lg text-sm border border-slate-200/60">
-                              {res.roomNumber}
-                            </span>
-                          ) : (
-                            <div className="space-y-1.5">
-                              <span className="px-2.5 py-1 bg-amber-50/80 text-amber-800 font-mono text-xs font-semibold rounded-md block text-center border border-amber-200/60 uppercase tracking-wider">
-                                Unassigned
+                          {(() => {
+                            const hasMultipleRooms = res.roomNights && res.roomNights.length > 0 &&
+                              res.roomNights.some(night => night.length > 0 && night[0] !== res.roomNumber);
+                            if (hasMultipleRooms) {
+                              const nights = safeNights(res.checkInDate, res.checkOutDate);
+                              const uniqueRooms = new Set(res.roomNights?.flat().filter(r => r));
+                              return (
+                                <div className="space-y-1.5">
+                                  <span className="px-2.5 py-1 bg-indigo-50/80 text-indigo-800 font-mono text-[10px] font-semibold rounded-md block border border-indigo-200/60 uppercase tracking-wider">
+                                    {uniqueRooms.size} Room{uniqueRooms.size > 1 ? 's' : ''}
+                                  </span>
+                                  {res.roomNights?.slice(0, nights).map((nightRooms, idx) => {
+                                    const date = new Date(res.checkInDate);
+                                    date.setDate(date.getDate() + idx);
+                                    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+                                    const room = nightRooms[0];
+                                    return room ? (
+                                      <div key={idx} className="flex items-center gap-1 text-[10px]">
+                                        <span className="text-slate-400 font-mono">{dateStr}:</span>
+                                        <span className="px-1.5 py-0.5 bg-slate-100 text-slate-700 font-mono font-semibold rounded border border-slate-200">{room}</span>
+                                      </div>
+                                    ) : null;
+                                  })}
+                                </div>
+                              );
+                            }
+                            return res.roomNumber ? (
+                              <span className="px-3 py-1.5 bg-slate-100/80 text-slate-800 font-mono font-semibold rounded-lg text-sm border border-slate-200/60">
+                                {res.roomNumber}
                               </span>
-                              {res.status === 'Confirmed' && vacantRoomsOfType.length > 0 && (
-                                <select
-                                  onChange={(e) => {
-                                    const rmNum = e.target.value;
-                                    if (rmNum) assignRoomToReservation(res.id, rmNum);
-                                  }}
-                                  className="w-full px-2 py-1.5 bg-white border border-slate-200/60 rounded-md text-xs font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 cursor-pointer transition-all duration-200"
-                                  defaultValue=""
-                                >
-                                  <option value="">Assign...</option>
-                                  {vacantRoomsOfType.map(rm => (
-                                    <option key={rm.id} value={rm.number}>{rm.number}</option>
-                                  ))}
-                                </select>
-                              )}
-                            </div>
-                          )}
+                            ) : (
+                              <div className="space-y-1.5">
+                                <span className="px-2.5 py-1 bg-amber-50/80 text-amber-800 font-mono text-xs font-semibold rounded-md block text-center border border-amber-200/60 uppercase tracking-wider">
+                                  Unassigned
+                                </span>
+                                {res.status === 'Confirmed' && vacantRoomsOfType.length > 0 && (
+                                  <select
+                                    onChange={(e) => {
+                                      const rmNum = e.target.value;
+                                      if (rmNum) assignRoomToReservation(res.id, rmNum);
+                                    }}
+                                    className="w-full px-2 py-1.5 bg-white border border-slate-200/60 rounded-md text-xs font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 cursor-pointer transition-all duration-200"
+                                    defaultValue=""
+                                  >
+                                    <option value="">Assign...</option>
+                                    {vacantRoomsOfType.map(rm => (
+                                      <option key={rm.id} value={rm.number}>{rm.number}</option>
+                                    ))}
+                                  </select>
+                                )}
+                              </div>
+                            );
+                          })()}
                         </td>
 
                         {/* Channel */}
@@ -1689,14 +2097,25 @@ export default function ReservationsModule({
                           </div>
                         </td>
 
+                        {/* Tour Operator */}
+                        <td className="py-4 px-5 font-sans">
+                          {res.operator_id ? (
+                            <span className="font-semibold text-indigo-700 text-xs">
+                              {tourOperators.find(op => op.id === res.operator_id)?.name || res.operator_id}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 italic text-xs">—</span>
+                          )}
+                        </td>
+
                         {/* Rate */}
                         <td className="py-4 px-5 font-mono text-sm">
-                          <div className="font-semibold text-slate-700">{formatAmount(res.rate)}<span className="text-slate-400 font-normal text-xs">/nt</span></div>
+                          <div className="font-semibold text-slate-700">{formatAmount(safeNumber(res.rate))}<span className="text-slate-400 font-normal text-xs">/nt</span></div>
                         </td>
 
                         {/* Total */}
                         <td className="py-4 px-5 font-mono">
-                          <div className="font-semibold text-slate-900 text-sm">{formatAmount(res.totalAmount)}</div>
+                          <div className="font-semibold text-slate-900 text-sm">{formatAmount(safeNumber(res.totalAmount))}</div>
                           <span className={`mt-1 inline-block px-2 py-0.5 font-mono text-[10px] font-semibold rounded-md uppercase ${
                             res.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/60' :
                             res.paymentStatus === 'Partial' ? 'bg-amber-100 text-amber-800 border border-amber-200/60' : 'bg-rose-100 text-rose-800 border border-rose-200/60'
@@ -1777,9 +2196,9 @@ export default function ReservationsModule({
                               <button
                                 onClick={() => {
                                   if (res.isGroup || res.bookingGroupId) {
-                                    startPromotingGroup(res);
+                                    handleAutoPromoteGroup(res.bookingGroupId || res.groupBookingId || res.id);
                                   } else {
-                                    startEditing(res);
+                                    handleAutoPromote(res);
                                   }
                                 }}
                                 className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 flex items-center gap-1.5 cursor-pointer"
@@ -1972,7 +2391,7 @@ export default function ReservationsModule({
                   res.guestPhone.includes(searchQuery) ||
                   res.id.toLowerCase().includes(searchQuery.toLowerCase())
                 );
-                const matchesStatus = filterStatus === 'All' ? true : res.status === filterStatus;
+                const matchesStatus = filterStatus.includes('All') || filterStatus.includes(res.status);
                 const matchesRoomType = filterRoomType === 'All' ? true : res.roomType === filterRoomType;
                 const matchesCheckIn = !filterCheckInDate ? true : res.checkInDate === filterCheckInDate;
                 const matchesCheckOut = !filterCheckOutDate ? true : res.checkOutDate === filterCheckOutDate;
@@ -1980,12 +2399,15 @@ export default function ReservationsModule({
               };
 
               const filterGroup = (groupId: string, groupRes: Reservation[]) => {
-                if (!searchQuery) return true;
                 const group = groupBookings.find(g => g.id === groupId);
-                const matchesGroupName = group?.groupName.toLowerCase().includes(searchQuery.toLowerCase());
-                const matchesGroupId = groupId.toLowerCase().includes(searchQuery.toLowerCase());
+                const matchesGroupMeta = searchQuery && (
+                  group?.groupName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                  groupId.toLowerCase().includes(searchQuery.toLowerCase())
+                );
                 const matchesAnyReservation = groupRes.some(filterRes);
-                return matchesGroupName || matchesGroupId || matchesAnyReservation;
+                const matchesSearch = !searchQuery || matchesGroupMeta || matchesAnyReservation;
+                const matchesStatus = groupRes.some(res => filterStatus.includes('All') || filterStatus.includes(res.status));
+                return matchesSearch && matchesStatus;
               };
 
               groupsToShow = groupsToShow.filter(g => filterGroup(g.groupId, g.reservations));
@@ -2015,7 +2437,7 @@ export default function ReservationsModule({
           reservations={reservations}
           currentSystemDate={currentSystemDate}
           onReservationClick={setSelectedCalendarRes}
-          filterStatus={filterStatus === 'All' ? 'all' : filterStatus}
+          filterStatus={filterStatus.includes('All') ? allReservationStatuses : filterStatus}
           selectedDate={calendarSelectedDate}
           onSelectedDateChange={setCalendarSelectedDate}
         />
@@ -2163,107 +2585,6 @@ export default function ReservationsModule({
         </div>
       )}
 
-      {/* YIELD & PRICE POLICY CONTROLLER */}
-      {activeTab === 'yield' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-105 dark:border-slate-800 rounded-2xl p-6 shadow-sm space-y-4 animate-fade-in text-slate-850 dark:text-slate-100 transition-colors">
-          <div className="flex justify-between items-center">
-            <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Yield Pricing Policies</h3>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-            {yieldPolicies.map(policy => (
-              <div key={policy.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
-                <div className="flex justify-between items-start">
-                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">{policy.name}</h4>
-                  {policy.isDefault && (
-                    <span className="text-indigo-600 font-bold text-[10px]">Default</span>
-                  )}
-                </div>
-                <p className="text-[10px] text-slate-500">{policy.description}</p>
-                <div className="flex justify-between text-[10px]">
-                  <span className="text-slate-500">Multiplier: {policy.multiplier}x</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'pricing' && (
-        <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm animate-fade-in" id="pricing-management-view">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-sans font-black text-slate-900 tracking-tight">Rate Plan & Package Management</h3>
-              <p className="text-xs text-slate-500 font-sans">Manage global rate strategies, seasonal multipliers, and optional guest service packages.</p>
-            </div>
-          </div>
-
-          <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 bg-slate-50/30">
-            {/* Rate Plans Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Institutional Rate Plans</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {ratePlans.map(plan => (
-                  <div key={plan.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{plan.name}</h4>
-                      {plan.active && <span className="bg-emerald-50 text-emerald-600 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded border border-emerald-100">ACTIVE</span>}
-                    </div>
-                    <p className="text-[10px] text-slate-500">{plan.description}</p>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-slate-500">Base: {plan.baseModifier}x</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Seasons Section */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2 mt-8">
-                <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Seasonal Yield Rules</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {seasons.map(season => (
-                  <div key={season.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{season.name}</h4>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
-                      <Calendar size={10} />
-                      <span>Valid: {season.startMonth+1}/{season.startDay} - {season.endMonth+1}/{season.endDay}</span>
-                    </div>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-slate-500">Dynamic Lift: {season.multiplier > 1 ? '+' : ''}{Math.round((season.multiplier - 1) * 100)}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Packages Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                <h4 className="text-xs font-mono uppercase text-slate-400 font-extrabold tracking-wider">Guest Service Packages</h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {packages.map(pkg => (
-                  <div key={pkg.id} className="bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-2">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">{pkg.name}</h4>
-                      <span className="font-mono font-black text-indigo-600">{formatAmount(pkg.price)}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-500">{pkg.description}</p>
-                    <div className="flex justify-between text-[10px]">
-                      <span className="text-slate-500">Charge: {pkg.chargeFrequency}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* AI FORECASTING TAB VIEW */}
       {activeTab === 'forecast' && (
         <ReservationsForecasting
@@ -2278,8 +2599,8 @@ export default function ReservationsModule({
         />
       )}
 
-      {activeTab === 'sales' && (
-        <SalesMarketingModule />
+      {activeTab === 'revenue' && (
+        <PricingRevenueManagement readOnly={true} />
       )}
 
       {/* Prefill data when promoting a waitlisted group booking so the form opens as a new group booking with guest info filled */}
@@ -2310,11 +2631,12 @@ export default function ReservationsModule({
             adults: promotingGroupRes.adults,
             children: promotingGroupRes.children,
             channel: 'Walk-In',
-            notes: promotingGroupRes.notes,
+            specialRequests: promotingGroupRes.notes,
             depositAmount: promotingGroupRes.depositAmount || 0,
             isDepositPaid: promotingGroupRes.isDepositPaid || false,
             ratePlanId: promotingGroupRes.ratePlanId || 'RP-STD',
             packageIds: promotingGroupRes.packageIds || [],
+            guestServiceIds: promotingGroupRes.guestServiceIds || [],
             additionalGuestIds: promotingGroupRes.additionalGuestIds || [],
             guestTin: promotingGroupRes.guestTin,
             guestVatNo: promotingGroupRes.guestVatNo,
@@ -2323,6 +2645,9 @@ export default function ReservationsModule({
             bookingGroupId: promotingGroupRes.bookingGroupId,
             groupName: promotingGroupRes.guestName,
             numberOfRooms: groupReservations.length || 1,
+            operatorId: promotingGroupRes.operatorId || promotingGroupRes.operator_id,
+            voucherCode: promotingGroupRes.voucherCode,
+            voucherDiscount: promotingGroupRes.voucherDiscount,
             roomSelections: Array.from(roomSelectionsMap.values()),
           };
         })();
@@ -2339,12 +2664,12 @@ export default function ReservationsModule({
               setPromotingGroupRes(null);
             }}
             onSubmit={handleCreateReservation}
-            ratePlans={ratePlans}
             packages={packages}
+            guestServices={guestServices}
             corporateAccounts={corporateAccounts}
+            editingGroupName={editingReservation?.bookingGroupId ? groupBookings.find(g => g.id === editingReservation.bookingGroupId)?.groupName : undefined}
             rooms={rooms}
             roomTypes={roomTypes}
-            reservations={reservations}
             currency={currency}
             formatAmount={formatAmount}
             getYieldMultiplier={getYieldMultiplier}
@@ -2352,250 +2677,11 @@ export default function ReservationsModule({
             getDailyRateForType={getDailyRateForType}
             currentSystemDate={currentSystemDate}
             getTypeAvailability={getTypeAvailability}
-            onReservationClick={(res) => startEditing(res)}
+            globalHotelSettings={globalHotelSettings}
           />
         );
       })()}
 
-      {/* RATE PLAN MODAL */}
-      {isRateModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center z-[60] p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-base font-sans font-black text-slate-900 flex items-center gap-2">
-                <Tag className="text-amber-500" />
-                {editingRatePlan ? 'Edit Rate Plan' : 'Add New Rate Plan'}
-              </h3>
-              <button onClick={() => setIsRateModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition cursor-pointer text-slate-400">
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveRatePlan} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Plan Name</label>
-                <input
-                  type="text"
-                  required
-                  value={rpName}
-                  onChange={(e) => setRpName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans font-bold"
-                  placeholder="e.g. Non-Refundable Rate"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Description</label>
-                <textarea
-                  value={rpDesc}
-                  onChange={(e) => setRpDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans min-h-[80px]"
-                  placeholder="Explain the terms and inclusions of this rate plan..."
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Base Multiplier</label>
-                  <input
-                    type="number"
-                    step="0.05"
-                    min="0"
-                    required
-                    value={rpModifier}
-                    onChange={(e) => setRpModifier(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-mono font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Status</label>
-                  <label className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl cursor-pointer hover:bg-white transition h-[34px]">
-                    <input
-                      type="checkbox"
-                      checked={rpActive}
-                      onChange={(e) => setRpActive(e.target.checked)}
-                      className="w-4 h-4 text-amber-500 rounded border-slate-300 focus:ring-amber-500"
-                    />
-                    <span className="text-[10px] font-sans font-extrabold text-slate-600">Active</span>
-                  </label>
-                </div>
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsRateModalOpen(false)} className="px-4 py-2 text-xs font-sans font-bold text-slate-500 hover:text-slate-700">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-slate-900 text-white text-xs font-sans font-bold rounded-xl hover:bg-slate-800 transition">Save Rate Plan</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* PACKAGE MODAL */}
-      {isPackageModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center z-[60] p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-base font-sans font-black text-slate-900 flex items-center gap-2">
-                <Sparkles className="text-amber-500" />
-                {editingPackage ? 'Edit Package' : 'Add New Package'}
-              </h3>
-              <button onClick={() => setIsPackageModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition cursor-pointer text-slate-400">
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleSavePackage} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Package Name</label>
-                <input
-                  type="text"
-                  required
-                  value={pkgName}
-                  onChange={(e) => setPkgName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans font-bold"
-                  placeholder="e.g. Guided City Tour"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Description</label>
-                <textarea
-                  value={pkgDesc}
-                  onChange={(e) => setPkgDesc(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans min-h-[80px]"
-                  placeholder="What is included in this service package?"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Price ({currency})</label>
-                  <input
-                    type="number"
-                    required
-                    value={pkgPrice}
-                    onChange={(e) => setPkgPrice(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-mono font-bold"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Charge Frequency</label>
-                  <select
-                    value={pkgFrequency}
-                    onChange={(e) => setPkgFrequency(e.target.value as 'once' | 'daily')}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans"
-                  >
-                    <option value="once">One-time Charge</option>
-                    <option value="daily">Daily / Repeating</option>
-                  </select>
-                </div>
-              </div>
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsPackageModalOpen(false)} className="px-4 py-2 text-xs font-sans font-bold text-slate-500 hover:text-slate-700">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-slate-900 text-white text-xs font-sans font-bold rounded-xl hover:bg-slate-800 transition">Save Package</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* SEASONAL YIELD RULE MODAL */}
-      {isSeasonModalOpen && (
-        <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center z-[60] p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl max-w-md w-full overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-              <h3 className="text-base font-sans font-black text-slate-900 flex items-center gap-2">
-                <Calendar className="text-amber-500 animate-pulse" size={18} />
-                {editingSeason ? 'Edit Season Yield Rule' : 'Add Season Yield Rule'}
-              </h3>
-              <button onClick={() => setIsSeasonModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full transition cursor-pointer text-slate-400">
-                <X size={18} />
-              </button>
-            </div>
-            <form onSubmit={handleSaveSeason} className="p-6 space-y-4">
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Season Name / Label</label>
-                <input
-                  type="text"
-                  required
-                  value={szName}
-                  onChange={(e) => setSzName(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-sans font-bold"
-                  placeholder="e.g. Mid-Summer High Demand"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-extrabold block">Start Date Window</span>
-                  <div className="flex gap-2">
-                    <select
-                      value={szStartMonth}
-                      onChange={(e) => setSzStartMonth(Number(e.target.value))}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-sans"
-                    >
-                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => (
-                        <option key={idx} value={idx}>{m}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      max="31"
-                      placeholder="Day"
-                      value={szStartDay}
-                      onChange={(e) => setSzStartDay(Number(e.target.value))}
-                      className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-extrabold block">End Date Window</span>
-                  <div className="flex gap-2">
-                    <select
-                      value={szEndMonth}
-                      onChange={(e) => setSzEndMonth(Number(e.target.value))}
-                      className="w-full px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-sans"
-                    >
-                      {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, idx) => (
-                        <option key={idx} value={idx}>{m}</option>
-                      ))}
-                    </select>
-                    <input
-                      type="number"
-                      required
-                      min="1"
-                      max="31"
-                      placeholder="Day"
-                      value={szEndDay}
-                      onChange={(e) => setSzEndDay(Number(e.target.value))}
-                      className="w-20 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-bold"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-mono uppercase text-slate-400 font-extrabold">Price Yield Multiplier</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0.1"
-                  max="5"
-                  required
-                  value={szMultiplier}
-                  onChange={(e) => setSzMultiplier(Number(e.target.value))}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-1 focus:ring-amber-500 focus:bg-white focus:outline-none font-mono font-bold"
-                  placeholder="e.g. 1.25 for +25%, 0.85 for -15%"
-                />
-                <span className="text-[10px] text-slate-400 font-sans tracking-tight">
-                  E.g. <strong className="text-slate-650">1.25</strong> lifts prices by 25%. <strong className="text-slate-650">0.80</strong> discounts them by 20% during this window.
-                </span>
-              </div>
-
-              <div className="pt-4 flex justify-end gap-3">
-                <button type="button" onClick={() => setIsSeasonModalOpen(false)} className="px-4 py-2 text-xs font-sans font-bold text-slate-500 hover:text-slate-700">Cancel</button>
-                <button type="submit" className="px-6 py-2 bg-slate-900 text-white text-xs font-sans font-bold rounded-xl hover:bg-slate-800 transition">Save Seasonal Rule</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
       {/* CALENDAR BOOKING DETAIL VIEW MODAL */}
       {selectedCalendarRes && (() => {
         const liveRes = reservations.find(r => r.id === selectedCalendarRes.id);
@@ -2671,7 +2757,7 @@ export default function ReservationsModule({
                               g.name.toLowerCase() === liveRes.guestName.toLowerCase()
                             );
                             if (guest) {
-                              onViewGuestProfile(guest.id);
+                              onViewGuestProfile(guest.id, () => setSelectedCalendarRes(liveRes));
                               setSelectedCalendarRes(null);
                             }
                           }}
@@ -2843,6 +2929,46 @@ export default function ReservationsModule({
                   )}
                 </div>
 
+                {/* Add-ons & Packages */}
+                {(liveRes.packageIds?.length > 0 || liveRes.guestServiceIds?.length > 0) && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-mono uppercase text-slate-455 dark:text-slate-405 font-extrabold block">Add-ons & Packages</span>
+                    <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const pkgCounts = new Map<string, number>();
+                        (liveRes.packageIds || []).forEach(id => pkgCounts.set(id, (pkgCounts.get(id) || 0) + 1));
+                        const svcCounts = new Map<string, number>();
+                        (liveRes.guestServiceIds || []).forEach(id => svcCounts.set(id, (svcCounts.get(id) || 0) + 1));
+                        const items: { label: string; quantity: number; kind: 'package' | 'service' }[] = [];
+                        pkgCounts.forEach((qty, id) => items.push({
+                          label: packages.find(p => p.id === id)?.name || id,
+                          quantity: qty,
+                          kind: 'package'
+                        }));
+                        svcCounts.forEach((qty, id) => items.push({
+                          label: guestServices.find(gs => gs.id === id)?.name || id,
+                          quantity: qty,
+                          kind: 'service'
+                        }));
+                        return items.map((item, i) => (
+                          <span
+                            key={i}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
+                              item.kind === 'package'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50'
+                                : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50'
+                            }`}
+                          >
+                            <Tag size={12} />
+                            {item.label}
+                            {item.quantity > 1 && <span className="opacity-75">×{item.quantity}</span>}
+                          </span>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+
                 {/* Additional Notes & Special Requests */}
                 {liveRes.notes && (
                   <div className="space-y-1.5">
@@ -2961,9 +3087,9 @@ export default function ReservationsModule({
                       if (liveRes.status === 'Waitlisted') {
                         setSelectedCalendarRes(null);
                         if (liveRes.isGroup || liveRes.bookingGroupId) {
-                          startPromotingGroup(liveRes);
+                          handleAutoPromoteGroup(liveRes.bookingGroupId || liveRes.groupBookingId || liveRes.id);
                         } else {
-                          startEditing(liveRes);
+                          handleAutoPromote(liveRes);
                         }
                       } else {
                         updateReservationStatus(liveRes.id, 'Confirmed');

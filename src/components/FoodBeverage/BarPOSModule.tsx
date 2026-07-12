@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
+import { supabase } from '../../lib/supabase';
 import UnifiedInvoiceTemplate from '../Shared/UnifiedInvoiceTemplate';
 
 export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?: string }) {
@@ -364,8 +365,17 @@ export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?:
     return Math.max(0, total - sumOfSplits);
   }, [total, sumOfSplits]);
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) return;
+
+    // Upload receipt screenshot if provided
+    let receiptUrl: string | undefined;
+    if (paymentScreenshot) {
+      receiptUrl = await uploadPaymentReceipt(paymentScreenshot);
+      if (!receiptUrl) {
+        addNotification('Failed to upload receipt screenshot. Sale will be recorded without receipt attachment.', 'error', 'Bar');
+      }
+    }
 
     // Get non-zero splits if Split is enabled
     const splits = isSplitPayment
@@ -377,6 +387,11 @@ export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?:
     if (isSplitPayment) {
       if (Math.abs(sumOfSplits - total) > 0.01) {
         addNotification('Split payments total must equal order total', 'error', 'Bar');
+        return;
+      }
+      // Overpayment safeguard for split payments
+      if (sumOfSplits > total + 0.01) {
+        addNotification(`Overpayment warning: Split payment total (${formatAmount(sumOfSplits)}) exceeds order total (${formatAmount(total)}). Please adjust payment amounts.`, 'error', 'Bar');
         return;
       }
       const roomChargeSplit = splits.find(s => s.method === 'RoomCharge');
@@ -411,7 +426,7 @@ export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?:
       ? `Split: ${splits.map(s => `${s.method} (${formatAmount(s.amount)})`).join(', ')}`
       : paymentMethod;
 
-    // Register active transaction into Sales ledger 
+    // Register active transaction into Sales ledger
     addSaleTransaction({
       date: new Date().toISOString(),
       invoiceNumber: invoiceNum,
@@ -424,7 +439,8 @@ export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?:
       paymentMethod: finalPaymentMethod,
       splitPayments: isSplitPayment ? splits : undefined,
       status: 'Completed',
-      cashierName: userProfile?.name || 'Bar Cashier'
+      cashierName: userProfile?.name || 'Bar Cashier',
+      receiptUrl
     });
 
     // Populate the Invoice Print Data (Standardized with POSModule/CheckInOut)
@@ -512,6 +528,33 @@ export default function BarPOSModule({ outletName = 'Pool Bar' }: { outletName?:
       updateTabField('quick-sale', 'walkInClientVATNo', '');
       updateTabField('quick-sale', 'walkInClientVATDate', '');
       updateTabField('quick-sale', 'paymentScreenshot', null);
+    }
+  };
+
+  // Helper function to upload payment receipt screenshot to Supabase Storage
+  const uploadPaymentReceipt = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('Error uploading receipt:', error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      return null;
     }
   };
 

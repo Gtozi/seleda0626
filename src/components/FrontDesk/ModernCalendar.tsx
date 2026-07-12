@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
   ChevronLeft,
@@ -25,12 +25,20 @@ interface ModernCalendarProps {
   reservations: Reservation[];
   currentSystemDate: string;
   onReservationClick: (reservation: Reservation) => void;
-  filterStatus?: string;
+  filterStatus?: string | string[];
   selectedDate?: Date;
   onSelectedDateChange?: (date: Date) => void;
 }
 
 type ViewMode = 'day' | 'week' | 'month';
+
+type MergedBlock = {
+  reservation: Reservation;
+  startIndex: number;
+  span: number;
+};
+
+const allStatuses = ['CheckedIn', 'Confirmed', 'Waitlisted', 'Cancelled'] as const;
 
 export default function ModernCalendar({
   rooms,
@@ -43,11 +51,27 @@ export default function ModernCalendar({
 }: ModernCalendarProps) {
   const [internalViewMode, setInternalViewMode] = useState<ViewMode>('week');
   const [internalSelectedDate, setInternalSelectedDate] = useState(new Date(currentSystemDate));
-  const [internalFilterStatus, setInternalFilterStatus] = useState<string>('all');
+  const [internalFilterStatus, setInternalFilterStatus] = useState<string[]>([...allStatuses]);
+
+  // Sync external filter prop into internal state so parent changes are reflected,
+  // while user toggles still update internal state directly.
+  useEffect(() => {
+    if (externalFilterStatus === undefined) return;
+    if (Array.isArray(externalFilterStatus)) {
+      setInternalFilterStatus(externalFilterStatus);
+    } else if (externalFilterStatus === 'all') {
+      setInternalFilterStatus([...allStatuses]);
+    } else {
+      setInternalFilterStatus([externalFilterStatus]);
+    }
+  }, [externalFilterStatus, allStatuses]);
 
   const viewMode = internalViewMode;
   const selectedDate = externalSelectedDate ?? internalSelectedDate;
-  const filterStatus = externalFilterStatus ?? internalFilterStatus;
+
+  const selectedStatuses = useMemo(() => {
+    return new Set(internalFilterStatus);
+  }, [internalFilterStatus]);
 
   const setViewMode = setInternalViewMode;
   const setSelectedDate = (dateOrUpdater: Date | ((prev: Date) => Date)) => {
@@ -63,8 +87,18 @@ export default function ModernCalendar({
       onSelectedDateChange?.(dateOrUpdater);
     }
   };
-  const setFilterStatus = (status: string) => {
-    setInternalFilterStatus(status);
+  const toggleStatus = (status: string) => {
+    if (status === 'all') {
+      const allSelected = allStatuses.every(s => selectedStatuses.has(s));
+      setInternalFilterStatus(allSelected ? [] : [...allStatuses]);
+    } else {
+      setInternalFilterStatus(prev => {
+        const next = new Set(prev);
+        if (next.has(status)) next.delete(status);
+        else next.add(status);
+        return Array.from(next);
+      });
+    }
   };
 
   // Distribute unassigned reservations (group bookings without specific rooms) across
@@ -140,50 +174,137 @@ export default function ModernCalendar({
   const getReservationForRoomAndDate = (room: Room, date: Date) => {
     const dateStr = toISODate(date);
     return reservations.find(res => {
-      const effectiveRoomNumber = res.roomNumber || unassignedRoomMap.get(res.id);
-      if (effectiveRoomNumber !== room.number) return false;
+      // Check if this reservation has per-night room assignments
+      if (res.roomNights && res.roomNights.length > 0) {
+        const nights = Math.max(1, Math.round(
+          (new Date(res.checkOutDate).getTime() - new Date(res.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+        ));
+        const nightIndex = Math.floor((new Date(dateStr).getTime() - new Date(res.checkInDate).getTime()) / (1000 * 60 * 60 * 24));
+        if (nightIndex >= 0 && nightIndex < nights && nightIndex < res.roomNights.length) {
+          const assignedRoom = res.roomNights[nightIndex][0];
+          if (assignedRoom && assignedRoom !== room.number) return false;
+        } else {
+          // Fallback to roomNumber if nightIndex out of range
+          const effectiveRoomNumber = res.roomNumber || unassignedRoomMap.get(res.id);
+          if (effectiveRoomNumber !== room.number) return false;
+        }
+      } else {
+        // No per-night assignments, use roomNumber
+        const effectiveRoomNumber = res.roomNumber || unassignedRoomMap.get(res.id);
+        if (effectiveRoomNumber !== room.number) return false;
+      }
       if (res.status === 'CheckedOut') return false;
-      if (filterStatus !== 'all' && res.status !== filterStatus) return false;
+      if (!selectedStatuses.has(res.status)) return false;
       return dateStr >= res.checkInDate && dateStr < res.checkOutDate;
     });
   };
 
   // Get merged cell information for a room - returns array of reservation blocks with their spans
   const getMergedReservationsForRoom = (room: Room) => {
-    const mergedBlocks: Array<{
-      reservation: Reservation;
-      startIndex: number;
-      span: number;
-    }> = [];
-
-    const roomReservations = reservations.filter(res => {
-      const effectiveRoomNumber = res.roomNumber || unassignedRoomMap.get(res.id);
-      if (effectiveRoomNumber !== room.number) return false;
-      if (res.status === 'CheckedOut') return false;
-      if (filterStatus !== 'all' && res.status !== filterStatus) return false;
-      return true;
-    });
+    const mergedBlocks: MergedBlock[] = [];
 
     // For each reservation, find its coverage in the date range
-    roomReservations.forEach(res => {
-      // Find the start and end indices in the date range
-      let startIndex = -1;
-      let endIndex = -1;
-      
-      dateRange.forEach((date, idx) => {
-        const dateStr = toISODate(date);
-        if (dateStr >= res.checkInDate && dateStr < res.checkOutDate) {
-          if (startIndex === -1) startIndex = idx;
-          endIndex = idx;
-        }
-      });
+    reservations.forEach(res => {
+      if (res.status === 'CheckedOut') return;
+      if (!selectedStatuses.has(res.status)) return;
 
-      if (startIndex !== -1 && endIndex !== -1) {
-        mergedBlocks.push({
-          reservation: res,
-          startIndex,
-          span: endIndex - startIndex + 1
+      // Check if this reservation has per-night room assignments
+      if (res.roomNights && res.roomNights.length > 0) {
+        const nights = Math.max(1, Math.round(
+          (new Date(res.checkOutDate).getTime() - new Date(res.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+        ));
+
+        // Process each date in the calendar's date range
+        let currentStartIndex = -1;
+        let currentEndIndex = -1;
+
+        dateRange.forEach((date, idx) => {
+          const dateStr = toISODate(date);
+
+          // Skip dates outside the reservation's stay
+          if (dateStr < res.checkInDate || dateStr >= res.checkOutDate) {
+            // Close any open segment when we exit the reservation range
+            if (currentStartIndex !== -1) {
+              mergedBlocks.push({
+                reservation: res,
+                startIndex: currentStartIndex,
+                span: currentEndIndex - currentStartIndex + 1
+              });
+              currentStartIndex = -1;
+              currentEndIndex = -1;
+            }
+            return;
+          }
+
+          // Calculate night index for this date
+          const nightIndex = Math.floor((new Date(dateStr).getTime() - new Date(res.checkInDate).getTime()) / (1000 * 60 * 60 * 24));
+
+          // Get the assigned room for this night
+          let assignedRoom: string | undefined;
+          if (nightIndex >= 0 && nightIndex < nights && nightIndex < res.roomNights.length) {
+            const nightRooms = res.roomNights[nightIndex];
+            if (nightRooms && nightRooms.length > 0 && nightRooms[0]) {
+              assignedRoom = nightRooms[0];
+            }
+          }
+
+          // If no per-night assignment found, fall back to roomNumber
+          if (!assignedRoom) {
+            assignedRoom = res.roomNumber || unassignedRoomMap.get(res.id);
+          }
+
+          // Check if this room matches the current room column
+          if (assignedRoom === room.number) {
+            // This date is in this reservation and assigned to this room
+            if (currentStartIndex === -1) {
+              currentStartIndex = idx;
+            }
+            currentEndIndex = idx;
+          } else {
+            // This date is in this reservation but assigned to a different room - close segment
+            if (currentStartIndex !== -1) {
+              mergedBlocks.push({
+                reservation: res,
+                startIndex: currentStartIndex,
+                span: currentEndIndex - currentStartIndex + 1
+              });
+              currentStartIndex = -1;
+              currentEndIndex = -1;
+            }
+          }
         });
+
+        // Close the last segment if still open
+        if (currentStartIndex !== -1) {
+          mergedBlocks.push({
+            reservation: res,
+            startIndex: currentStartIndex,
+            span: currentEndIndex - currentStartIndex + 1
+          });
+        }
+      } else {
+        // No per-night assignments, use the old logic
+        const effectiveRoomNumber = res.roomNumber || unassignedRoomMap.get(res.id);
+        if (effectiveRoomNumber !== room.number) return;
+
+        let startIndex = -1;
+        let endIndex = -1;
+
+        dateRange.forEach((date, idx) => {
+          const dateStr = toISODate(date);
+          if (dateStr >= res.checkInDate && dateStr < res.checkOutDate) {
+            if (startIndex === -1) startIndex = idx;
+            endIndex = idx;
+          }
+        });
+
+        if (startIndex !== -1 && endIndex !== -1) {
+          mergedBlocks.push({
+            reservation: res,
+            startIndex,
+            span: endIndex - startIndex + 1
+          });
+        }
       }
     });
 
@@ -330,18 +451,30 @@ export default function ModernCalendar({
           <span className="text-xs font-bold text-slate-500 uppercase">Filter:</span>
         </div>
         <div className="flex items-center gap-2">
-          {(['all', 'CheckedIn', 'Confirmed', 'Waitlisted', 'Cancelled'] as const).map((status) => (
+          <button
+            key="all"
+            onClick={() => toggleStatus('all')}
+            className={`px-3 py-1 rounded-full text-[10px] font-bold font-mono uppercase transition-all duration-200 flex items-center gap-1.5 ${
+              allStatuses.every(s => selectedStatuses.has(s))
+                ? 'bg-slate-900 text-white shadow-md'
+                : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+            All
+          </button>
+          {allStatuses.map((status) => (
             <button
               key={status}
-              onClick={() => setFilterStatus(status)}
+              onClick={() => toggleStatus(status)}
               className={`px-3 py-1 rounded-full text-[10px] font-bold font-mono uppercase transition-all duration-200 flex items-center gap-1.5 ${
-                filterStatus === status
+                selectedStatuses.has(status)
                   ? 'bg-slate-900 text-white shadow-md'
                   : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
-              <span className={`w-1.5 h-1.5 rounded-full ${status === 'all' ? 'bg-slate-400' : getStatusDot(status)}`} />
-              {status === 'all' ? 'All' : status.replace(/([A-Z])/g, ' $1').trim()}
+              <span className={`w-1.5 h-1.5 rounded-full ${getStatusDot(status)}`} />
+              {status.replace(/([A-Z])/g, ' $1').trim()}
             </button>
           ))}
         </div>
@@ -386,9 +519,37 @@ export default function ModernCalendar({
           <div className="divide-y divide-slate-100">
             {rooms.map((room) => {
               const mergedBlocks = getMergedReservationsForRoom(room);
+
+              // Determine which reservation blocks are active on each date index
+              const activeBlocksByIndex = new Map<number, MergedBlock[]>();
+              dateRange.forEach((date, idx) => {
+                const active = mergedBlocks.filter(b => {
+                  return idx >= b.startIndex && idx < b.startIndex + b.span;
+                });
+                if (active.length > 0) activeBlocksByIndex.set(idx, active);
+              });
+
+              // Identify reservations that overlap with any other reservation for this room.
+              // When any overlap exists, those reservations render as stacked daily cards
+              // across their full ranges instead of spanning cells.
+              const overlappingReservationIds = new Set<string>();
+              for (let i = 0; i < mergedBlocks.length; i++) {
+                for (let j = i + 1; j < mergedBlocks.length; j++) {
+                  const a = mergedBlocks[i];
+                  const b = mergedBlocks[j];
+                  const overlapStart = Math.max(a.startIndex, b.startIndex);
+                  const overlapEnd = Math.min(a.startIndex + a.span - 1, b.startIndex + b.span - 1);
+                  if (overlapStart <= overlapEnd) {
+                    overlappingReservationIds.add(a.reservation.id);
+                    overlappingReservationIds.add(b.reservation.id);
+                  }
+                }
+              }
+
+              // Indices covered by non-overlapping spanning reservations
               const coveredIndices = new Set<number>();
-              
               mergedBlocks.forEach(block => {
+                if (overlappingReservationIds.has(block.reservation.id)) return;
                 for (let i = block.startIndex; i < block.startIndex + block.span; i++) {
                   coveredIndices.add(i);
                 }
@@ -415,23 +576,47 @@ export default function ModernCalendar({
                     </div>
                   </div>
 
-                  {/* Date Cells with Merged Support */}
+                  {/* Date Cells with Overlap Support */}
                   {dateRange.map((date, idx) => {
-                    // Skip if this index is covered by a merged block (but not the start)
-                    if (coveredIndices.has(idx) && !mergedBlocks.some(b => b.startIndex === idx)) {
-                      return null;
-                    }
-
                     const isToday = isSameDay(date, new Date(currentSystemDate));
-                    const mergedBlock = mergedBlocks.find(b => b.startIndex === idx);
-                    
-                    if (mergedBlock) {
-                      // Render merged cell
-                      const reservation = mergedBlock.reservation;
+                    const activeBlocks = activeBlocksByIndex.get(idx) || [];
+
+                    if (activeBlocks.length === 0) {
+                      // Skip indices covered by a non-overlapping spanning reservation
+                      if (coveredIndices.has(idx)) return null;
+
                       return (
                         <div
                           key={idx}
-                          style={{ gridColumn: `span ${mergedBlock.span}` }}
+                          className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1.5 flex items-center justify-center ${
+                            isToday ? 'bg-amber-50/30' : ''
+                          }`}
+                        >
+                          <div className="w-full h-full border border-slate-100 dark:border-slate-700/40 rounded-lg bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center">
+                            <div className="text-[9px] font-mono text-emerald-400/60 dark:text-emerald-500/50 uppercase tracking-wider">
+                              Vacant
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    const onlyBlock = activeBlocks.length === 1 ? activeBlocks[0] : null;
+                    const isNonOverlappingSpan = onlyBlock && !overlappingReservationIds.has(onlyBlock.reservation.id);
+
+                    if (isNonOverlappingSpan) {
+                      const block = onlyBlock;
+                      const reservation = block.reservation;
+
+                      if (block.startIndex !== idx) {
+                        // This index is covered by the spanning block that started earlier
+                        return null;
+                      }
+
+                      return (
+                        <div
+                          key={idx}
+                          style={{ gridColumn: `span ${block.span}` }}
                           className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1.5 flex items-center justify-center ${
                             isToday ? 'bg-amber-50/30' : ''
                           }`}
@@ -446,7 +631,7 @@ export default function ModernCalendar({
                               const gid = getGroupId(reservation);
                               return gid ? `border-l-4 ${getGroupStyle(gid).border}` : '';
                             })()}`}
-                            title={`${reservation.guestName} - ${reservation.status} (${mergedBlock.span} nights)`}
+                            title={`${reservation.guestName} - ${reservation.status} (${block.span} night${block.span > 1 ? 's' : ''})`}
                           >
                             {(() => {
                               const gid = getGroupId(reservation);
@@ -466,7 +651,7 @@ export default function ModernCalendar({
                                     {reservation.status}
                                   </div>
                                   <div className="text-[9px] font-sans mt-1 opacity-70">
-                                    {mergedBlock.span} night{mergedBlock.span > 1 ? 's' : ''}
+                                    {block.span} night{block.span > 1 ? 's' : ''}
                                   </div>
                                 </>
                               );
@@ -476,19 +661,53 @@ export default function ModernCalendar({
                       );
                     }
 
-                    // Render vacant cell
+                    // One or more reservations that overlap somewhere for this room
                     return (
                       <div
-                        key={idx}
-                        className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1.5 flex items-center justify-center ${
+                        key={`overlap-${idx}`}
+                        className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1 flex flex-col gap-1 justify-center ${
                           isToday ? 'bg-amber-50/30' : ''
                         }`}
                       >
-                        <div className="w-full h-full border border-slate-100 dark:border-slate-700/40 rounded-lg bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center">
-                          <div className="text-[9px] font-mono text-emerald-400/60 dark:text-emerald-500/50 uppercase tracking-wider">
-                            Vacant
-                          </div>
-                        </div>
+                        {activeBlocks.map(block => {
+                          const reservation = block.reservation;
+                          return (
+                            <motion.div
+                              key={reservation.id}
+                              initial={{ scale: 0.95, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => onReservationClick(reservation)}
+                              className={`w-full border rounded-lg px-1.5 py-1 cursor-pointer shadow-sm transition-all duration-200 ${getStatusColor(reservation.status)} ${(() => {
+                                const gid = getGroupId(reservation);
+                                return gid ? `border-l-2 ${getGroupStyle(gid).border}` : '';
+                              })()}`}
+                              title={`${reservation.guestName} - ${reservation.status}`}
+                            >
+                              {(() => {
+                                const gid = getGroupId(reservation);
+                                const groupStyle = gid ? getGroupStyle(gid) : null;
+                                return (
+                                  <>
+                                    {gid && groupStyle && (
+                                      <div className={`flex items-center gap-1 mb-0.5 px-1 py-0 rounded text-[7px] font-mono font-bold uppercase ${groupStyle.bg} ${groupStyle.text} w-fit`}>
+                                        <Users size={7} />
+                                        <span>GRP-{formatGroupLabel(gid)}</span>
+                                      </div>
+                                    )}
+                                    <div className="font-bold text-[9px] truncate font-sans leading-tight">
+                                      {reservation.guestName}
+                                    </div>
+                                    <div className="text-[8px] font-mono uppercase tracking-wider opacity-80">
+                                      {reservation.status}
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </motion.div>
+                          );
+                        })}
                       </div>
                     );
                   })}

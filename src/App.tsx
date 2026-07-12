@@ -8,6 +8,7 @@ import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-r
 import { ERPProvider, useERP } from './context/ERPContext';
 import { GuestProvider } from './context/GuestContext';
 import { GroupProvider } from './context/GroupContext';
+import { ModalReturnProvider } from './context/ModalReturnContext';
 import FrontDeskPortal from './components/FrontDesk/FrontDeskPortal';
 import BookingPage from './components/BookingPage';
 import LoginPage from './components/LoginPage';
@@ -52,7 +53,10 @@ import {
   Moon,
   Sun,
   Package,
-  ShoppingCart
+  ShoppingCart,
+  LayoutDashboard,
+  FileBarChart,
+  Receipt
 } from 'lucide-react';
 
 function LoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: User) => void }) {
@@ -79,7 +83,8 @@ function MasterHotelERP() {
     formatAmount,
     theme,
     toggleTheme,
-    globalHotelSettings
+    globalHotelSettings,
+    refreshAllData
   } = useERP();
 
   // User Authentication state
@@ -133,6 +138,38 @@ function MasterHotelERP() {
     }
   }, [systemUsers, currentUser]);
 
+  // Auto-refresh ERP data after 30 seconds of inactivity
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const INACTIVITY_MS = 30000;
+    let lastActivity = Date.now();
+    let refreshing = false;
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    const updateLastActivity = () => { lastActivity = Date.now(); };
+    activityEvents.forEach(event => {
+      window.addEventListener(event, updateLastActivity, { passive: true });
+    });
+
+    const intervalId = window.setInterval(() => {
+      if (refreshing) return;
+      if (Date.now() - lastActivity >= INACTIVITY_MS) {
+        refreshing = true;
+        refreshAllData().finally(() => {
+          lastActivity = Date.now();
+          refreshing = false;
+        });
+      }
+    }, 1000);
+
+    return () => {
+      window.clearInterval(intervalId);
+      activityEvents.forEach(event => {
+        window.removeEventListener(event, updateLastActivity);
+      });
+    };
+  }, [currentUser, refreshAllData]);
+
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);
     
@@ -171,6 +208,7 @@ function MasterHotelERP() {
   const [execDir, setExecDir] = useState('dashboard');
   const [adminDir, setAdminDir] = useState('user_security');
   const [procDir, setProcDir] = useState('dashboard');
+  const [frontDir, setFrontDir] = useState<'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory'>('dashboard');
 
   // Notification panel toggle on ERP
   const [showNotifications, setShowNotifications] = useState(false);
@@ -330,9 +368,40 @@ function MasterHotelERP() {
                       {activeDept === 'settings' && 'Administrator Global Account Settings'}
                     </h2>
                     <div className="text-slate-500 text-[10px] flex items-center gap-1 font-mono uppercase tracking-wider">
-                      <span>Grand Hotel</span> / <span className="text-indigo-600 font-bold">{activeDept}</span>
+                      <span>Gheralta</span> / <span className="text-indigo-600 font-bold">{activeDept}</span>
                     </div>
                   </div>
+
+                  {/* Front Office sub-navigation triggers */}
+                  {activeDept === 'frontoffice' && (
+                    <div className="flex flex-wrap bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 rounded-xl self-center text-xs font-sans font-medium select-none gap-1 transition-colors duration-300 card-shadow" id="front-sub-menu">
+                      {[
+                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                        { id: 'reservations', label: 'Reservations', icon: Calendar },
+                        { id: 'folio', label: 'Folio', icon: Coins },
+                        { id: 'crm', label: 'CRM Board', icon: Users },
+                        { id: 'reports', label: 'Reports & Audit', icon: FileBarChart },
+                        { id: 'giftshop', label: 'Gift Shop', icon: ShoppingCart },
+                        { id: 'inventory', label: 'Office Inventory', icon: Package },
+                      ].map((tab) => {
+                        const Icon = tab.icon;
+                        return (
+                          <button
+                            key={tab.id}
+                            onClick={() => setFrontDir(tab.id as typeof frontDir)}
+                            className={`px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition flex items-center gap-1.5 ${
+                              frontDir === tab.id
+                                ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]'
+                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 text-[11px]'
+                            }`}
+                          >
+                            <Icon size={13} />
+                            <span>{tab.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
                   {/* Housekeeping sub-navigation triggers */}
                   {activeDept === 'housekeeping' && (
@@ -616,6 +685,8 @@ function MasterHotelERP() {
                       currentUser={currentUser}
                       onPrintGuest={(data) => setPrintGuestForm(data)}
                       onPrintGroup={(data) => setPrintGroupForm(data)}
+                      activeTab={frontDir}
+                      onTabChange={setFrontDir}
                     />
                   )}
 
@@ -699,7 +770,9 @@ export default function App() {
       <ERPProvider>
         <GuestProvider>
           <GroupProvider>
-            <MasterHotelERP />
+            <ModalReturnProvider>
+              <MasterHotelERP />
+            </ModalReturnProvider>
           </GroupProvider>
         </GuestProvider>
       </ERPProvider>

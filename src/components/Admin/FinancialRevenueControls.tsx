@@ -540,6 +540,11 @@ function FolioInvoicingModule() {
             <label className="text-xs font-mono uppercase text-slate-400 font-bold">Bank Details for Corporate Invoices</label>
             <textarea rows={2} value={form.invoiceBankDetails} onChange={e => setForm(f => ({ ...f, invoiceBankDetails: e.target.value }))}
               className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none resize-none font-mono" />
+            <p className="text-[10px] text-slate-400 leading-normal mt-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+              <strong>Template format:</strong> Bank name on first line, followed by Account Name and Account Number. 
+              <br />
+              💡 <em>Tip: You can use the high-fidelity interactive <strong>"Smart Bank Accounts Editor"</strong> in the Executive Business Settings tab to register and update accounts visually!</em>
+            </p>
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-xs font-mono uppercase text-slate-400 font-bold">Payment Types / Options</label>

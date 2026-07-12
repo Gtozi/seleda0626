@@ -78,6 +78,7 @@ const mapReservationFromDb = (db: any): Reservation => ({
   guestStatus: db.guest_status || 'Regular',
   roomType: db.room_type,
   roomNumber: db.room_number || undefined,
+  roomNights: db.room_nights || undefined,
   checkInDate: db.check_in_date,
   checkOutDate: db.check_out_date,
   adults: db.adults || 1,
@@ -115,7 +116,8 @@ const mapReservationFromDb = (db: any): Reservation => ({
   corporateAccountId: db.corporate_account_id || undefined,
   bookingGroupId: db.booking_group_id || undefined,
   groupId: db.group_id || undefined,
-  guestId: db.guest_id || undefined
+  guestId: db.guest_id || undefined,
+  operator_id: db.tour_operator_id || undefined
 });
 
 const mapReservationToDb = (res: Reservation) => ({
@@ -126,6 +128,7 @@ const mapReservationToDb = (res: Reservation) => ({
   guest_status: res.guestStatus,
   room_type: res.roomType,
   room_number: res.roomNumber || null,
+  room_nights: res.roomNights || null,
   check_in_date: res.checkInDate,
   check_out_date: res.checkOutDate,
   adults: res.adults,
@@ -163,7 +166,8 @@ const mapReservationToDb = (res: Reservation) => ({
   corporate_account_id: res.corporateAccountId || null,
   booking_group_id: res.bookingGroupId || null,
   group_id: res.groupId || null,
-  guest_id: res.guestId || null
+  guest_id: res.guestId || null,
+  tour_operator_id: res.operator_id || null
 });
 
 const mapRatePlanFromDb = (db: any): RatePlan => ({
@@ -767,8 +771,7 @@ export const supabaseService = {
   deletePackage: async (id: string): Promise<void> => deleteFromTable('packages', id),
 
   fetchGroupBookings: async (): Promise<GroupBooking[]> => {
-    // Legacy table - migrated to group_profiles, return empty array
-    return [];
+    return fetchTable('group_bookings', mapGroupBookingFromDb, 'id');
   },
   upsertGroupBooking: async (group: GroupBooking): Promise<void> => {
     // Legacy table - migrated to group_profiles, no-op

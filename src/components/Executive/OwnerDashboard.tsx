@@ -124,7 +124,7 @@ const OwnerDashboard = () => {
          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="space-y-2">
                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest leading-none">Proprietary Assets</span>
-               <h3 className="text-3xl font-black tracking-tight leading-none">GRAND HOTEL Portfolio</h3>
+               <h3 className="text-3xl font-black tracking-tight leading-none">Gheralta Portfolio</h3>
                <p className="text-sm text-slate-400 font-medium max-w-sm">Strategic multi-asset ownership view with real-time equity tracking and risk oversight.</p>
             </div>
             <div className="flex gap-4">

@@ -55,6 +55,7 @@ export interface GuestContextType {
     roleTitle?: string;
   }) => Promise<GuestGroupRelationship | null>;
   unlinkGuestFromGroup: (guestId: string, groupId: string, reason?: string) => Promise<boolean>;
+  refreshData: () => Promise<void>;
 }
 
 const GuestContext = createContext<GuestContextType | undefined>(undefined);
@@ -71,15 +72,19 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [guestFeedbacks, setGuestFeedbacks] = useState<any[]>([]);
   const [guestGroupRelationships, setGuestGroupRelationships] = useState<GuestGroupRelationship[]>([]);
 
-  React.useEffect(() => {
-    if (supabaseService.isConfigured()) {
-      supabaseService.fetchGuests()
-        .then(data => {
-          if (data && data.length > 0) setGuests(data);
-        })
-        .catch(console.error);
+  const refreshData = useCallback(async () => {
+    if (!supabaseService.isConfigured()) return;
+    try {
+      const data = await supabaseService.fetchGuests();
+      if (data && data.length > 0) setGuests(data);
+    } catch (error) {
+      console.error('Failed to fetch guests:', error);
     }
   }, []);
+
+  React.useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const addGuest = useCallback((guestData: Omit<Guest, 'id'>): string => {
     // Deduplication: prevent creating duplicate profiles
@@ -335,7 +340,8 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     fetchGuestGroupRelationships,
     getGuestGroupSummary,
     linkGuestToGroup,
-    unlinkGuestFromGroup
+    unlinkGuestFromGroup,
+    refreshData
   };
 
   return (

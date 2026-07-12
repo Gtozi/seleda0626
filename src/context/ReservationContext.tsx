@@ -19,6 +19,7 @@ import {
 import { useSystem } from './SystemContext';
 import { useGuest } from './GuestContext';
 import { supabaseService } from '../services/supabaseService';
+import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { getTypeAvailability, TypeAvailability } from '../services/allocationService';
 
 export interface ReservationContextType {
@@ -68,6 +69,7 @@ export interface ReservationContextType {
   deleteRoom: (id: string) => void;
 
   getTypeAvailability: (roomType: string, checkInDate: string, checkOutDate: string, excludeReservationId?: string) => TypeAvailability;
+  refreshData: () => Promise<void>;
 }
 
 const ReservationContext = createContext<ReservationContextType | undefined>(undefined);
@@ -91,40 +93,60 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [seasons, setSeasons] = useState<Season[]>(initialSeasons);
   const [packages, setPackages] = useState<Package[]>(initialPackages);
 
+  const refreshData = useCallback(async () => {
+    if (!supabaseService.isConfigured()) return;
+    try {
+      const [
+        fetchedRooms,
+        fetchedReservations,
+        fetchedGroupBookings,
+        fetchedCorporateAccounts,
+        fetchedRatePlans,
+        fetchedSeasons,
+        fetchedPackages
+      ] = await Promise.all([
+        supabaseService.fetchRooms(),
+        supabaseService.fetchReservations(),
+        supabaseService.fetchGroupBookings(),
+        supabaseService.fetchCorporateAccounts(),
+        supabaseService.fetchRatePlans(),
+        supabaseService.fetchSeasons(),
+        supabaseService.fetchPackages()
+      ]);
+      if (fetchedRooms.length > 0) setRooms(fetchedRooms);
+      if (fetchedReservations.length > 0) setReservations(fetchedReservations);
+      if (fetchedGroupBookings.length > 0) setGroupBookings(fetchedGroupBookings);
+      if (fetchedCorporateAccounts.length > 0) setCorporateAccounts(fetchedCorporateAccounts);
+      if (fetchedRatePlans.length > 0) setRatePlans(fetchedRatePlans);
+      if (fetchedSeasons.length > 0) setSeasons(fetchedSeasons);
+      if (fetchedPackages.length > 0) setPackages(fetchedPackages);
+    } catch (error) {
+      console.error("Failed to fetch Supabase state:", error);
+    }
+  }, []);
+
   React.useEffect(() => {
-    const loadFromSupabase = async () => {
-      if (supabaseService.isConfigured()) {
-        try {
-          const [
-            fetchedRooms,
-            fetchedReservations,
-            fetchedGroupBookings,
-            fetchedCorporateAccounts,
-            fetchedRatePlans,
-            fetchedSeasons,
-            fetchedPackages
-          ] = await Promise.all([
-            supabaseService.fetchRooms(),
-            supabaseService.fetchReservations(),
-            supabaseService.fetchGroupBookings(),
-            supabaseService.fetchCorporateAccounts(),
-            supabaseService.fetchRatePlans(),
-            supabaseService.fetchSeasons(),
-            supabaseService.fetchPackages()
-          ]);
-          if (fetchedRooms.length > 0) setRooms(fetchedRooms);
-          if (fetchedReservations.length > 0) setReservations(fetchedReservations);
-          if (fetchedGroupBookings.length > 0) setGroupBookings(fetchedGroupBookings);
-          if (fetchedCorporateAccounts.length > 0) setCorporateAccounts(fetchedCorporateAccounts);
-          if (fetchedRatePlans.length > 0) setRatePlans(fetchedRatePlans);
-          if (fetchedSeasons.length > 0) setSeasons(fetchedSeasons);
-          if (fetchedPackages.length > 0) setPackages(fetchedPackages);
-        } catch (error) {
-          console.error("Failed to fetch initial Supabase state:", error);
-        }
-      }
-    };
-    loadFromSupabase();
+    refreshData();
+  }, [refreshData]);
+
+  React.useEffect(() => {
+    if (!hasSupabaseConfig) return;
+    const channel = supabase
+      .channel('erp-realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, async () => {
+        const fresh = await supabaseService.fetchReservations();
+        if (fresh.length > 0) setReservations(fresh);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, async () => {
+        const fresh = await supabaseService.fetchRooms();
+        if (fresh.length > 0) setRooms(fresh);
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_bookings' }, async () => {
+        const fresh = await supabaseService.fetchGroupBookings();
+        if (fresh.length > 0) setGroupBookings(fresh);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const addReservation = useCallback((resData: Omit<Reservation, 'id'>): string => {
@@ -246,7 +268,16 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const assignRoomToReservation = useCallback((id: string, roomNumber: string) => {
     setReservations(prev => {
-      const next = prev.map(r => r.id === id ? { ...r, roomNumber } : r);
+      const next = prev.map(r => {
+        if (r.id === id) {
+          const nights = Math.max(1, Math.round(
+            (new Date(r.checkOutDate).getTime() - new Date(r.checkInDate).getTime()) / (1000 * 60 * 60 * 24)
+          ));
+          const roomNights = Array.from({ length: nights }, () => [roomNumber]);
+          return { ...r, roomNumber, roomNights };
+        }
+        return r;
+      });
       if (supabaseService.isConfigured()) {
         const tgt = next.find(r => r.id === id);
         if (tgt) supabaseService.upsertReservation(tgt).catch(console.error);
@@ -520,6 +551,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           amount: payment.amount,
           paymentMethod: payment.method,
           reference: payment.notes,
+          receiptUrl: payment.receiptUrl,
         }),
       });
 
@@ -739,7 +771,8 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     addPromotion, addRatePlan, updateRatePlan, deleteRatePlan,
     addPackage, updatePackage, deletePackage, addSeason, updateSeason, deleteSeason,
     setRoomStatus, addRoom, updateRoom, deleteRoom,
-    getTypeAvailability: getAvailability
+    getTypeAvailability: getAvailability,
+    refreshData
   };
 
   return (

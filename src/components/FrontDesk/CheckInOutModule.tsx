@@ -8,6 +8,7 @@ import { useERP } from '../../context/ERPContext';
 import { RoomType, Reservation } from '../../types/erp';
 import UnifiedInvoiceTemplate from '../Shared/UnifiedInvoiceTemplate';
 import { getChargeFolio, getChargeType } from '../../utils/folioRouting';
+import { supabase } from '../../lib/supabase';
 import { 
   Check, 
   X, 
@@ -113,12 +114,42 @@ export default function CheckInOutModule({
   const [groupSuccess, setGroupSuccess] = useState('');
   const [activeGroupChargeTypes, setActiveGroupChargeTypes] = useState<string[]>(['Room', 'F&B', 'Laundry', 'Transfer', 'Extra']);
 
+  // Guest search state for searchable selector
+  const [guestSearchQuery, setGuestSearchQuery] = useState<string>('');
+
   // Invoice generation handler
   const handleGenerateInvoice = () => {
     if (!currentFolioRes) return;
 
     // In production: Call generate_folio_invoice database function
     setFolioSuccess(`Invoice generated for Room ${currentFolioRes.roomNumber || 'N/A'} - ${currentFolioRes.guestName}`);
+  };
+
+  // Helper function to upload payment receipt screenshot to Supabase Storage
+  const uploadPaymentReceipt = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('Error uploading receipt:', error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      return null;
+    }
   };
 
   const getChargeType = (charge: any) => {
@@ -273,6 +304,15 @@ export default function CheckInOutModule({
   // Active checked in reservations
   const checkedInReservations = reservations.filter(r => r.status === 'CheckedIn');
   const currentFolioRes = reservations.find(r => r.id === selectedFolioResId);
+
+  // Filtered guests for searchable selector
+  const filteredGuests = checkedInReservations.filter(r => {
+    const searchLower = guestSearchQuery.toLowerCase();
+    return (
+      (r.roomNumber && r.roomNumber.toLowerCase().includes(searchLower)) ||
+      r.guestName.toLowerCase().includes(searchLower)
+    );
+  });
 
   // Helper calculations for active folio modifiers (Discount, Service Charge, Taxes)
   // Dynamic Split-Folio state & profile sync
@@ -868,17 +908,18 @@ export default function CheckInOutModule({
             </span>
           </div>
 
-            {folioSuccess && (
-              <div className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-2xs rounded-lg animate-pulse mb-3">
-                {folioSuccess}
-              </div>
-            )}
+          <div className="space-y-4">
+              {folioSuccess && (
+                <div className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-2xs rounded-lg animate-pulse mb-3">
+                  {folioSuccess}
+                </div>
+              )}
 
-            {groupSuccess && (
-              <div className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-2xs rounded-lg animate-pulse mb-3">
-                {groupSuccess}
-              </div>
-            )}
+              {groupSuccess && (
+                <div className="p-2.5 bg-indigo-50 border border-indigo-200 text-indigo-800 font-mono text-2xs rounded-lg animate-pulse mb-3">
+                  {groupSuccess}
+                </div>
+              )}
 
             {/* BILLING TERMINAL MODE TOGGLE */}
             <div className="flex border-b border-slate-200 gap-1 overflow-x-auto text-xs font-sans font-medium text-slate-500">
@@ -919,21 +960,56 @@ export default function CheckInOutModule({
               <div className="space-y-4 text-xs font-sans">
               <div className="space-y-1">
                 <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Select Checked-In Room Guest</label>
-                <select
-                  value={selectedFolioResId}
-                  onChange={(e) => setSelectedFolioResId(e.target.value)}
-                  className="w-full px-2.5 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono font-semibold transition-all duration-200"
-                >
-                  <option value="">Select In-House Guest...</option>
-                  {checkedInReservations.map(r => (
-                    <option key={r.id} value={r.id}>Room {r.roomNumber || 'N/A'}: {r.guestName}</option>
-                  ))}
-                  {currentFolioRes && currentFolioRes.status !== 'CheckedIn' && (
-                    <option key={currentFolioRes.id} value={currentFolioRes.id}>
-                      [Checked Out] Room {currentFolioRes.roomNumber || 'N/A'}: {currentFolioRes.guestName}
-                    </option>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search by room number or guest name..."
+                    value={guestSearchQuery}
+                    onChange={(e) => setGuestSearchQuery(e.target.value)}
+                    className="w-full px-2.5 py-2 pl-9 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-mono font-semibold transition-all duration-200"
+                  />
+                  <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg bg-white">
+                  {filteredGuests.length === 0 ? (
+                    <div className="py-3 px-4 text-slate-400 italic text-center">No guests found</div>
+                  ) : (
+                    filteredGuests.map(r => {
+                      const math = calculateReservationFolioMath(r);
+                      const isSelected = selectedFolioResId === r.id;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => setSelectedFolioResId(r.id)}
+                          className={`w-full px-4 py-2.5 text-left border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors duration-200 ${
+                            isSelected ? 'bg-indigo-50 border-l-4 border-l-indigo-600' : ''
+                          }`}
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="font-bold text-slate-800">Room {r.roomNumber || 'N/A'}</span>
+                              <span className="text-slate-600 ml-2">{r.guestName}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                r.status === 'CheckedIn' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                              }`}>
+                                {r.status}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center mt-1 text-[10px] text-slate-500 font-mono">
+                            <span>{r.checkInDate} to {r.checkOutDate}</span>
+                            <span className={`font-bold ${math.remainingBalance > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              Balance: {formatAmount(math.remainingBalance)}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })
                   )}
-                </select>
+                </div>
               </div>
 
               {selectedFolioResId && (
@@ -1176,9 +1252,36 @@ export default function CheckInOutModule({
 
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={async () => {
                           if (!currentFolioRes) return;
-                          
+
+                          // Overpayment validation based on active folio ledger tab
+                          if (activeFolioLedgerTab === 'consolidated') {
+                            if (paymentAmount > remainingBalance + 0.01) {
+                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds consolidated balance (${formatAmount(remainingBalance)}). Please adjust payment amount.`);
+                              return;
+                            }
+                          } else if (activeFolioLedgerTab === 'folio-a') {
+                            if (paymentAmount > remainingBalanceA + 0.01) {
+                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds corporate folio balance (${formatAmount(remainingBalanceA)}). Please adjust payment amount.`);
+                              return;
+                            }
+                          } else if (activeFolioLedgerTab === 'folio-b') {
+                            if (paymentAmount > remainingBalanceB + 0.01) {
+                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds individual folio balance (${formatAmount(remainingBalanceB)}). Please adjust payment amount.`);
+                              return;
+                            }
+                          }
+
+                          // Upload receipt screenshot if provided
+                          let receiptUrl: string | undefined;
+                          if (paymentScreenshot) {
+                            receiptUrl = await uploadPaymentReceipt(paymentScreenshot);
+                            if (!receiptUrl) {
+                              alert('Failed to upload receipt screenshot. Payment will be recorded without receipt attachment.');
+                            }
+                          }
+
                           // If corporate folio, update corporate account balance
                           if (activeFolioLedgerTab === 'folio-a' && splitCorporateAccountId) {
                             const corpAcc = corporateAccounts.find(a => a.id === splitCorporateAccountId);
@@ -1193,7 +1296,8 @@ export default function CheckInOutModule({
                             amount: paymentAmount,
                             method: paymentMethod,
                             notes: paymentNotes || (activeFolioLedgerTab === 'folio-a' ? 'A-Folio Corporate Payment' : 'Individual Payment'),
-                            targetFolio: activeFolioLedgerTab === 'folio-a' ? 'A' : 'B'
+                            targetFolio: activeFolioLedgerTab === 'folio-a' ? 'A' : 'B',
+                            receiptUrl
                           });
                           
                           addSaleTransaction({
@@ -1223,8 +1327,8 @@ export default function CheckInOutModule({
 
                 </div>
               )}
-            </div>
-            ) : (
+             </div>
+             ):(
               <div className="space-y-4 text-xs font-sans animate-fade-in pb-2">
                 <div className="space-y-1">
                   <label className="text-3xs font-mono uppercase text-slate-400 font-bold block">Group Debtor / Operator</label>
@@ -1349,8 +1453,7 @@ export default function CheckInOutModule({
                               <option key={r.id} value={r.id}>
                                 Room {r.roomNumber || 'N/A'}: {r.guestName}
                               </option>
-                            ))
-                          }
+                            ))}
                         </select>
                       </div>
                     </div>
@@ -1368,7 +1471,8 @@ export default function CheckInOutModule({
                 )}
               </div>
             )}
-          </div>
+            </div>
+        </div>
 
           {/* Graphical Invoice Folio Summary Receipt */}
           <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-lg shadow-slate-200/50 space-y-4 flex flex-col justify-between" id="folio-invoice-ledger">
@@ -1619,15 +1723,16 @@ export default function CheckInOutModule({
                               <th className="py-3 px-4">Charge Item Line Details</th>
                               <th className="py-3 px-3 text-center w-28">Route Category</th>
                               <th className="py-3 px-3 text-center w-32">Assigned Folio</th>
+                              <th className="py-3 px-3 text-center w-36">Date/Time</th>
                               <th className="py-3 px-3 text-right w-28">Amount</th>
                               <th className="py-3 px-3 w-20"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-xs font-mono">
-                        {(activeFolioLedgerTab === 'folio-a' 
-                            ? chargesA 
-                            : activeFolioLedgerTab === 'folio-b' 
-                              ? chargesB 
+                        {(activeFolioLedgerTab === 'folio-a'
+                            ? chargesA
+                            : activeFolioLedgerTab === 'folio-b'
+                              ? chargesB
                               : (currentFolioRes.charges || [])
                          ).map(charge => (
                           <tr key={charge.id} className={`hover:bg-slate-50 transition-colors duration-150 ${charge.isVoided ? 'opacity-50 line-through text-slate-400 bg-rose-50/30' : ''}`}>
@@ -1686,6 +1791,9 @@ export default function CheckInOutModule({
                                   {getChargeFolio(charge, activeProfile, billingMode, activeGroupChargeTypes) === 'A' ? 'Corporate' : 'Individual'}
                                 </span>
                               )}
+                            </td>
+                            <td className="py-3 px-3 text-center text-slate-500 text-[10px]">
+                              {charge.date ? new Date(charge.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                             </td>
                             <td className="py-3 px-3 text-right font-bold">
                               {editChargeId === charge.id && !charge.isVoided ? (
@@ -1770,15 +1878,16 @@ export default function CheckInOutModule({
                           <thead>
                             <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
                               <th className="py-3 px-4">Payment Method Line</th>
+                              <th className="py-3 px-3 text-center w-36">Date/Time</th>
                               <th className="py-3 px-3 text-right w-28 font-semibold">Amount</th>
                               <th className="py-3 px-3 w-20"></th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100 text-xs font-mono">
-                          {(activeFolioLedgerTab === 'folio-a' 
-                              ? paymentsA 
-                              : activeFolioLedgerTab === 'folio-b' 
-                                ? paymentsB 
+                          {(activeFolioLedgerTab === 'folio-a'
+                              ? paymentsA
+                              : activeFolioLedgerTab === 'folio-b'
+                                ? paymentsB
                                 : paymentsAll
                            ).length > 0 ? (
                             (activeFolioLedgerTab === 'folio-a' ? paymentsA : activeFolioLedgerTab === 'folio-b' ? paymentsB : paymentsAll).map(payment => (
@@ -1788,17 +1897,21 @@ export default function CheckInOutModule({
                                     <CreditCard size={12} className="text-emerald-500" />
                                     <span>Paid via {payment.method}</span>
                                     {payment.notes && <span className="text-slate-400">({payment.notes})</span>}
+                                    {payment.receiptUrl && <a href={payment.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:text-indigo-800 underline cursor-pointer" title="View Receipt">📄</a>}
                                     {payment.isVoided && <span className="text-rose-500 font-bold ml-2 px-2 py-0.5 bg-rose-100 rounded text-xs">(VOID)</span>}
                                   </div>
+                                </td>
+                                <td className="py-3 px-3 text-center text-slate-500 text-[10px]">
+                                  {payment.date ? new Date(payment.date).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-'}
                                 </td>
                                 <td className="py-3 px-3 text-right font-semibold text-slate-700">
                                   <span>{formatAmount(payment.amount)}</span>
                                 </td>
                                 <td className="py-3 px-3 text-right w-20">
                                   {!payment.isVoided && currentFolioRes.status === 'CheckedIn' && (
-                                    <button 
-                                      onClick={() => voidFolioPayment(currentFolioRes.id, payment.id)} 
-                                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 cursor-pointer" 
+                                    <button
+                                      onClick={() => voidFolioPayment(currentFolioRes.id, payment.id)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200 cursor-pointer"
                                       title="Void Payment Receipt"
                                     >
                                       <Ban size={14} />
@@ -1809,7 +1922,7 @@ export default function CheckInOutModule({
                             ))
                           ) : (
                             <tr>
-                              <td colSpan={3} className="py-12 text-slate-400 italic text-center font-sans text-xs">
+                              <td colSpan={4} className="py-12 text-slate-400 italic text-center font-sans text-xs">
                                 <div className="flex flex-col items-center gap-2">
                                   <CreditCard size={24} className="text-slate-300" />
                                   No credits posted towards this sub-ledger view.
@@ -1992,8 +2105,8 @@ export default function CheckInOutModule({
                 This guest ledger is completely finalized and checkout operations are closed.
               </div>
             )}
-              </>
-            )}
+            </>
+          )}
           </div>
         </div>
 

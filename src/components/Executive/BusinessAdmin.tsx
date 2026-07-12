@@ -36,6 +36,73 @@ import { useERP } from '../../context/ERPContext';
 
 type AdminTab = 'details' | 'billing' | 'invoice_settings' | 'policies';
 
+interface BankAccountItem {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  swiftCode?: string;
+}
+
+const parseBankDetails = (text: string): BankAccountItem[] => {
+  if (!text) return [];
+  const accounts: BankAccountItem[] = [];
+  try {
+    if (text.trim().startsWith('[') && text.trim().endsWith(']')) {
+      return JSON.parse(text);
+    }
+  } catch (e) {
+    // fallback
+  }
+
+  const blocks = text.split(/\n\s*\n/);
+  for (const block of blocks) {
+    const lines = block.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length === 0) continue;
+    
+    let bankName = lines[0];
+    let accountName = '';
+    let accountNumber = '';
+    let swiftCode = '';
+
+    for (const line of lines) {
+      if (line.toLowerCase().startsWith('account name:')) {
+        accountName = line.replace(/account name\s*:\s*/i, '').trim();
+      } else if (line.toLowerCase().startsWith('account number:')) {
+        accountNumber = line.replace(/account number\s*:\s*/i, '').trim();
+      } else if (line.toLowerCase().startsWith('swift:')) {
+        swiftCode = line.replace(/swift\s*:\s*/i, '').trim();
+      }
+    }
+
+    if (!accountName && lines[1]) {
+      accountName = lines[1].replace(/account name\s*:\s*/i, '').trim();
+    }
+    if (!accountNumber && lines[2]) {
+      accountNumber = lines[2].replace(/account number\s*:\s*|account\s*:\s*/i, '').trim();
+    }
+
+    if (bankName) {
+      accounts.push({
+        bankName,
+        accountName: accountName || 'Hotel Booking Account',
+        accountNumber: accountNumber || '',
+        swiftCode: swiftCode || undefined
+      });
+    }
+  }
+  return accounts;
+};
+
+const serializeBankDetails = (accounts: BankAccountItem[]): string => {
+  return accounts.map(acc => {
+    let block = `${acc.bankName}\nAccount Name: ${acc.accountName}\nAccount Number: ${acc.accountNumber}`;
+    if (acc.swiftCode) {
+      block += `\nSWIFT: ${acc.swiftCode}`;
+    }
+    return block;
+  }).join('\n\n');
+};
+
 interface ChangeProposal {
   id: string;
   title: string;
@@ -72,7 +139,7 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
   const [saveToast, setSaveToast] = useState<{ show: boolean; msg: string; type: 'success' | 'info' | 'error' }>({ show: false, msg: '', type: 'success' });
 
   // Hotel credentials local state
-  const [hotelName, setHotelName] = useState(globalHotelSettings.customHotelName || 'Grand Hotel ERP');
+  const [hotelName, setHotelName] = useState(globalHotelSettings.customHotelName || 'Gheralta');
   const [hotelAddress, setHotelAddress] = useState(globalHotelSettings.customHotelAddress || 'Main Street, City, Country');
   const [hotelTin, setHotelTin] = useState(globalHotelSettings.hotelTin || '100293847');
   const [hotelVatNo, setHotelVatNo] = useState(globalHotelSettings.hotelVatNo || 'VAT-992384');
@@ -104,8 +171,35 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
   // Invoice parameters local state
   const [invoiceTemplate, setInvoiceTemplate] = useState(globalHotelSettings.invoiceTemplate || 'classic');
   const [invoiceFooterText, setInvoiceFooterText] = useState(globalHotelSettings.invoiceFooterText || 'Thank you for your stay. We hope you visit again.');
-  const [invoiceBankDetails, setInvoiceBankDetails] = useState(globalHotelSettings.invoiceBankDetails || 'Bank: Central Bank\nAccount: 000000000\nSWIFT: ERPBANK');
+  const [invoiceBankDetails, setInvoiceBankDetails] = useState(globalHotelSettings.invoiceBankDetails || '');
   const [paymentTypesConfig, setPaymentTypesConfig] = useState((globalHotelSettings.paymentTypes || ['Cash', 'Credit Card', 'Mobile Money', 'Bank Transfer', 'Room Charge']).join(', '));
+
+  const [bankAccounts, setBankAccounts] = useState<BankAccountItem[]>(() => {
+    const raw = globalHotelSettings.invoiceBankDetails || '';
+    if (!raw) {
+      return [
+        { bankName: 'Commercial Bank of Ethiopia (CBE)', accountName: 'SELEDA Luxury Resort Booking', accountNumber: '1000 4829 3819 1932', swiftCode: 'CBETETAA' },
+        { bankName: 'Awash Bank', accountName: 'SELEDA Resort PLC', accountNumber: '0132 0293 4819 2831', swiftCode: 'AWABETAA' }
+      ];
+    }
+    return parseBankDetails(raw);
+  });
+
+  const [editingBankIndex, setEditingBankIndex] = useState<number | null>(null);
+  const [bankForm, setBankForm] = useState({
+    bankName: '',
+    accountName: '',
+    accountNumber: '',
+    swiftCode: ''
+  });
+  const [showBankForm, setShowBankForm] = useState(false);
+  const [isManualBankDetailsEdit, setIsManualBankDetailsEdit] = useState(false);
+
+  React.useEffect(() => {
+    if (!isManualBankDetailsEdit) {
+      setInvoiceBankDetails(serializeBankDetails(bankAccounts));
+    }
+  }, [bankAccounts, isManualBankDetailsEdit]);
 
   // Policies local state
   const [policiesForm, setPoliciesForm] = useState({
@@ -1031,16 +1125,221 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] font-mono uppercase tracking-widest text-slate-450 font-bold block">Bank & Wiring Details</label>
-                  <p className="text-[11px] text-slate-400 leading-tight mb-2">Provide the default banking coordinates displayed for wire transfer or B2B payment instructions.</p>
-                  <textarea 
-                    value={invoiceBankDetails}
-                    onChange={e => setInvoiceBankDetails(e.target.value)}
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-sans font-mono focus:ring-1 focus:ring-indigo-600 focus:outline-none"
-                    placeholder="Bank Name: ..."
-                  ></textarea>
+                <div className="space-y-4 border-t border-slate-100 pt-6">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <label className="text-[10px] font-mono uppercase tracking-widest text-slate-450 font-bold block">Bank & Wiring Details</label>
+                      <p className="text-[11px] text-slate-400 leading-tight">Provide the default banking coordinates displayed for wire transfer or B2B payment instructions.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsManualBankDetailsEdit(!isManualBankDetailsEdit);
+                      }}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 transition uppercase tracking-wider cursor-pointer"
+                    >
+                      {isManualBankDetailsEdit ? 'Switch to Smart Editor' : 'Switch to Manual Editor'}
+                    </button>
+                  </div>
+
+                  {isManualBankDetailsEdit ? (
+                    <div className="space-y-2">
+                      <textarea 
+                        value={invoiceBankDetails}
+                        onChange={e => setInvoiceBankDetails(e.target.value)}
+                        rows={5}
+                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-sans font-mono focus:ring-1 focus:ring-indigo-600 focus:outline-none"
+                        placeholder="Bank Name: ..."
+                      />
+                      <p className="text-[10px] text-slate-400 italic">Editing in raw text mode. Make sure blocks are separated by double newlines for proper public-facing display.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {/* Active Accounts Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {bankAccounts.map((acc, idx) => (
+                          <div key={idx} className="border border-slate-200 bg-slate-50/50 rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-200 transition relative group">
+                            <div className="space-y-2">
+                              <div className="flex justify-between items-start">
+                                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 truncate pr-8">
+                                  <Building2 size={13} className="text-indigo-500" /> {acc.bankName}
+                                </span>
+                                <div className="flex items-center gap-1 absolute right-3 top-3">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBankForm({
+                                        bankName: acc.bankName,
+                                        accountName: acc.accountName,
+                                        accountNumber: acc.accountNumber,
+                                        swiftCode: acc.swiftCode || ''
+                                      });
+                                      setEditingBankIndex(idx);
+                                      setShowBankForm(true);
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                                    title="Edit account details"
+                                  >
+                                    <Edit2 size={12} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBankAccounts(prev => prev.filter((_, i) => i !== idx));
+                                    }}
+                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                    title="Delete account"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                </div>
+                              </div>
+                              
+                              <div className="text-[11px] space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Account Name:</span>
+                                  <span className="font-semibold text-slate-700">{acc.accountName}</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Account Number:</span>
+                                  <span className="font-mono font-bold text-slate-800">{acc.accountNumber}</span>
+                                </div>
+                                {acc.swiftCode && (
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">SWIFT / BIC Code:</span>
+                                    <span className="font-mono text-slate-600 font-semibold">{acc.swiftCode}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+
+                        {bankAccounts.length === 0 && (
+                          <div className="md:col-span-2 text-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
+                            No bank accounts added yet. Click "Add Bank Account" below to register one.
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Add/Edit Account Inline Drawer form */}
+                      {showBankForm ? (
+                        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4 animate-fade-in relative">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowBankForm(false);
+                              setEditingBankIndex(null);
+                            }}
+                            className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                          
+                          <h4 className="text-xs font-black uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <Building2 size={13} className="text-indigo-500" />
+                            {editingBankIndex !== null ? 'Edit Bank Account Coordinates' : 'Register New Bank Account'}
+                          </h4>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Bank Name</label>
+                              <input
+                                type="text"
+                                required
+                                value={bankForm.bankName}
+                                onChange={e => setBankForm(prev => ({ ...prev, bankName: e.target.value }))}
+                                placeholder="Commercial Bank of Ethiopia (CBE)"
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-medium text-slate-750"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Account Name</label>
+                              <input
+                                type="text"
+                                required
+                                value={bankForm.accountName}
+                                onChange={e => setBankForm(prev => ({ ...prev, accountName: e.target.value }))}
+                                placeholder="SELEDA Resort PLC"
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-medium text-slate-750"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Account Number</label>
+                              <input
+                                type="text"
+                                required
+                                value={bankForm.accountNumber}
+                                onChange={e => setBankForm(prev => ({ ...prev, accountNumber: e.target.value }))}
+                                placeholder="1000 4829 3819 1932"
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-mono font-bold text-slate-800"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">SWIFT / BIC Code (Optional)</label>
+                              <input
+                                type="text"
+                                value={bankForm.swiftCode}
+                                onChange={e => setBankForm(prev => ({ ...prev, swiftCode: e.target.value }))}
+                                placeholder="CBETETAA"
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-mono font-semibold text-slate-700"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end gap-2 pt-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowBankForm(false);
+                                setEditingBankIndex(null);
+                              }}
+                              className="px-4 py-2 border border-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!bankForm.bankName || !bankForm.accountName || !bankForm.accountNumber) {
+                                  alert('Please fill in Bank Name, Account Name, and Account Number.');
+                                  return;
+                                }
+                                const item: BankAccountItem = {
+                                  bankName: bankForm.bankName,
+                                  accountName: bankForm.accountName,
+                                  accountNumber: bankForm.accountNumber,
+                                  swiftCode: bankForm.swiftCode || undefined
+                                };
+                                if (editingBankIndex !== null) {
+                                  setBankAccounts(prev => prev.map((curr, idx) => idx === editingBankIndex ? item : curr));
+                                } else {
+                                  setBankAccounts(prev => [...prev, item]);
+                                }
+                                setShowBankForm(false);
+                                setEditingBankIndex(null);
+                              }}
+                              className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-indigo-700 transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <Check size={12} /> {editingBankIndex !== null ? 'Update Account' : 'Register Account'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBankForm({ bankName: '', accountName: '', accountNumber: '', swiftCode: '' });
+                            setEditingBankIndex(null);
+                            setShowBankForm(true);
+                          }}
+                          className="px-4 py-2.5 border border-dashed border-indigo-200 hover:border-indigo-400 text-indigo-600 bg-indigo-50/10 hover:bg-indigo-50/30 font-bold text-[10px] uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer w-full"
+                        >
+                          <Plus size={14} /> Add Bank Account Profile
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
               </div>

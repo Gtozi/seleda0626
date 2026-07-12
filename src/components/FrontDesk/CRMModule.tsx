@@ -7,6 +7,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useERP } from '../../context/ERPContext';
 import { useGuest } from '../../context/GuestContext';
 import { useGroup } from '../../context/GroupContext';
+import { useModalReturn } from '../../context/ModalReturnContext';
 import { toISODate } from '../../utils/date';
 import { Guest, GuestStatus, CorporateAccount, GroupBooking, FolioCharge, GuestGroupRelationship, GroupProfile } from '../../types/erp';
 import {
@@ -25,6 +26,8 @@ interface CRMModuleProps {
   onClearInitialData?: () => void;
   viewGuestId?: string;
   onClearViewGuestId?: () => void;
+  viewGroupId?: string;
+  onClearViewGroupId?: () => void;
   onOnboardSuccess?: (data: { guestName: string, guestEmail: string, guestPhone: string, reservationId: string, roomNumber: string, checkInDate: string }) => void;
   onGroupOnboardSuccess?: (data: { groupName: string, contactName: string, contactEmail: string, contactPhone: string, groupId: string, roomCount: number, checkInDate: string }) => void;
 }
@@ -53,7 +56,8 @@ const DEFAULT_ROUTING_RULES: { name: string; applicableTo: 'Individual' | 'Group
   },
 ];
 
-export default function CRMModule({ initialGuestData, onClearInitialData, viewGuestId, onClearViewGuestId, onOnboardSuccess, onGroupOnboardSuccess }: CRMModuleProps) {
+export default function CRMModule({ initialGuestData, onClearInitialData, viewGuestId, onClearViewGuestId, viewGroupId, onClearViewGroupId, onOnboardSuccess, onGroupOnboardSuccess }: CRMModuleProps) {
+  const { push, pop } = useModalReturn();
   const {
     guests, addGuest, updateGuest, updateGuestData, findMatchingGuest, setGuestBillingRouting,
     groupBookings, addGroupBooking, updateGroupBookingStatus,
@@ -213,6 +217,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           setSelectedGroupForView(group);
           setShowGroupGuests(true);
           setCrmTab('groups');
+          push({ id: 'crm-group-checkin', name: 'CRM Group Check-In', restore: () => {} });
           onClearInitialData?.();
           return;
         }
@@ -256,6 +261,19 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     }
   }, [viewGuestId, onClearViewGuestId, guests]);
 
+  // Auto-open group guests modal when navigated from another module
+  useEffect(() => {
+    if (viewGroupId) {
+      const group = groupBookings.find(g => g.id === viewGroupId);
+      if (group) {
+        setSelectedGroupForView(group);
+        setCrmTab('groups');
+        setShowGroupGuests(true);
+      }
+      onClearViewGroupId?.();
+    }
+  }, [viewGroupId, onClearViewGroupId, groupBookings]);
+
   const handleIDScanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -283,6 +301,16 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   };
 
   const handleExistingGuestIDUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) setIdUploaded(true); };
+  const handleCloseGuestDetail = () => {
+    setShowGuestDetail(false);
+    const target = pop();
+    target?.restore();
+  };
+  const handleCloseGroupGuests = () => {
+    setShowGroupGuests(false);
+    const target = pop();
+    target?.restore();
+  };
   const handleVerifyAndCompleteCheckIn = () => {
     if (!pendingCheckInResData || !activeGuest) return;
     onOnboardSuccess?.({ guestName: activeGuest.name, guestEmail: activeGuest.email, guestPhone: activeGuest.phone || '', reservationId: pendingCheckInResData.resId, roomNumber: pendingCheckInResData.rm, checkInDate: pendingCheckInResData.date });
@@ -434,7 +462,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
 
   const handleSaveProfileEdit = () => {
     if (!activeGuest) return;
-    updateGuest({
+    const updatedGuest = {
       ...activeGuest,
       name: editGName,
       lastName: editGName.split(' ').pop() || editGName,
@@ -449,7 +477,27 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
       parentGroupId: editParentGroupId || undefined,
       parentCorporateId: editParentCorporateId || undefined,
       isPrimaryContact: editIsPrimaryContact
+    };
+    updateGuest(updatedGuest);
+
+    // Keep denormalized guest fields on linked reservations in sync
+    reservations.forEach(res => {
+      const matchesById = res.guestId === updatedGuest.id;
+      const matchesByFallback = !res.guestId && res.guestName === activeGuest.name && res.guestEmail === activeGuest.email;
+      if (matchesById || matchesByFallback) {
+        updateReservation(res.id, {
+          guestName: updatedGuest.name,
+          guestEmail: updatedGuest.email,
+          guestPhone: updatedGuest.phone,
+          guestStatus: updatedGuest.status,
+          guestTin: updatedGuest.tin,
+          guestVatNo: updatedGuest.vatNo,
+          guestVatDate: updatedGuest.vatDate,
+          guestId: updatedGuest.id
+        });
+      }
     });
+
     setIsEditingProfile(false);
   };
 
@@ -830,7 +878,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   )}
                 </div>
                 <div className="flex gap-2 pt-2">
-                  <button onClick={() => { setSelectedGuestId(g.id); setShowGuestDetail(true); }} className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><User size={12} /> View Profile</button>
+                  <button onClick={() => { setSelectedGuestId(g.id); setShowGuestDetail(true); push({ id: 'crm-guest-detail', name: 'CRM Guest Detail', restore: () => {} }); }} className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><User size={12} /> View Profile</button>
                   <button onClick={() => openFolioRouting('guest', g.id)} className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><Receipt size={12} /> Folio Routing</button>
                 </div>
               </div>
@@ -1198,7 +1246,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   </div>
                 </div>
               </div>
-              <button onClick={() => setShowGuestDetail(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
+              <button onClick={handleCloseGuestDetail} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 pt-2">
               <div className="space-y-4">
@@ -1607,7 +1655,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   <p className="text-3xs text-slate-400 font-mono">Group Guests ({guests.filter(g => g.parentGroupId === selectedGroupForView.id).length})</p>
                 </div>
               </div>
-              <button onClick={() => setShowGroupGuests(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
+              <button onClick={handleCloseGroupGuests} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 pt-2">
               {guests.filter(g => g.parentGroupId === selectedGroupForView.id).length === 0 ? (
@@ -1719,7 +1767,22 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                           </div>
                           <div className="mt-3 pt-3 border-t border-slate-200 flex gap-2">
                             <button
-                              onClick={() => { setSelectedGuestId(guest.id); setShowGroupGuests(false); setShowGuestDetail(true); }}
+                              onClick={() => {
+                                setSelectedGuestId(guest.id);
+                                setShowGroupGuests(false);
+                                setShowGuestDetail(true);
+                                if (selectedGroupForView) {
+                                  const group = selectedGroupForView;
+                                  push({
+                                    id: `group-guests-${group.id}`,
+                                    name: `Group Guests: ${group.groupName}`,
+                                    restore: () => {
+                                      setSelectedGroupForView(group);
+                                      setShowGroupGuests(true);
+                                    }
+                                  });
+                                }
+                              }}
                               className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center gap-1.5"
                             >
                               <Edit3 size={12} /> View Profile
@@ -1808,7 +1871,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   </div>
                   <div className="flex gap-2 pt-2">
                     <button onClick={() => openFolioRouting('group', group.id)} className="flex-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><Receipt size={12} /> Folio Routing</button>
-                    <button onClick={() => { setSelectedGroupForView(group); setShowGroupGuests(true); }} className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><Users size={12} /> View Guests</button>
+                    <button onClick={() => { setSelectedGroupForView(group); setShowGroupGuests(true); push({ id: 'crm-group-guests', name: 'CRM Group Guests', restore: () => {} }); }} className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5"><Users size={12} /> View Guests</button>
                   </div>
                 </div>
               ))

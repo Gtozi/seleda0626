@@ -18,17 +18,40 @@ import {
   TrendingUp,
   Banknote,
   Building,
-  ArrowUpDown
+  ArrowUpDown,
+  Package,
+  RefreshCw,
+  Plus,
+  Clock,
+  ArrowRight
 } from 'lucide-react';
+
+type SalesTab = 'transactions' | 'allotments';
 
 export default function SalesRegistry() {
   const { salesTransactions, journals, addJournalEntry, addNotification, formatAmount, chartOfAccounts } = useERP();
+  const [activeTab, setActiveTab] = useState<SalesTab>('transactions');
   const [searchTerm, setSearchTerm] = useState('');
   const [filterPayment, setFilterPayment] = useState<string>('All');
   const [filterModule, setFilterModule] = useState<string>('All');
   const [filterStatus, setFilterStatus] = useState<'All' | 'Posted' | 'Unposted'>('All');
   const [showRoomCharges, setShowRoomCharges] = useState<boolean>(false);
   const [targetBankCode, setTargetBankCode] = useState('1020');
+
+  // Allotments state (B2B)
+  const [allotments, setAllotments] = useState<any[]>([]);
+  const [loadingAllotments, setLoadingAllotments] = useState(false);
+
+  const fetchAllotments = async () => {
+    setLoadingAllotments(true);
+    try {
+      const r = await fetch('/api/b2b/allotments', { credentials: 'include' });
+      if (r.ok) setAllotments(await r.json());
+    } catch {}
+    setLoadingAllotments(false);
+  };
+
+  React.useEffect(() => { if (activeTab === 'allotments') fetchAllotments(); }, [activeTab]);
 
   // Filter COA for bank accounts
   const bankAccounts = React.useMemo(() => 
@@ -188,6 +211,18 @@ export default function SalesRegistry() {
 
   return (
     <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+        <button onClick={() => setActiveTab('transactions')} className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 ${activeTab === 'transactions' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+          <Receipt size={14} /> Transactions
+        </button>
+        <button onClick={() => setActiveTab('allotments')} className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 ${activeTab === 'allotments' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+          <Package size={14} /> Allotments (B2B)
+        </button>
+      </div>
+
+      {activeTab === 'transactions' && (
+        <>
       {/* Financial Indicators */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-[24px] shadow-3xs group hover:border-emerald-500/30 transition-colors">
@@ -650,6 +685,21 @@ export default function SalesRegistry() {
                  <Receipt size={14} /> Adjust Settlement
                </button>
             </div>
+          </div>
+        </div>
+      )}
+        </>
+      )}
+
+      {activeTab === 'allotments' && (
+        <div className="space-y-4">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-6 text-center">
+            <Package size={48} className="mx-auto text-indigo-600 dark:text-indigo-400 mb-3" />
+            <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-100 mb-2">Tour Operator Allotments</h3>
+            <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-4">Manage room blocks, pickup status, and release expired allotments</p>
+            <button onClick={() => window.location.hash = '#executive-pricing_revenue'} className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold flex items-center gap-2 mx-auto hover:bg-indigo-700">
+              <ArrowRight size={14} /> Open Pricing & Revenue
+            </button>
           </div>
         </div>
       )}

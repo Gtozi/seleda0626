@@ -40,6 +40,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
+import { supabase } from '../../lib/supabase';
 import UnifiedInvoiceTemplate from '../Shared/UnifiedInvoiceTemplate';
 
 export interface RestaurantTab {
@@ -412,8 +413,17 @@ export default function POSModule({ outletName = 'Main Restaurant' }: { outletNa
   }, [total, sumOfSplits]);
 
   // direct checkout direct direct direkte checkout direct Direct direct Settle direct!
-  const handleDirectCheckout = () => {
+  const handleDirectCheckout = async () => {
     if (cart.length === 0) return;
+
+    // Upload receipt screenshot if provided
+    let receiptUrl: string | undefined;
+    if (paymentScreenshot) {
+      receiptUrl = await uploadPaymentReceipt(paymentScreenshot);
+      if (!receiptUrl) {
+        addNotification('Failed to upload receipt screenshot. Sale will be recorded without receipt attachment.', 'error', 'Restaurant');
+      }
+    }
 
     const activeTabObj = openTabs.find(t => t.id === selectedTabId);
     const currentTabName = activeTabObj?.name || 'Walk-In Guest';
@@ -427,6 +437,15 @@ export default function POSModule({ outletName = 'Main Restaurant' }: { outletNa
           .map(m => ({ method: m, amount: parseFloat(splitAmounts[m] || '0') }))
           .filter(s => s.amount > 0)
       : [];
+
+    // Overpayment safeguard for split payments
+    if (isSplitPayment) {
+      const sumOfSplits = splits.reduce((sum, s) => sum + s.amount, 0);
+      if (sumOfSplits > total + 0.01) {
+        addNotification(`Overpayment warning: Split payment total (${formatAmount(sumOfSplits)}) exceeds order total (${formatAmount(total)}). Please adjust payment amounts.`, 'error', 'Restaurant');
+        return;
+      }
+    }
 
     const finalPaymentMethod = isSplitPayment
       ? `Split: ${splits.map(s => `${s.method} (${formatAmount(s.amount)})`).join(', ')}`
@@ -445,7 +464,8 @@ export default function POSModule({ outletName = 'Main Restaurant' }: { outletNa
       paymentMethod: finalPaymentMethod,
       splitPayments: isSplitPayment ? splits : undefined,
       status: 'Completed',
-      cashierName: userProfile?.name || 'Restaurant Cashier'
+      cashierName: userProfile?.name || 'Restaurant Cashier',
+      receiptUrl
     });
 
     // Populate Print Invoice
@@ -545,6 +565,33 @@ export default function POSModule({ outletName = 'Main Restaurant' }: { outletNa
       updateTabField(selectedTabId, 'walkInClientVATDate', '');
       updateTabField(selectedTabId, 'isKitchenSent', false);
       updateTabField(selectedTabId, 'paymentScreenshot', null);
+    }
+  };
+
+  // Helper function to upload payment receipt screenshot to Supabase Storage
+  const uploadPaymentReceipt = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('Error uploading receipt:', error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      return null;
     }
   };
 

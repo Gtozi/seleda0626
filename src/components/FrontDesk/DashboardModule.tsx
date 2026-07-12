@@ -294,7 +294,8 @@ export default function DashboardModule({
       time: req.scheduledTime,
       type: req.shuttleType,
       flight: req.flightNumber || 'N/A',
-      status: req.status
+      status: req.status,
+      quantity: req.quantity || 1
     }));
 
   // 10. OVERBOOKING WARNINGS RISK RADAR
@@ -826,6 +827,11 @@ export default function DashboardModule({
                       }`}>
                         {item.type}
                       </span>
+                      {item.quantity > 1 && (
+                        <span className="text-[8px] font-mono px-1 rounded-sm uppercase font-black bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-700 border border-indigo-200">
+                          Qty {item.quantity}
+                        </span>
+                      )}
                     </div>
                     <div className="text-[9px] font-mono text-slate-500 mt-0.5 flex items-center gap-2">
                        <span className="flex items-center gap-0.5"><Clock size={9} /> {item.time}</span>

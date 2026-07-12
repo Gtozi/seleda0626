@@ -2413,7 +2413,7 @@ insert into global_settings (
   vip_spend_threshold, public_page_content, terms_adventure_liability, terms_waitlist_protocol,
   terms_conservation_devotion, terms_billing_cancellation, terms_wilderness_emergency
 ) values (
-  'main', 'Grand Hotel ERP', 'Main Street, City, Country', '', '', '',
+  'main', 'Gheralta', 'Main Street, City, Country', '', '', '',
   15.0, 10.0, 120.0,
   '/src/assets/images/gheralta_hero_banner_1780826654743.png',
   '+251-11-RECEPTION',

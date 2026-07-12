@@ -34,7 +34,7 @@ export default function CheckInPrintModal({ data, onClose }: CheckInPrintModalPr
         {/* Printable Area */}
         <div className="p-8 space-y-6 flex-1 bg-white print:p-10 font-sans" id="printable-form-area">
           <div className="text-center space-y-1 mb-8 border-b-2 border-slate-900 pb-6">
-            <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">GRAND HOTEL ERP</h1>
+            <h1 className="text-3xl font-black tracking-tight text-slate-950 uppercase">Gheralta</h1>
             <p className="text-xs font-mono tracking-widest text-slate-500 uppercase">Guest Registration Card</p>
           </div>
 

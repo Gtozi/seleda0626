@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useERP } from '../../context/ERPContext';
 import { toISODate } from '../../utils/date';
 import { supabaseService } from '../../services/supabaseService';
+import { supabase } from '../../lib/supabase';
 import UnifiedInvoiceTemplate from '../Shared/UnifiedInvoiceTemplate';
 import { 
   Search, 
@@ -578,6 +579,33 @@ export default function GiftShopPOS() {
     }, 4000);
   };
 
+  // Helper function to upload payment receipt screenshot to Supabase Storage
+  const uploadPaymentReceipt = async (file: File): Promise<string | null> => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `receipts/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from('payment-receipts')
+        .upload(filePath, file);
+
+      if (error) {
+        console.error('Error uploading receipt:', error);
+        return null;
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-receipts')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading receipt:', error);
+      return null;
+    }
+  };
+
   // Pricing math
   const subtotalUsd = cart.reduce((sum, item) => sum + (item.product.priceUsd * item.quantity), 0);
   const discountAmountUsd = (subtotalUsd * discountPercent) / 100;
@@ -695,6 +723,11 @@ export default function GiftShopPOS() {
         showNotification('error', `Split payment total (${formatAmount(sumOfSplits)}) must balance with invoice total (${formatAmount(totalUsd)}).`);
         return;
       }
+      // Overpayment safeguard for split payments
+      if (sumOfSplits > totalUsd + 0.01) {
+        showNotification('error', `Overpayment warning: Split payment total (${formatAmount(sumOfSplits)}) exceeds invoice total (${formatAmount(totalUsd)}). Please adjust payment amounts.`);
+        return;
+      }
       const roomChargeSplit = splits.find(s => s.method === 'RoomCharge' || s.method === 'Room Charge' || s.method.includes('RoomCharge') || s.method.includes('Room Charge'));
       if (roomChargeSplit && roomChargeSplit.amount > 0) {
         if (!selectedRoomId) {
@@ -794,6 +827,15 @@ export default function GiftShopPOS() {
       }
     });
 
+    // Upload receipt screenshot if provided
+    let receiptUrl: string | undefined;
+    if (paymentScreenshot) {
+      receiptUrl = await uploadPaymentReceipt(paymentScreenshot);
+      if (!receiptUrl) {
+        showNotification('error', 'Failed to upload receipt screenshot. Sale will be recorded without receipt attachment.');
+      }
+    }
+
     // Persist to Supabase
     const dbPayload = {
       invoice_number: invoiceNum,
@@ -813,6 +855,7 @@ export default function GiftShopPOS() {
       client_vat_date: transaction.clientVATDate || null,
       room_charge_details: transaction.roomChargeDetails || null,
       change_given: isCashOnly ? cashChangeNeededUsd : 0,
+      receipt_url: receiptUrl || null,
       status: 'Completed'
     };
 

@@ -126,6 +126,7 @@ export interface FolioPayment {
   notes?: string;
   isVoided?: boolean;
   targetFolio?: 'A' | 'B';
+  receiptUrl?: string;
 }
 
 export interface Reservation {
@@ -136,6 +137,7 @@ export interface Reservation {
   guestStatus: GuestStatus;
   roomType: RoomType;
   roomNumber?: string; // assigned room
+  roomNights?: string[][]; // per-night room assignments (date index -> selected rooms)
   checkInDate: string;
   checkOutDate: string;
   adults: number;
@@ -159,6 +161,12 @@ export interface Reservation {
   packageIds?: string[];
   guestServiceIds?: string[];
   additionalGuestIds?: string[];
+  // B2B fields
+  operator_id?: string;
+  operatorId?: string;
+  allotment_id?: string;
+  voucherCode?: string;
+  voucherDiscount?: number;
   discountPercent?: number;
   taxPercent?: number;
   serviceChargePercent?: number;
@@ -170,6 +178,7 @@ export interface Reservation {
   guestTin?: string;
   guestVatNo?: string;
   guestVatDate?: string;
+  guestNationality?: string;
   guestId?: string; // Foreign key to Guest Profile (CRM)
   routingProfileId?: string;
   corporateAccountId?: string;
@@ -646,6 +655,7 @@ export interface AirportShuttleRequest {
   flightTime?: string;
   status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled';
   notes?: string;
+  quantity: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -942,7 +952,7 @@ export interface PendingAdminChange {
   changeType: AdminChangeType;
   submittedAt: string;
   submittedBy: string;
-  payload?: AdminOperationPayload;
+  payload?: AdminChangePayload;
   approvedBy?: string;
   approvedAt?: string;
   status: 'pending' | 'approved' | 'rejected';

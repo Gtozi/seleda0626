@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import {
   Room, Guest, Reservation, GroupBooking, CorporateAccount,
   Promotion, MarketingCampaign, Notification, ERPStats, GuestCommunication, AirportShuttleRequest,
@@ -200,6 +200,7 @@ export interface ERPContextType {
   approveAdminChange: (id: string) => void;
   declineAdminChange: (id: string) => void;
   submitGlobalSettingsChange: (title: string, description: string, changeType: AdminChangeType, settings: Partial<GlobalHotelSettings>) => void;
+  refreshAllData: () => Promise<void>;
 }
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
@@ -221,107 +222,103 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
   // Guest Services state
   const [guestServices, setGuestServices] = useState<GuestService[]>([]);
 
+  const refreshPricingData = useCallback(async () => {
+    if (!hasSupabaseConfig) return;
+    try {
+      const { data: yieldData } = await supabase.from('yield_policies').select('*');
+      if (yieldData) {
+        setYieldPolicies(yieldData.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          multiplier: row.multiplier,
+          isDefault: row.is_default
+        })));
+      }
+
+      const { data: guestServicesData } = await supabase.from('guest_services').select('*');
+      if (guestServicesData) {
+        setGuestServices(guestServicesData.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          category: row.category,
+          price: row.price,
+          available: row.available
+        })));
+      }
+
+      const { data: roomTypesData } = await supabase.from('room_types').select('*').order('display_order');
+      if (roomTypesData && roomTypesData.length > 0) {
+        setRoomTypes(roomTypesData.map((row: any) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          basePrice: row.base_price,
+          maxOccupancy: row.max_occupancy,
+          bedConfiguration: row.bed_configuration,
+          roomSizeSqm: row.room_size_sqm,
+          amenities: row.amenities || [],
+          imageUrl1: row.image_url_1,
+          imageUrl2: row.image_url_2,
+          imageUrl3: row.image_url_3,
+          isActive: row.is_active,
+          displayOrder: row.display_order,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching pricing data:', error);
+    }
+  }, []);
+
   // Fetch pricing data from database on mount
   useEffect(() => {
+    refreshPricingData();
+  }, [refreshPricingData]);
+
+  const refreshAirportShuttleRequests = useCallback(async () => {
     if (!hasSupabaseConfig) return;
+    try {
+      const { data, error } = await supabase
+        .from('airport_shuttle_requests')
+        .select('*')
+        .order('scheduled_date', { ascending: true })
+        .order('scheduled_time', { ascending: true });
 
-    const fetchPricingData = async () => {
-      try {
-        // Fetch yield policies
-        const { data: yieldData } = await supabase.from('yield_policies').select('*');
-        if (yieldData) {
-          setYieldPolicies(yieldData.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            description: row.description,
-            multiplier: row.multiplier,
-            isDefault: row.is_default
-          })));
-        }
-
-        // Fetch guest services
-        const { data: guestServicesData } = await supabase.from('guest_services').select('*');
-        if (guestServicesData) {
-          setGuestServices(guestServicesData.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            description: row.description,
-            category: row.category,
-            price: row.price,
-            available: row.available
-          })));
-        }
-
-        // Fetch room types
-        const { data: roomTypesData } = await supabase.from('room_types').select('*').order('display_order');
-        if (roomTypesData && roomTypesData.length > 0) {
-          setRoomTypes(roomTypesData.map((row: any) => ({
-            id: row.id,
-            name: row.name,
-            description: row.description,
-            basePrice: row.base_price,
-            maxOccupancy: row.max_occupancy,
-            bedConfiguration: row.bed_configuration,
-            roomSizeSqm: row.room_size_sqm,
-            amenities: row.amenities || [],
-            imageUrl1: row.image_url_1,
-            imageUrl2: row.image_url_2,
-            imageUrl3: row.image_url_3,
-            isActive: row.is_active,
-            displayOrder: row.display_order,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at
-          })));
-        }
-      } catch (error) {
-        console.error('Error fetching pricing data:', error);
+      if (error) {
+        console.error('Error fetching airport shuttle requests:', error);
+        return;
       }
-    };
 
-    fetchPricingData();
+      if (data) {
+        setAirportShuttleRequests(data.map((row: any) => ({
+          id: row.id,
+          guestId: row.guest_id,
+          reservationId: row.reservation_id,
+          roomNumber: row.room_number,
+          scheduledDate: row.scheduled_date,
+          scheduledTime: row.scheduled_time,
+          shuttleType: row.shuttle_type,
+          flightNumber: row.flight_number,
+          flightTime: row.flight_time,
+          status: row.status,
+          notes: row.notes,
+          quantity: row.quantity ?? 1,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching airport shuttle requests:', error);
+    }
   }, []);
 
   // Fetch airport shuttle requests from Supabase on mount
   useEffect(() => {
-    if (!hasSupabaseConfig) return;
-
-    const fetchAirportShuttleRequests = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('airport_shuttle_requests')
-          .select('*')
-          .order('scheduled_date', { ascending: true })
-          .order('scheduled_time', { ascending: true });
-
-        if (error) {
-          console.error('Error fetching airport shuttle requests:', error);
-          return;
-        }
-
-        if (data) {
-          setAirportShuttleRequests(data.map((row: any) => ({
-            id: row.id,
-            guestId: row.guest_id,
-            reservationId: row.reservation_id,
-            roomNumber: row.room_number,
-            scheduledDate: row.scheduled_date,
-            scheduledTime: row.scheduled_time,
-            shuttleType: row.shuttle_type,
-            flightNumber: row.flight_number,
-            flightTime: row.flight_time,
-            status: row.status,
-            notes: row.notes,
-            createdAt: row.created_at,
-            updatedAt: row.updated_at
-          })));
-        }
-      } catch (error) {
-        console.error('Error fetching airport shuttle requests:', error);
-      }
-    };
-
-    fetchAirportShuttleRequests();
-  }, []);
+    refreshAirportShuttleRequests();
+  }, [refreshAirportShuttleRequests]);
 
   // Risk & Compliance state
   const [riskCompliance, setRiskCompliance] = useState<RiskCompliance[]>([]);
@@ -658,19 +655,12 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     const res = reservation.reservations.find(r => r.id === reservationId);
     if (!res) return null;
 
-    const occupiedNumbers = new Set(
-      reservation.reservations
-        .filter(r => r.status === 'CheckedIn' && r.id !== reservationId)
-        .map(r => r.roomNumber)
-        .filter(Boolean) as string[]
-    );
-
-    // Also exclude rooms booked by Confirmed reservations with overlapping dates
-    const bookedNumbers = new Set(
+    // Exclude any other reservation that already has a room assigned for this type
+    // and whose stay overlaps. This covers Confirmed, CheckedIn and Waitlisted bookings.
+    const assignedNumbers = new Set(
       reservation.reservations
         .filter(r =>
           r.id !== reservationId &&
-          r.status === 'Confirmed' &&
           r.roomNumber &&
           r.roomType === res.roomType &&
           rangesOverlap(res.checkInDate, res.checkOutDate, r.checkInDate, r.checkOutDate)
@@ -678,8 +668,8 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
         .map(r => r.roomNumber)
     );
 
-    // Merge occupied, booked, and excluded
-    const unavailableNumbers = new Set([...occupiedNumbers, ...bookedNumbers, ...excludeRoomNumbers]);
+    // Merge assigned and explicitly excluded rooms
+    const unavailableNumbers = new Set([...assignedNumbers, ...excludeRoomNumbers]);
 
     const candidates = reservation.rooms.filter(r =>
       r.type === res.roomType &&
@@ -747,6 +737,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
           flight_time: request.flightTime,
           status: request.status,
           notes: request.notes,
+          quantity: request.quantity ?? 1,
           created_at: now,
           updated_at: now
         }).then(({ error }) => {
@@ -782,6 +773,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
         if (updates.flightTime !== undefined) mappedUpdates.flight_time = updates.flightTime;
         if (updates.status !== undefined) mappedUpdates.status = updates.status;
         if (updates.notes !== undefined) mappedUpdates.notes = updates.notes;
+        if (updates.quantity !== undefined) mappedUpdates.quantity = updates.quantity;
 
         supabase.from('airport_shuttle_requests').update(mappedUpdates).eq('id', id).then(({ error }) => {
           if (error) console.error('Error updating airport shuttle request:', error);
@@ -805,6 +797,23 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
       }
     }
   }, []);
+
+  const contextsRef = useRef({ system, guest, reservation, inventory, finance });
+  contextsRef.current = { system, guest, reservation, inventory, finance };
+
+  const refreshAllData = useCallback(async () => {
+    const { system: sys, guest: gst, reservation: res, inventory: inv, finance: fin } = contextsRef.current;
+    await Promise.all([
+      sys.refreshData(),
+      gst.refreshData(),
+      res.refreshData(),
+      inv.refreshData(),
+      fin.refreshData(),
+      refreshPricingData(),
+      refreshAirportShuttleRequests()
+    ]);
+    sys.logAudit('ERP auto-refreshed after 30 seconds of inactivity.');
+  }, [refreshPricingData, refreshAirportShuttleRequests]);
 
   const value: ERPContextType = {
     ...system,
@@ -845,6 +854,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     triggerLiveSyncSimulation: () => {},
     simulationActive: true,
     setSimulationActive: () => {},
+    refreshAllData,
     toggleTheme: system.toggleTheme,
     approveAdminChange: (id: string) => {
       const change = system.pendingAdminChanges.find(c => c.id === id);

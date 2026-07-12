@@ -26,6 +26,7 @@ export interface InventoryContextType {
   addSupplier: (supplier: Omit<Supplier, 'id'>) => void;
   updateSupplier: (id: string, updates: Partial<Supplier>) => void;
   deleteSupplier: (id: string) => void;
+  refreshData: () => Promise<void>;
 }
 
 const InventoryContext = createContext<InventoryContextType | undefined>(undefined);
@@ -103,43 +104,44 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     }
   }, []);
 
-  React.useEffect(() => {
-    const loadFromSupabase = async () => {
-      if (!supabaseService.isConfigured()) return;
-      try {
-        const [
-          items, stores, reqs, movements, sups
-        ] = await Promise.all([
-          supabaseService.fetchInventoryItems(),
-          supabaseService.fetchInventoryStores(),
-          supabaseService.fetchInventoryRequisitions(),
-          supabaseService.fetchStockMovements(),
-          supabaseService.fetchInventorySuppliers()
-        ]);
-        setInventoryItems(items);
-        localStorage.setItem('hotel_erp_inventory_items_v2', JSON.stringify(items));
-        setInventoryStores(stores);
-        if (stores.length > 0) {
-          localStorage.setItem('hotel_erp_inventory_stores_v1', JSON.stringify(stores));
-        }
-        if (reqs.length > 0) {
-          setInventoryRequisitions(reqs);
-          persistRequisitions(reqs);
-        }
-        if (movements.length > 0) {
-          setStockMovements(movements);
-          persistStockMovements(movements);
-        }
-        if (sups.length > 0) {
-          setSuppliers(sups);
-          persistSuppliers(sups);
-        }
-      } catch (error) {
-        console.error('Failed to fetch inventory Supabase state:', error);
+  const refreshData = useCallback(async () => {
+    if (!supabaseService.isConfigured()) return;
+    try {
+      const [
+        items, stores, reqs, movements, sups
+      ] = await Promise.all([
+        supabaseService.fetchInventoryItems(),
+        supabaseService.fetchInventoryStores(),
+        supabaseService.fetchInventoryRequisitions(),
+        supabaseService.fetchStockMovements(),
+        supabaseService.fetchInventorySuppliers()
+      ]);
+      setInventoryItems(items);
+      localStorage.setItem('hotel_erp_inventory_items_v2', JSON.stringify(items));
+      setInventoryStores(stores);
+      if (stores.length > 0) {
+        localStorage.setItem('hotel_erp_inventory_stores_v1', JSON.stringify(stores));
       }
-    };
-    loadFromSupabase();
-  }, []);
+      if (reqs.length > 0) {
+        setInventoryRequisitions(reqs);
+        persistRequisitions(reqs);
+      }
+      if (movements.length > 0) {
+        setStockMovements(movements);
+        persistStockMovements(movements);
+      }
+      if (sups.length > 0) {
+        setSuppliers(sups);
+        persistSuppliers(sups);
+      }
+    } catch (error) {
+      console.error('Failed to fetch inventory Supabase state:', error);
+    }
+  }, [persistRequisitions, persistStockMovements, persistSuppliers]);
+
+  React.useEffect(() => {
+    refreshData();
+  }, [refreshData]);
 
   const recordStockMovement = useCallback((movementData: Omit<StockMovement, 'id'>) => {
     const newMovement: StockMovement = { ...movementData, id: `M-${Date.now()}-${Math.floor(Math.random() * 1000)}` };
@@ -393,7 +395,8 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     inventoryItems, inventoryStores, inventoryRequisitions, stockMovements, suppliers,
     addInventoryItem, updateInventoryItem, deleteInventoryItem,
     addInventoryStore, addInventoryRequisition, updateInventoryRequisitionStatus,
-    recordStockMovement, addSupplier, updateSupplier, deleteSupplier
+    recordStockMovement, addSupplier, updateSupplier, deleteSupplier,
+    refreshData
   };
 
   return <InventoryContext.Provider value={value}>{children}</InventoryContext.Provider>;
