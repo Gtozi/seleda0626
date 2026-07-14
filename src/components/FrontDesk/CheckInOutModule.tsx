@@ -68,7 +68,8 @@ export default function CheckInOutModule({
     corporateAccounts,
     updateCorporateAccount,
     groupBookings,
-    checkInGroupBooking
+    checkInGroupBooking,
+    getFolioBalance
   } = useERP();
 
   const [activeSubTab, setActiveSubTab] = useState<'assignment' | 'checkout-folio'>('assignment');
@@ -296,14 +297,40 @@ export default function CheckInOutModule({
   // Folio sub-section state (Unified single tab/console)
   const [showPrintView, setShowPrintView] = useState(false);
   const [showClientInfoFields, setShowClientInfoFields] = useState(false);
-  const [paymentAmount, setPaymentAmount] = useState<number>(0);
   const [paymentMethod, setPaymentMethod] = useState<string>('Credit Card');
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
   const [paymentNotes, setPaymentNotes] = useState<string>('');
+  // Unified payment splits list: a single-method payment is simply a one-item list.
+  const [paymentSplits, setPaymentSplits] = useState<Array<{amount: number, method: string, reference: string, bankAccountId: string}>>([{amount: 0, method: 'Credit Card', reference: '', bankAccountId: ''}]);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
 
   // Active checked in reservations
   const checkedInReservations = reservations.filter(r => r.status === 'CheckedIn');
   const currentFolioRes = reservations.find(r => r.id === selectedFolioResId);
+
+  // Fetch bank accounts for split payments
+  React.useEffect(() => {
+    const fetchBankAccounts = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/finance/bank-accounts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setBankAccounts(data.bankAccounts || []);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch bank accounts:', error);
+      }
+    };
+    fetchBankAccounts();
+  }, []);
 
   // Filtered guests for searchable selector
   const filteredGuests = checkedInReservations.filter(r => {
@@ -332,10 +359,12 @@ export default function CheckInOutModule({
         setActiveFolioLedgerTab('consolidated');
       }
 
-      // Auto-populate payment amount with remaining balance
-      const totalPaid = (currentFolioRes.payments || []).filter((p: any) => !p.isVoided).reduce((sum: number, p: any) => sum + p.amount, 0);
-      const remainingBalance = Math.max(0, currentFolioRes.totalAmount - totalPaid);
-      setPaymentAmount(parseFloat(remainingBalance.toFixed(2)));
+      // Auto-populate payment amount with remaining balance (unified payment splits list)
+      // Use backend folio balance which includes VAT and fees, not the pre-tax totalAmount
+      getFolioBalance(currentFolioRes.id, 'consolidated').then(backendBalance => {
+        const remainingBalance = backendBalance !== null ? Math.max(0, backendBalance) : 0;
+        setPaymentSplits([{ amount: parseFloat(remainingBalance.toFixed(2)), method: paymentMethod, reference: '', bankAccountId: '' }]);
+      });
     }
   }, [selectedFolioResId, currentFolioRes?.id, corporateAccounts, globalHotelSettings.splitFolioRules]);
 
@@ -446,9 +475,18 @@ export default function CheckInOutModule({
   const totalPaidA = paymentsA.reduce((sum, p) => sum + p.amount, 0);
   const totalPaidB = paymentsB.reduce((sum, p) => sum + p.amount, 0);
 
-  const remainingBalance = currentFolioRes ? Math.max(0, adjustedTotal - totalPaid) : 0;
-  const remainingBalanceA = currentFolioRes ? Math.max(0, totalA - totalPaidA) : 0;
-  const remainingBalanceB = currentFolioRes ? Math.max(0, totalB - totalPaidB) : 0;
+  const remainingBalance = React.useMemo(() =>
+    currentFolioRes ? Math.max(0, adjustedTotal - totalPaid) : 0,
+    [currentFolioRes, adjustedTotal, totalPaid]
+  );
+  const remainingBalanceA = React.useMemo(() =>
+    currentFolioRes ? Math.max(0, totalA - totalPaidA) : 0,
+    [currentFolioRes, totalA, totalPaidA]
+  );
+  const remainingBalanceB = React.useMemo(() =>
+    currentFolioRes ? Math.max(0, totalB - totalPaidB) : 0,
+    [currentFolioRes, totalB, totalPaidB]
+  );
 
   // Active sub-ledger selected values
   const activeTabSubtotal = activeFolioLedgerTab === 'folio-a' ? subtotalA : activeFolioLedgerTab === 'folio-b' ? subtotalB : subtotal;
@@ -463,22 +501,35 @@ export default function CheckInOutModule({
 
   React.useEffect(() => {
     if (currentFolioRes) {
-      setPaymentAmount(parseFloat(activeTabBalance.toFixed(2)));
+      // Use backend folio balance which includes VAT and fees, not frontend calculation
+      const folioType = activeFolioLedgerTab === 'folio-a' ? 'folio-a' : activeFolioLedgerTab === 'folio-b' ? 'folio-b' : 'consolidated';
+      getFolioBalance(currentFolioRes.id, folioType).then(backendBalance => {
+        const balance = backendBalance !== null ? Math.max(0, backendBalance) : 0;
+        setPaymentSplits([{ amount: parseFloat(balance.toFixed(2)), method: paymentMethod, reference: '', bankAccountId: '' }]);
+      });
     } else {
-      setPaymentAmount(0);
+      setPaymentSplits([{ amount: 0, method: paymentMethod, reference: '', bankAccountId: '' }]);
     }
-  }, [selectedFolioResId, activeTabBalance]);
+  }, [selectedFolioResId, activeFolioLedgerTab]);
 
-  // Synchronize adjusted totalAmount to ERPContext whenever charges, discount, service charge, or tax values change
+  // Synchronize the PRE-TAX subtotal to reservations.total_amount, but only
+  // before check-in. check_in_reservation() treats reservation.total_amount
+  // as the pre-tax base and independently applies service charge + VAT to
+  // build folio_lines - if we ever wrote the tax-INCLUSIVE `adjustedTotal`
+  // here, check-in would apply tax on top of an already-taxed number,
+  // double-charging the guest and causing the folio balance to diverge from
+  // what the frontend displays. Once CheckedIn, the folio ledger
+  // (folio_lines/folio_payments) is the single source of truth and this
+  // effect must not touch total_amount at all.
   React.useEffect(() => {
-    if (currentFolioRes) {
-      if (Math.abs(currentFolioRes.totalAmount - adjustedTotal) > 0.01) {
+    if (currentFolioRes && currentFolioRes.status !== 'CheckedIn' && currentFolioRes.status !== 'Completed') {
+      if (Math.abs(currentFolioRes.totalAmount - subtotal) > 0.01) {
         updateReservation(currentFolioRes.id, {
-          totalAmount: adjustedTotal
+          totalAmount: subtotal
         });
       }
     }
-  }, [selectedFolioResId, adjustedTotal, currentFolioRes?.totalAmount, updateReservation]);
+  }, [selectedFolioResId, subtotal, currentFolioRes?.totalAmount, currentFolioRes?.status, updateReservation]);
 
   // Late checkout requests list
   const expressRequestsList = reservations.filter(
@@ -839,39 +890,41 @@ export default function CheckInOutModule({
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  onClick={() => {
+                  onClick={async () => {
                     if (activeSelectedList.length === 0) {
                       alert("Please select at least one in-house room guest using checkboxes.");
                       return;
                     }
-                    
-                    activeSelectedList.forEach(r => {
-                      const math = calculateReservationFolioMath(r);
 
-                      if (math.remainingBalanceA > 0) {
+                    // Use backend folio balances which include VAT and fees
+                    for (const r of activeSelectedList) {
+                      const balanceA = await getFolioBalance(r.id, 'folio-a');
+                      const balanceB = await getFolioBalance(r.id, 'folio-b');
+
+                      if (balanceA !== null && balanceA > 0) {
                         addFolioPayment(r.id, {
-                          amount: math.remainingBalanceA,
+                          amount: balanceA,
                           method: paymentMethod || 'Company Ledger',
-                          notes: `Bulk Group block checkout billed via ${paymentMethod}`
+                          notes: null
                         });
                         if (groupType === 'corporate' && selectedCorpDetails) {
                           const currentBal = selectedCorpDetails.unpaidBalance || 0;
                           updateCorporateAccount(selectedCorpDetails.id, {
-                            unpaidBalance: currentBal + math.remainingBalanceA
+                            unpaidBalance: currentBal + balanceA
                           });
                         }
                       }
 
-                      if (math.remainingBalanceB > 0) {
+                      if (balanceB !== null && balanceB > 0) {
                         addFolioPayment(r.id, {
-                          amount: math.remainingBalanceB,
+                          amount: balanceB,
                           method: paymentMethod || 'Credit Card',
-                          notes: `Bulk Group checkout incidental settle via ${paymentMethod}`
+                          notes: null
                         });
                       }
 
                       checkOutReservation(r.id);
-                    });
+                    }
 
                     setGroupSuccess(`Checked out ${activeSelectedList.length} rooms under master direct billing ledger account of ${selectedCorpDetails?.companyName || selectedGroupDetails?.groupName}!`);
                     setSelectedGroupResIds({});
@@ -1157,90 +1210,186 @@ export default function CheckInOutModule({
                     </div>
                   </div>
 
-                  {/* III. POST PAYMENT / CREDIT SECTION */}
+                  {/* III. POST PAYMENT / CREDIT SECTION — Unified payment system: a single
+                      list of payment method rows. One row = a normal single-method
+                      payment; multiple rows = a split payment. Same UI, same code path. */}
                   <div className="p-4 bg-slate-50 dark:bg-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3">
-                    <div className="flex items-center gap-1.5 border-b border-slate-200 pb-3">
-                      <CreditCard size={14} className="text-emerald-600" />
-                      <span className="text-xs font-sans font-semibold text-slate-800">
-                        Record Payment / Credit
+                    <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                      <div className="flex items-center gap-1.5">
+                        <CreditCard size={14} className="text-emerald-600" />
+                        <span className="text-xs font-sans font-semibold text-slate-800">
+                          Record Payment / Credit
+                        </span>
+                      </div>
+                      <span className="text-2xs font-mono uppercase text-slate-400 font-semibold">
+                        {paymentSplits.length > 1 ? `${paymentSplits.length} methods` : 'Single method'}
                       </span>
                     </div>
 
                     <div className="space-y-2.5">
-                      <div className="space-y-1">
-                        <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Payment Method</label>
-                        <select
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="w-full px-2.5 py-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-xs font-sans transition-all duration-200"
-                        >
-                          {(() => {
-                            const baseTypes = globalHotelSettings.paymentTypes || ['Credit Card', 'Cash', 'Mobile Money', 'Bank Transfer'];
-                            const accounts = (chartOfAccounts || [])
-                              .filter(a => (a.subCategory === 'Bank' || a.subCategory === 'Cash') && a.isActive)
-                              .map(a => a.name);
-                            
-                            const allMethods = Array.from(new Set([...baseTypes, ...accounts, 'Room Charge']));
-                            return allMethods.map(type => (
-                              <option key={type} value={type}>{type}</option>
-                            ));
-                          })()}
-                        </select>
+                      {(() => {
+                        const baseTypes = globalHotelSettings.paymentTypes || ['Credit Card', 'Cash', 'Mobile Money', 'Bank Transfer'];
+                        const accounts = (chartOfAccounts || [])
+                          .filter(a => (a.subCategory === 'Bank' || a.subCategory === 'Cash') && a.isActive)
+                          .map(a => a.name);
+                        const methodOptions = Array.from(new Set([...baseTypes, ...accounts, 'Room Charge']));
+                        const hasNonCashSplit = paymentSplits.some(s => !['Cash', 'Room Charge'].includes(s.method));
+                        const totalEntered = paymentSplits.reduce((sum, s) => sum + (s.amount || 0), 0);
 
-                        {!['Cash', 'Room Charge'].includes(paymentMethod) && (
-                          <div className="mt-4 p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1 animate-fade-in">
-                            <label className="text-3xs font-mono uppercase text-slate-500 font-bold">Payment Receipt Screenshot</label>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={(e) => {
-                                if (e.target.files && e.target.files.length > 0) {
-                                  const file = e.target.files[0];
-                                  setPaymentScreenshot(file);
+                        return (
+                          <>
+                            {paymentSplits.map((split, index) => {
+                              const otherRowsTotal = paymentSplits.reduce((sum, s, i) => i === index ? sum : sum + (s.amount || 0), 0);
+                              const remainderForRow = Math.max(0, activeTabBalance - otherRowsTotal);
 
-                                  // In production: Upload to Supabase Storage and create payment_receipts record
-                                }
-                              }}
-                              className="w-full bg-white text-slate-700 text-2xs p-2 rounded-lg border border-slate-300"
-                            />
-                            {paymentScreenshot && (
-                              <div className="flex items-center gap-2 text-xs text-emerald-600 mt-1">
-                                <Check size={12} />
-                                <span>{paymentScreenshot.name} selected</span>
+                              return (
+                                <div key={index} className="p-3 bg-white border border-slate-200 rounded-lg space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-2xs font-mono uppercase text-slate-400 font-bold">
+                                      {paymentSplits.length > 1 ? `Method ${index + 1}` : 'Amount & Method'}
+                                    </span>
+                                    {paymentSplits.length > 1 && (
+                                      <button
+                                        type="button"
+                                        onClick={() => setPaymentSplits(paymentSplits.filter((_, i) => i !== index))}
+                                        className="text-rose-500 hover:text-rose-700"
+                                      >
+                                        <X size={12} />
+                                      </button>
+                                    )}
+                                  </div>
+
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div className="space-y-1">
+                                      <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Amount ({currency})</label>
+                                      <div className="relative">
+                                        <span className="absolute left-2 top-1.5 text-slate-400 font-mono text-[10px]">{currency === 'USD' ? '$' : 'Br'}</span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          value={split.amount}
+                                          onChange={(e) => {
+                                            const newSplits = [...paymentSplits];
+                                            newSplits[index] = { ...newSplits[index], amount: Number(e.target.value) };
+                                            setPaymentSplits(newSplits);
+                                          }}
+                                          className="w-full pl-5 pr-1 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-bold text-slate-900 transition-all duration-200"
+                                        />
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const newSplits = [...paymentSplits];
+                                          newSplits[index] = { ...newSplits[index], amount: parseFloat(remainderForRow.toFixed(2)) };
+                                          setPaymentSplits(newSplits);
+                                        }}
+                                        className="text-2xs font-bold uppercase text-indigo-600 hover:text-indigo-800 transition-colors"
+                                      >
+                                        Fill Remaining ({formatAmount(remainderForRow)})
+                                      </button>
+                                    </div>
+
+                                    <div className="space-y-1">
+                                      <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Method</label>
+                                      <select
+                                        value={split.method}
+                                        onChange={(e) => {
+                                          const newSplits = [...paymentSplits];
+                                          newSplits[index] = { ...newSplits[index], method: e.target.value };
+                                          setPaymentSplits(newSplits);
+                                        }}
+                                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-xs font-sans transition-all duration-200"
+                                      >
+                                        {methodOptions.map(type => (
+                                          <option key={type} value={type}>{type}</option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  </div>
+
+                                  {!['Cash', 'Room Charge'].includes(split.method) && (
+                                    <div className="space-y-1">
+                                      <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Bank Account (Deposit To)</label>
+                                      <select
+                                        value={split.bankAccountId}
+                                        onChange={(e) => {
+                                          const newSplits = [...paymentSplits];
+                                          newSplits[index] = { ...newSplits[index], bankAccountId: e.target.value };
+                                          setPaymentSplits(newSplits);
+                                        }}
+                                        className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-xs font-sans transition-all duration-200"
+                                      >
+                                        <option value="">Select Bank Account</option>
+                                        {bankAccounts.filter((acc: any) => acc.is_active).map((acc: any) => (
+                                          <option key={acc.id} value={acc.id}>
+                                            {acc.bank_name} - {acc.account_number} ({acc.currency})
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </div>
+                                  )}
+
+                                  <div className="space-y-1">
+                                    <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Reference (Optional)</label>
+                                    <input
+                                      type="text"
+                                      placeholder="Auth code, depositor name..."
+                                      value={split.reference}
+                                      onChange={(e) => {
+                                        const newSplits = [...paymentSplits];
+                                        newSplits[index] = { ...newSplits[index], reference: e.target.value };
+                                        setPaymentSplits(newSplits);
+                                      }}
+                                      className="w-full px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-sans transition-all duration-200"
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })}
+
+                            <button
+                              type="button"
+                              onClick={() => setPaymentSplits([...paymentSplits, { amount: 0, method: 'Credit Card', reference: '', bankAccountId: '' }])}
+                              className="w-full py-2 border-2 border-dashed border-indigo-300 text-indigo-600 rounded-lg text-xs font-sans font-semibold hover:bg-indigo-50 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Plus size={12} /> Add Another Payment Method
+                            </button>
+
+                            {hasNonCashSplit && (
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-1 animate-fade-in">
+                                <label className="text-3xs font-mono uppercase text-slate-500 font-bold">Payment Receipt Screenshot</label>
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => {
+                                    if (e.target.files && e.target.files.length > 0) {
+                                      const file = e.target.files[0];
+                                      setPaymentScreenshot(file);
+
+                                      // In production: Upload to Supabase Storage and create payment_receipts record
+                                    }
+                                  }}
+                                  className="w-full bg-white text-slate-700 text-2xs p-2 rounded-lg border border-slate-300"
+                                />
+                                {paymentScreenshot && (
+                                  <div className="flex items-center gap-2 text-xs text-emerald-600 mt-1">
+                                    <Check size={12} />
+                                    <span>{paymentScreenshot.name} selected</span>
+                                  </div>
+                                )}
                               </div>
                             )}
-                          </div>
-                        )}
-                      </div>
+
+                            <div className="flex items-center justify-between p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg">
+                              <span className="text-xs font-sans font-semibold text-emerald-800">Total Payment</span>
+                              <span className="text-sm font-mono font-bold text-emerald-700">{formatAmount(totalEntered)}</span>
+                            </div>
+                          </>
+                        );
+                      })()}
 
                       <div className="space-y-1">
-                        <label className="text-3xs font-mono uppercase text-slate-400 font-bold">Payment Amount ({currency})</label>
-                        <div className="relative">
-                          <span className="absolute left-2.5 top-1.5 text-slate-400 font-mono text-[10px]">{currency === 'USD' ? '$' : 'Br'}</span>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={paymentAmount}
-                            onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                            className="w-full pl-6 pr-14 py-2 bg-white border border-slate-200 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-bold text-slate-900 transition-all duration-200"
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => {
-                              const totalPaidVal = (currentFolioRes.payments || [])
-                                .filter(p => !p.isVoided)
-                                .reduce((sum, p) => sum + p.amount, 0);
-                              setPaymentAmount(Math.max(0, currentFolioRes.totalAmount - totalPaidVal));
-                            }}
-                            className="absolute right-1 top-1 px-2 py-1 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold uppercase hover:bg-indigo-100 transition-all duration-200 cursor-pointer"
-                          >
-                            Pay Full
-                          </button>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="text-3xs font-mono uppercase text-slate-400">Notes / Reference Ref</label>
+                        <label className="text-3xs font-mono uppercase text-slate-400">Notes (default reference for methods without their own)</label>
                         <input
                           type="text"
                           value={paymentNotes}
@@ -1255,22 +1404,45 @@ export default function CheckInOutModule({
                         onClick={async () => {
                           if (!currentFolioRes) return;
 
-                          // Overpayment validation based on active folio ledger tab
-                          if (activeFolioLedgerTab === 'consolidated') {
-                            if (paymentAmount > remainingBalance + 0.01) {
-                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds consolidated balance (${formatAmount(remainingBalance)}). Please adjust payment amount.`);
-                              return;
-                            }
-                          } else if (activeFolioLedgerTab === 'folio-a') {
-                            if (paymentAmount > remainingBalanceA + 0.01) {
-                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds corporate folio balance (${formatAmount(remainingBalanceA)}). Please adjust payment amount.`);
-                              return;
-                            }
-                          } else if (activeFolioLedgerTab === 'folio-b') {
-                            if (paymentAmount > remainingBalanceB + 0.01) {
-                              alert(`Overpayment warning: Amount (${formatAmount(paymentAmount)}) exceeds individual folio balance (${formatAmount(remainingBalanceB)}). Please adjust payment amount.`);
-                              return;
-                            }
+                          // Unified payment system: the payment splits list always drives
+                          // submission, whether it holds one row (single payment) or many
+                          // (split payment) - one list, one call, one code path.
+                          const targetFolio = activeFolioLedgerTab === 'folio-a' ? 'A' : 'B';
+                          const defaultNotes = paymentNotes || (activeFolioLedgerTab === 'folio-a' ? 'A-Folio Corporate Payment' : 'Individual Payment');
+                          const isGenericReference = !paymentNotes;
+
+                          const splitsToPost = paymentSplits.filter(s => s.amount > 0);
+
+                          const totalAmount = splitsToPost.reduce((sum, s) => sum + s.amount, 0);
+
+                          if (splitsToPost.length === 0 || totalAmount <= 0) {
+                            alert('Please enter a valid payment amount.');
+                            return;
+                          }
+
+                          // Fetch actual balance from backend to ensure consistency
+                          const folioType = activeFolioLedgerTab === 'folio-a' ? 'folio-a' : activeFolioLedgerTab === 'folio-b' ? 'folio-b' : 'consolidated';
+                          const backendBalance = await getFolioBalance(currentFolioRes.id, folioType as any);
+
+                          if (backendBalance === null) {
+                            alert('Unable to verify balance. Please try again.');
+                            return;
+                          }
+
+                          console.log('Payment validation:', {
+                            activeTab: activeFolioLedgerTab,
+                            totalAmount,
+                            backendBalance,
+                            frontendBalance: remainingBalance,
+                            frontendBalanceA: remainingBalanceA,
+                            frontendBalanceB: remainingBalanceB,
+                            paymentSplits: splitsToPost
+                          });
+
+                          // Use a small tolerance for floating point comparison
+                          if (totalAmount > backendBalance + 0.05) {
+                            alert(`Overpayment warning: Amount (${formatAmount(totalAmount)}) exceeds outstanding balance (${formatAmount(backendBalance)}). Please adjust payment amount to ${formatAmount(backendBalance)} or less.`);
+                            return;
                           }
 
                           // Upload receipt screenshot if provided
@@ -1287,35 +1459,44 @@ export default function CheckInOutModule({
                             const corpAcc = corporateAccounts.find(a => a.id === splitCorporateAccountId);
                             if (corpAcc) {
                               updateCorporateAccount(corpAcc.id, {
-                                unpaidBalance: Math.max(0, (corpAcc.unpaidBalance || 0) - paymentAmount)
+                                unpaidBalance: Math.max(0, (corpAcc.unpaidBalance || 0) - totalAmount)
                               });
                             }
                           }
 
-                          addFolioPayment(currentFolioRes.id, {
-                            amount: paymentAmount,
-                            method: paymentMethod,
-                            notes: paymentNotes || (activeFolioLedgerTab === 'folio-a' ? 'A-Folio Corporate Payment' : 'Individual Payment'),
-                            targetFolio: activeFolioLedgerTab === 'folio-a' ? 'A' : 'B',
-                            receiptUrl
-                          });
-                          
+                          try {
+                            await addFolioPayment(currentFolioRes.id, splitsToPost.map(s => ({
+                              amount: s.amount,
+                              method: s.method,
+                              notes: isGenericReference ? null : (s.reference || defaultNotes),
+                              targetFolio,
+                              receiptUrl,
+                              bankAccountId: s.bankAccountId || undefined
+                            })));
+                          } catch (err: any) {
+                            alert(`Payment failed: ${err?.message || 'Unknown error'}`);
+                            return;
+                          }
+
                           addSaleTransaction({
                             date: new Date().toISOString(),
                             invoiceNumber: `INV-FOLIO${Math.floor(Math.random()*10000)}`,
                             module: 'Front Desk Folio',
                             customerName: currentFolioRes.guestName,
-                            items: [{ productName: 'Folio Settlement / Payment', quantity: 1, price: paymentAmount }],
-                            subtotal: paymentAmount,
+                            items: [{ productName: 'Folio Settlement / Payment', quantity: 1, price: totalAmount }],
+                            subtotal: totalAmount,
                             tax: 0,
-                            total: paymentAmount,
-                            paymentMethod: paymentMethod,
+                            total: totalAmount,
+                            paymentMethod: splitsToPost.length > 1 ? 'Split Payment' : splitsToPost[0].method,
                             status: 'Completed',
                             cashierName: userProfile?.name || 'Front Desk'
                           });
 
-                          setFolioSuccess(`Received ${formatAmount(paymentAmount)} via "${paymentMethod}" for Room ${currentFolioRes.roomNumber || 'N/A'}.`);
+                          setFolioSuccess(splitsToPost.length > 1
+                            ? `Split payment processed: ${splitsToPost.length} methods totaling ${formatAmount(totalAmount)} for Room ${currentFolioRes.roomNumber || 'N/A'}.`
+                            : `Received ${formatAmount(totalAmount)} via "${splitsToPost[0].method}" for Room ${currentFolioRes.roomNumber || 'N/A'}.`);
                           setPaymentNotes('');
+                          setPaymentSplits([{amount: 0, method: 'Credit Card', reference: '', bankAccountId: ''}]);
                           setTimeout(() => setFolioSuccess(''), 4000);
                         }}
                         className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-sans font-semibold rounded-lg text-xs transition-all duration-200 shadow-md shadow-emerald-200 cursor-pointer"
@@ -1734,8 +1915,8 @@ export default function CheckInOutModule({
                             : activeFolioLedgerTab === 'folio-b'
                               ? chargesB
                               : (currentFolioRes.charges || [])
-                         ).map(charge => (
-                          <tr key={charge.id} className={`hover:bg-slate-50 transition-colors duration-150 ${charge.isVoided ? 'opacity-50 line-through text-slate-400 bg-rose-50/30' : ''}`}>
+                         ).map((charge, index) => (
+                          <tr key={charge.id || index} className={`hover:bg-slate-50 transition-colors duration-150 ${charge.isVoided ? 'opacity-50 line-through text-slate-400 bg-rose-50/30' : ''}`}>
                             <td className="py-3 px-4 font-semibold font-sans">
                               {charge.description} {charge.isVoided && <span className="text-rose-500 font-bold ml-2 px-2 py-0.5 bg-rose-100 rounded text-xs">(VOID)</span>}
                             </td>
@@ -1985,27 +2166,34 @@ export default function CheckInOutModule({
                 {activeFolioLedgerTab === 'folio-a' && remainingBalanceA > 0 && (activeProfile?.corporateBillingOnly || chargesA.length > 0) && (
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const selectedCorp = corporateAccounts.find((c: any) => c.id === splitCorporateAccountId);
                       if (!selectedCorp) {
                         alert("Please select a Corporate Debtor Account first.");
                         return;
                       }
-                      
+
+                      // Use backend folio balance which includes VAT and fees
+                      const backendBalanceA = await getFolioBalance(currentFolioRes.id, 'folio-a');
+                      if (backendBalanceA === null || backendBalanceA <= 0) {
+                        alert('Unable to verify balance or balance is zero.');
+                        return;
+                      }
+
                       // Post a payment to reservation specifically identified as corporate settlement
                       addFolioPayment(currentFolioRes.id, {
-                        amount: remainingBalanceA,
+                        amount: backendBalanceA,
                         method: 'Corporate Account Settle',
-                        notes: `Corporate Folio direct-billed to corporate debtor: ${selectedCorp.companyName}`
+                        notes: null
                       });
-                      
+
                       // Update corporate account ledger balance
                       const currentBal = selectedCorp.unpaidBalance || 0;
                       updateCorporateAccount(selectedCorp.id, {
-                        unpaidBalance: currentBal + remainingBalanceA
+                        unpaidBalance: currentBal + backendBalanceA
                       });
-                      
-                      setFolioSuccess(`Corporate Folio outstanding balance of ${formatAmount(remainingBalanceA)} has been successfully direct-billed to ${selectedCorp.companyName} ledger account!`);
+
+                      setFolioSuccess(`Corporate Folio outstanding balance of ${formatAmount(backendBalanceA)} has been successfully direct-billed to ${selectedCorp.companyName} ledger account!`);
                       setTimeout(() => setFolioSuccess(''), 5000);
                     }}
                     className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-sans font-semibold rounded-lg text-xs transition-all duration-200 shadow-md shadow-indigo-200 flex items-center gap-2 cursor-pointer"
@@ -2026,7 +2214,7 @@ export default function CheckInOutModule({
                 <div className="flex gap-3 w-full sm:w-auto justify-end ml-auto">
                   {(activeProfile?.corporateBillingOnly || chargesA.length > 0) ? (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         // Intelligent complete billing split resolver
                         const selectedCorp = corporateAccounts.find((c: any) => c.id === splitCorporateAccountId);
                         if (!selectedCorp && remainingBalanceA > 0) {
@@ -2034,32 +2222,36 @@ export default function CheckInOutModule({
                           return;
                         }
 
+                        // Use backend folio balances which include VAT and fees
+                        const backendBalanceA = await getFolioBalance(currentFolioRes.id, 'folio-a');
+                        const backendBalanceB = await getFolioBalance(currentFolioRes.id, 'folio-b');
+
                         // 1. Process Corporate Folio settlement to corporate if unpaid
-                        if (remainingBalanceA > 0 && selectedCorp) {
+                        if (backendBalanceA !== null && backendBalanceA > 0 && selectedCorp) {
                           addFolioPayment(currentFolioRes.id, {
-                            amount: remainingBalanceA,
+                            amount: backendBalanceA,
                             method: 'Corporate Account Settle',
-                            notes: `Auto-split checkout transfer to ${selectedCorp.companyName} accounts ledger.`
+                            notes: null
                           });
                           const prevBal = selectedCorp.unpaidBalance || 0;
                           updateCorporateAccount(selectedCorp.id, {
-                            unpaidBalance: prevBal + remainingBalanceA
+                            unpaidBalance: prevBal + backendBalanceA
                           });
                         }
 
                         // 2. Process Individual Folio checkout payment with general credit/cash method
-                        if (remainingBalanceB > 0) {
+                        if (backendBalanceB !== null && backendBalanceB > 0) {
                           addFolioPayment(currentFolioRes.id, {
-                            amount: remainingBalanceB,
+                            amount: backendBalanceB,
                             method: paymentMethod || 'Credit Card',
-                            notes: `Individual Folio guest split checkout settlement via ${paymentMethod}`
+                            notes: null
                           });
                         }
 
                         // 3. Complete Checkout operation
                         checkOutReservation(currentFolioRes.id);
                         setFolioSuccess("Checkout successfully completed! Corporate split and guest payments automatically balanced and recorded.");
-                        
+
                         // 4. Auto-generate invoice
                         handleGenerateInvoice();
                         setTimeout(() => setFolioSuccess(''), 5000);
@@ -2071,13 +2263,14 @@ export default function CheckInOutModule({
                     </button>
                   ) : (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         // Simple check out settlement
-                        if (remainingBalance > 0) {
+                        const backendBalance = await getFolioBalance(currentFolioRes.id, 'consolidated');
+                        if (backendBalance !== null && backendBalance > 0) {
                           addFolioPayment(currentFolioRes.id, {
-                            amount: remainingBalance,
+                            amount: backendBalance,
                             method: paymentMethod || 'Credit Card',
-                            notes: `Consolidated checkout billing payment via ${paymentMethod}`
+                            notes: null
                           });
                         }
                         checkOutReservation(currentFolioRes.id);

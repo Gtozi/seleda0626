@@ -62,12 +62,12 @@ import {
   calculateOverbookingRisk
 } from '../../services/allocationService';
 
-export default function DashboardModule({ 
+export default function DashboardModule({
   onNavigateToCRM,
   onProcessCheckout,
   onViewGuestProfile
-}: { 
-  onNavigateToCRM?: (resData: { id: string, roomNumber?: string, guestName: string, guestEmail: string, guestPhone?: string, checkInDate: string }) => void;
+}: {
+  onNavigateToCRM?: (resData: { id: string, roomNumber?: string, guestName: string, guestEmail: string, guestPhone?: string, checkInDate: string, pendingCheckIn?: boolean }) => void;
   onProcessCheckout?: (resId: string) => void;
   onViewGuestProfile?: (guestId: string) => void;
 }) {
@@ -1239,8 +1239,7 @@ export default function DashboardModule({
                         {res.roomNumber && (
                           <button
                             onClick={() => {
-                              checkInReservation(res.id, res.roomNumber!);
-                              onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate });
+                              onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                             }}
                             className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-3xs rounded-lg shadow-3xs font-black uppercase tracking-wide transition cursor-pointer select-none"
                           >

@@ -81,7 +81,7 @@ export interface ERPContextType {
   editFolioCharge: (reservationId: string, chargeId: string, updates: Partial<import('../types/erp').FolioCharge>) => void;
   voidFolioCharge: (reservationId: string, chargeId: string) => Promise<void>;
   moveFolioCharge: (sourceReservationId: string, targetReservationId: string, chargeId: string) => void;
-  addFolioPayment: (reservationId: string, payment: Omit<import('../types/erp').FolioPayment, 'id' | 'date'>) => Promise<void>;
+  addFolioPayment: (reservationId: string, payment: Omit<import('../types/erp').FolioPayment, 'id' | 'date'> | Array<Omit<import('../types/erp').FolioPayment, 'id' | 'date'>>) => Promise<any>;
   voidFolioPayment: (reservationId: string, paymentId: string) => Promise<void>;
   addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => string;
   addAccount: (account: ChartOfAccount) => void;

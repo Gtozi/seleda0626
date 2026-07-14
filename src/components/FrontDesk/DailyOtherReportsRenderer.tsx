@@ -192,7 +192,8 @@ export function DailyOtherReportsRenderer({
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No departures scheduled for the selected period.</td></tr>
                 ) : (
                   reservations.filter(r => isDateInSelectedRange(r.checkOutDate) && (r.status === 'CheckedIn' || r.status === 'CheckedOut')).map(r => {
-                    const charges = (r.charges || []).reduce((s: number, c: any) => s + (c.isVoided ? 0 : c.amount), 0);
+                    // Use DB-sourced totalAmount for charges
+                    const charges = r.totalAmount || 0;
                     const payments = (r.payments || []).reduce((s: number, p: any) => s + (p.isVoided ? 0 : p.amount), 0);
                     const balance = charges - payments;
                     return (
@@ -271,7 +272,8 @@ export function DailyOtherReportsRenderer({
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No in-house guests for the selected period.</td></tr>
                 ) : (
                   reservations.filter(r => r.status === 'CheckedIn').map(r => {
-                    const charges = (r.charges || []).reduce((s: number, c: any) => s + (c.isVoided ? 0 : c.amount), 0);
+                    // Use DB-sourced totalAmount for charges
+                    const charges = r.totalAmount || 0;
                     const payments = (r.payments || []).reduce((s: number, p: any) => s + (p.isVoided ? 0 : p.amount), 0);
                     const balance = charges - payments;
                     return (

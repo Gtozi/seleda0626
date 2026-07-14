@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { motion } from 'motion/react';
@@ -20,7 +20,6 @@ import {
   GlobalHotelSettings
 } from '../../types/erp';
 import { calculateNights } from '../../utils/billing';
-import { computeFees } from '../../utils/pricing';
 import { toISODate } from '../../utils/date';
 import BookingTypeSelector from './BookingTypeSelector';
 import GuestProfileSection from './GuestProfileSection';
@@ -273,7 +272,7 @@ export default function ReservationForm({
 
   const calculateTotal = () => {
     const { checkInDate, checkOutDate, roomSelections, roomType, ratePlanId, promoCode, packageIds, guestServiceIds } = formData;
-    if (!checkInDate || !checkOutDate) return { nights: 0, roomTotal: 0, packageTotal: 0, serviceTotal: 0, grandTotal: 0 };
+    if (!checkInDate || !checkOutDate) return { nights: 0, roomTotal: 0, packageTotal: 0, serviceTotal: 0, grandTotal: 0, tax: 0, serviceCharge: 0, additionalFees: 0 };
 
     const nights = calculateNights(checkInDate, checkOutDate);
     const start = new Date(checkInDate);
@@ -317,21 +316,19 @@ export default function ReservationForm({
     });
 
     const subtotal = roomTotal + packageTotal + serviceTotal;
-    const fees = globalHotelSettings
-      ? computeFees(subtotal, globalHotelSettings.feeComponents, globalHotelSettings.taxPercent, globalHotelSettings.serviceChargePercent)
-      : { tax: 0, serviceCharge: 0, additionalFees: 0 };
-    const grandTotal = Math.round(subtotal + fees.serviceCharge + fees.additionalFees + fees.tax);
-
+    
+    // Return base totals - fees will be calculated by DB API
     return {
       nights,
       roomTotal,
       packageTotal: Math.round(packageTotal),
       serviceTotal: Math.round(serviceTotal),
-      tax: Math.round(fees.tax),
-      serviceCharge: Math.round(fees.serviceCharge),
-      additionalFees: Math.round(fees.additionalFees),
-      grandTotal,
+      tax: 0,
+      serviceCharge: 0,
+      additionalFees: 0,
+      grandTotal: subtotal,
       roomBreakdown,
+      subtotal
     };
   };
 
@@ -346,6 +343,43 @@ export default function ReservationForm({
 
   const totals = calculateTotal();
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const [feeBreakdown, setFeeBreakdown] = useState<any>(null);
+
+  // Fetch fee breakdown from database
+  useEffect(() => {
+    const fetchFeeBreakdown = async () => {
+      if (totals.subtotal > 0 && globalHotelSettings) {
+        try {
+          const params = new URLSearchParams({
+            baseAmount: totals.subtotal.toString(),
+          });
+          const response = await fetch(`/api/billing/calculate-breakdown?${params}`, {
+            credentials: 'include',
+          });
+          if (response.ok) {
+            const data = await response.json();
+            setFeeBreakdown(data);
+          }
+        } catch (error) {
+          console.error('Error fetching fee breakdown:', error);
+        }
+      }
+    };
+    fetchFeeBreakdown();
+  }, [totals.subtotal, globalHotelSettings]);
+
+  // Combine base totals with DB fee breakdown
+  const finalTotals = useMemo(() => {
+    if (!feeBreakdown) return totals;
+    
+    return {
+      ...totals,
+      tax: Math.round(feeBreakdown.vat_amount || 0),
+      serviceCharge: Math.round(feeBreakdown.service_charge_total || 0),
+      additionalFees: Math.round(feeBreakdown.non_vat_fees || 0),
+      grandTotal: Math.round(feeBreakdown.total_amount || finalTotals.subtotal)
+    };
+  }, [totals, feeBreakdown]);
 
   // Multi-step wizard state
   type Step = 'guest' | 'stay' | 'selection' | 'addons' | 'summary';
@@ -582,7 +616,7 @@ export default function ReservationForm({
               getTypeAvailability={getTypeAvailability}
               onRoomTypeChange={(value) => setFieldValue('roomType', value)}
               onRoomSelectionsChange={(value) => setFieldValue('roomSelections', value as Array<{ roomType: RoomType; count: number; roomNumbers?: string[]; roomNights?: string[][] }>)}
-              nights={totals.nights}
+              nights={finalTotals.nights}
               formatAmount={formatAmount}
               errors={{
                 roomType: errors.roomType?.message,
@@ -600,7 +634,7 @@ export default function ReservationForm({
             checkInDate={formData.checkInDate}
             checkOutDate={formData.checkOutDate}
             currentSystemDate={currentSystemDate}
-            nights={totals.nights}
+            nights={finalTotals.nights}
             formatAmount={formatAmount}
             getTypeAvailability={getTypeAvailability}
             onChange={(value) => setFieldValue('roomSelections', value as Array<{ roomType: RoomType; count: number; roomNumbers?: string[]; roomNights?: string[][] }>)}
@@ -622,17 +656,17 @@ export default function ReservationForm({
         {currentStep === 'summary' && (
           <div className="space-y-4">
             <TariffSummarySection
-              nights={totals.nights}
-              roomTotal={totals.roomTotal}
-              packageTotal={totals.packageTotal}
-              serviceTotal={totals.serviceTotal}
-              tax={totals.tax}
-              serviceCharge={totals.serviceCharge}
-              additionalFees={totals.additionalFees}
-              grandTotal={Math.max(0, totals.grandTotal - (formData.voucherDiscount || 0))}
+              nights={finalTotals.nights}
+              roomTotal={finalTotals.roomTotal}
+              packageTotal={finalTotals.packageTotal}
+              serviceTotal={finalTotals.serviceTotal}
+              tax={finalTotals.tax}
+              serviceCharge={finalTotals.serviceCharge}
+              additionalFees={finalTotals.additionalFees}
+              grandTotal={Math.max(0, finalTotals.grandTotal - (formData.voucherDiscount || 0))}
               voucherDiscount={formData.voucherDiscount || 0}
               formatAmount={formatAmount}
-              roomBreakdown={totals.roomBreakdown}
+              roomBreakdown={finalTotals.roomBreakdown}
               packageIds={formData.packageIds || []}
               guestServiceIds={formData.guestServiceIds || []}
               packages={packages}

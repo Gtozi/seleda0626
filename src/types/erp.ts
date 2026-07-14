@@ -82,6 +82,12 @@ export interface Guest {
     type: string;
     number: string;
     expiryDate: string;
+    issueDate?: string;
+    issuingCountry?: string;
+    frontImageUrl?: string;
+    backImageUrl?: string;
+    uploadedAt?: string;
+    verifiedAt?: string;
     isUploaded: boolean;
   };
   // Hierarchical structure for group/corporate bookings
@@ -127,6 +133,7 @@ export interface FolioPayment {
   isVoided?: boolean;
   targetFolio?: 'A' | 'B';
   receiptUrl?: string;
+  bankAccountId?: string;
 }
 
 export interface Reservation {

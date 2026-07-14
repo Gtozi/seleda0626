@@ -18,11 +18,11 @@ import {
   Users, Users2, Briefcase, Building2, FolderOpen, Star, Link2, Unlink,
   ArrowRightLeft, ShieldCheck, Wallet, CreditCard, Receipt, AlertTriangle,
   CheckCircle2, UserCheck, Edit3, Trash2, ListChecks, BadgeDollarSign, Banknote,
-  Calendar, Mail, Phone, Bookmark, User
+  Calendar, Mail, Phone, Bookmark, User, Printer, PenTool
 } from 'lucide-react';
 
 interface CRMModuleProps {
-  initialGuestData?: { name?: string; email?: string; phone?: string; resId?: string; rm?: string; date?: string; isGroup?: boolean; groupId?: string; groupName?: string; contactName?: string; roomCount?: number; };
+  initialGuestData?: { name?: string; email?: string; phone?: string; resId?: string; rm?: string; date?: string; isGroup?: boolean; groupId?: string; groupName?: string; contactName?: string; roomCount?: number; pendingCheckIn?: boolean };
   onClearInitialData?: () => void;
   viewGuestId?: string;
   onClearViewGuestId?: () => void;
@@ -62,7 +62,8 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     guests, addGuest, updateGuest, updateGuestData, findMatchingGuest, setGuestBillingRouting,
     groupBookings, addGroupBooking, updateGroupBookingStatus,
     corporateAccounts, addCorporateAccount, updateCorporateAccount,
-    reservations, updateReservation, checkInReservation
+    reservations, updateReservation, checkInReservation,
+    globalHotelSettings
   } = useERP();
   
   const { 
@@ -166,9 +167,17 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   // Pending Check-In
   const [pendingCheckInResData, setPendingCheckInResData] = useState<{ resId: string; rm: string; date: string } | null>(null);
   const [pendingGroupCheckInData, setPendingGroupCheckInData] = useState<{ groupId: string; groupName: string; contactName: string; roomCount: number; date: string } | null>(null);
+  const [pendingCheckIn, setPendingCheckIn] = useState(false);
+  const [showCheckInForm, setShowCheckInForm] = useState(false);
+  const [showGroupCheckInForm, setShowGroupCheckInForm] = useState(false);
+  const [groupCheckInData, setGroupCheckInData] = useState<{ groupName: string; contactName: string; contactEmail: string; contactPhone: string; groupId: string; roomCount: number; checkInDate: string } | null>(null);
 
   const idScannerRef = useRef<HTMLInputElement>(null);
+  const existingGuestIdScannerRef = useRef<HTMLInputElement>(null);
+  const signatureCanvasRef = useRef<HTMLCanvasElement>(null);
   const [idUploaded, setIdUploaded] = useState(false);
+  const [signatureData, setSignatureData] = useState<string | null>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   // Active Selections
   const activeGuest = useMemo(() => guests.find(g => g.id === selectedGuestId), [guests, selectedGuestId]);
@@ -240,6 +249,12 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           setPendingCheckInResData({ resId: initialGuestData.resId, rm: initialGuestData.rm || 'TBD', date: initialGuestData.date || toISODate() });
         }
         setIsEditingProfile(true);
+        // Set pending check-in flag to show check-in button in guest profile
+        if (initialGuestData.pendingCheckIn) {
+          setPendingCheckIn(true);
+          // Open guest detail modal for check-in flow
+          setShowGuestDetail(true);
+        }
       } else {
         // Guest profile must be created during booking, not check-in
         alert(`No CRM profile found for ${initialGuestData.name}. Please create a guest profile during the booking process before check-in.`);
@@ -278,29 +293,119 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       
-      // In production: Upload to Supabase Storage and create database record
-      // For now: Simulate ID document extraction with file metadata
-      const documentData = {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        uploadedAt: new Date().toISOString()
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        
+        // Store for later upload when guest is created
+        // We'll save this in a ref or state to upload after guest creation
+        console.log('ID Document ready for upload:', file.name);
       };
-
-      // Simulate OCR extraction
-      setTimeout(() => {
-        if (!newGName) setNewGName('');
-        if (!newGEmail) setNewGEmail('');
-        if (!newGPassport) setNewGPassport('');
-
-        // Store document metadata in guest profile for now
-        // In production: This would be stored in id_documents table
-        console.log('ID Document uploaded:', documentData);
-      }, 500);
+      reader.readAsDataURL(file);
     }
   };
 
-  const handleExistingGuestIDUpload = (e: React.ChangeEvent<HTMLInputElement>) => { if (e.target.files && e.target.files.length > 0) setIdUploaded(true); };
+  const handleExistingGuestIDUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const base64 = event.target?.result as string;
+        
+        if (!activeGuest) return;
+        
+        try {
+          const token = localStorage.getItem('auth_token');
+          const response = await fetch(`/api/guests/${activeGuest.id}/id-card`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              docType: 'Passport',
+              docNumber: activeGuest.passportNumber || 'N/A',
+              expiryDate: activeGuest.dateOfBirth || '2025-12-31',
+              issueDate: null,
+              issuingCountry: activeGuest.nationality || 'ET',
+              frontImageBase64: base64.split(',')[1], // Remove data URL prefix
+              backImageBase64: null
+            })
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('ID card uploaded successfully:', data);
+            setIdUploaded(true);
+            // Refresh guest data to show updated ID card
+            updateGuestData(activeGuest.id, {
+              identificationDoc: data.identificationDoc
+            });
+          } else {
+            console.error('Failed to upload ID card');
+            alert('Failed to upload ID card. Please try again.');
+          }
+        } catch (error) {
+          console.error('Error uploading ID card:', error);
+          alert('Failed to upload ID card. Please try again.');
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Signature canvas handling
+  const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDrawing(true);
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const rect = canvas.getBoundingClientRect();
+        ctx.beginPath();
+        ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+      }
+    }
+  };
+
+  const draw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDrawing) return;
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const rect = canvas.getBoundingClientRect();
+        ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+        ctx.stroke();
+      }
+    }
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.closePath();
+        setSignatureData(canvas.toDataURL());
+      }
+    }
+  };
+
+  const clearSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        setSignatureData(null);
+      }
+    }
+  };
   const handleCloseGuestDetail = () => {
     setShowGuestDetail(false);
     const target = pop();
@@ -311,10 +416,32 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     const target = pop();
     target?.restore();
   };
-  const handleVerifyAndCompleteCheckIn = () => {
+  const handleVerifyAndCompleteCheckIn = async () => {
     if (!pendingCheckInResData || !activeGuest) return;
-    onOnboardSuccess?.({ guestName: activeGuest.name, guestEmail: activeGuest.email, guestPhone: activeGuest.phone || '', reservationId: pendingCheckInResData.resId, roomNumber: pendingCheckInResData.rm, checkInDate: pendingCheckInResData.date });
-    setPendingCheckInResData(null); setIsEditingProfile(false); setIdUploaded(false);
+
+    // Perform the actual check-in
+    await checkInReservation(pendingCheckInResData.resId, pendingCheckInResData.rm);
+
+    // Update guest profile with ID document info
+    updateGuestData(activeGuest.id, {
+      idDocuments: [
+        {
+          type: 'Passport',
+          number: activeGuest.passportNumber || 'N/A',
+          uploadedAt: new Date().toISOString(),
+          isUploaded: true
+        }
+      ]
+    });
+
+    // Generate and show check-in form
+    setShowCheckInForm(true);
+
+    // Reset state
+    setPendingCheckInResData(null);
+    setPendingCheckIn(false);
+    setIsEditingProfile(false);
+    setIdUploaded(false);
   };
 
   const handleGroupCheckIn = async () => {
@@ -352,21 +479,48 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
 
     // Check in all reservations with the same group ID
     const groupReservations = reservations.filter(r => r.bookingGroupId === activeGuest.parentGroupId && r.status === 'Confirmed' && r.roomNumber);
-    groupReservations.forEach(groupRes => {
-      checkInReservation(groupRes.id, groupRes.roomNumber!);
-
+    for (const groupRes of groupReservations) {
       // Guest profiles should already exist from booking - just verify they exist
       const guest = guests.find(g =>
         g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() &&
         g.name.toLowerCase() === groupRes.guestName.toLowerCase() &&
         g.parentGroupId === activeGuest.parentGroupId
       );
-      if (!guest) {
-        console.warn(`Guest profile not found for ${groupRes.guestName} - should have been created during booking`);
+      let guestId: string | undefined = guest?.id;
+      if (!guestId) {
+        // Create guest profile if it was missing
+        guestId = addGuest({
+          name: groupRes.guestName,
+          lastName: groupRes.guestName.split(' ').pop() || groupRes.guestName,
+          email: groupRes.guestEmail,
+          phone: groupRes.guestPhone || '',
+          status: groupRes.guestStatus || 'Regular',
+          loyaltyPoints: 0,
+          specialRequests: '',
+          notes: `Auto-created from group booking: ${activeGuest.parentGroupId} - Reservation: ${groupRes.id}`,
+          history: [],
+          totalSpend: 0,
+          parentGroupId: activeGuest.parentGroupId,
+          isPrimaryContact: groupRes.guestName === activeGuest.name,
+          nationality: undefined,
+          tin: groupRes.guestTin,
+          vatNo: groupRes.guestVatNo,
+          vatDate: groupRes.guestVatDate,
+          passportNumber: undefined,
+          dateOfBirth: undefined
+        });
       }
-    });
 
-    onGroupOnboardSuccess?.({
+      // Persist guestId before check-in so the trigger links the correct guest
+      if (guestId) {
+        updateReservation(groupRes.id, { guestId });
+      }
+
+      await checkInReservation(groupRes.id, groupRes.roomNumber!);
+    }
+
+    // Show group check-in form instead of calling onGroupOnboardSuccess directly
+    setGroupCheckInData({
       groupName: group.groupName,
       contactName: group.contactName,
       contactEmail: group.contactEmail,
@@ -375,6 +529,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
       roomCount: groupReservations.length,
       checkInDate: group.checkInDate
     });
+    setShowGroupCheckInForm(true);
   };
 
   // Filtering
@@ -1432,19 +1587,110 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   )}
                 </div>
 
-                {/* ID Document Upload */}
-                {(!activeGuest.idDocuments || !activeGuest.idDocuments.some(d => d.isUploaded)) && (
+                {/* ID Document Display */}
+                {activeGuest.identificationDoc && activeGuest.identificationDoc.isUploaded ? (
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <ShieldCheck size={14} className="text-emerald-600" />
+                      <h4 className="text-xs font-mono uppercase text-emerald-700 tracking-wider font-bold">ID Document on File</h4>
+                    </div>
+                    <div className="space-y-2 text-xs text-slate-700 font-sans">
+                      <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
+                        <span className="font-mono text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded uppercase font-bold border border-emerald-200">
+                          {activeGuest.identificationDoc.type}
+                        </span>
+                        <span className="font-mono font-semibold text-slate-800">{activeGuest.identificationDoc.number}</span>
+                      </div>
+                      {activeGuest.identificationDoc.expiryDate && (
+                        <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
+                          <Calendar size={14} className="text-emerald-600" />
+                          <span className="font-mono font-semibold text-slate-800">Expires: {activeGuest.identificationDoc.expiryDate}</span>
+                        </div>
+                      )}
+                      {activeGuest.identificationDoc.issuingCountry && (
+                        <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
+                          <Globe size={14} className="text-emerald-600" />
+                          <span className="font-mono font-semibold text-slate-800">Issuing Country: {activeGuest.identificationDoc.issuingCountry}</span>
+                        </div>
+                      )}
+                      {/* ID Card Images */}
+                      <div className="grid grid-cols-2 gap-2 mt-3">
+                        {activeGuest.identificationDoc.frontImageUrl && (
+                          <div className="relative group">
+                            <img 
+                              src={activeGuest.identificationDoc.frontImageUrl} 
+                              alt="ID Card Front" 
+                              className="w-full h-32 object-cover rounded-lg border border-emerald-200 cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(activeGuest.identificationDoc.frontImageUrl, '_blank')}
+                            />
+                            <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-mono">Front</div>
+                          </div>
+                        )}
+                        {activeGuest.identificationDoc.backImageUrl && (
+                          <div className="relative group">
+                            <img 
+                              src={activeGuest.identificationDoc.backImageUrl} 
+                              alt="ID Card Back" 
+                              className="w-full h-32 object-cover rounded-lg border border-emerald-200 cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(activeGuest.identificationDoc.backImageUrl, '_blank')}
+                            />
+                            <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-mono">Back</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 text-2xs text-emerald-600 mt-2">
+                        <CheckCircle2 size={10} className="fill-emerald-600" />
+                        <span>Verified on {new Date(activeGuest.identificationDoc.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* ID Document Upload */
                   <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
                     <div className="flex items-center gap-2 mb-3">
                       <Camera size={14} className="text-amber-600" />
                       <h4 className="text-xs font-mono uppercase text-amber-700 tracking-wider font-bold">ID Document Required</h4>
                     </div>
                     <p className="text-2xs text-amber-600 font-sans mb-3">No ID document has been uploaded for this guest. Please upload a passport or national ID.</p>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      ref={existingGuestIdScannerRef}
+                      onChange={handleExistingGuestIDUpload}
+                      className="hidden"
+                    />
                     <button
-                      onClick={() => idScannerRef.current?.click()}
+                      onClick={() => existingGuestIdScannerRef.current?.click()}
                       className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <Camera size={12} /> Upload ID Document
+                    </button>
+                  </div>
+                )}
+
+                {/* Check-In Button - Only shown when pending check-in */}
+                {pendingCheckIn && pendingCheckInResData && (
+                  <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <UserCheck size={14} className="text-emerald-600" />
+                      <h4 className="text-xs font-mono uppercase text-emerald-700 tracking-wider font-bold">Complete Check-In</h4>
+                    </div>
+                    <div className="mb-3 space-y-1">
+                      <p className="text-2xs text-emerald-700 font-sans">Reservation ID: {pendingCheckInResData.resId}</p>
+                      <p className="text-2xs text-emerald-700 font-sans">Room: {pendingCheckInResData.rm}</p>
+                      <p className="text-2xs text-emerald-700 font-sans">Check-in Date: {pendingCheckInResData.date}</p>
+                    </div>
+                    <button
+                      onClick={handleVerifyAndCompleteCheckIn}
+                      disabled={!idUploaded}
+                      className={`w-full py-2.5 font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm ${
+                        idUploaded
+                          ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white cursor-pointer'
+                          : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                      }`}
+                    >
+                      <UserCheck size={12} /> {idUploaded ? 'Complete Check-In' : 'Upload ID First'}
                     </button>
                   </div>
                 )}
@@ -1686,19 +1932,18 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                         
                         // Check in all reservations with the same group ID
                         const groupReservations = reservations.filter(r => r.bookingGroupId === selectedGroupForView.id && r.status === 'Confirmed' && r.roomNumber);
-                        groupReservations.forEach(groupRes => {
-                          checkInReservation(groupRes.id, groupRes.roomNumber!);
-                          
+                        for (const groupRes of groupReservations) {
                           // Auto-link guest to group profile (create if doesn't exist)
                           // Match by email, name, and parentGroupId to ensure unique guests per reservation
-                          let guest = guests.find(g => 
-                            g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() && 
+                          let guest = guests.find(g =>
+                            g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() &&
                             g.name.toLowerCase() === groupRes.guestName.toLowerCase() &&
                             g.parentGroupId === selectedGroupForView.id
                           );
-                          if (!guest) {
+                          let guestId: string | undefined = guest?.id;
+                          if (!guestId) {
                             // Create guest profile
-                            guest = addGuest({
+                            guestId = addGuest({
                               name: groupRes.guestName,
                               lastName: groupRes.guestName.split(' ').pop() || groupRes.guestName,
                               email: groupRes.guestEmail,
@@ -1719,7 +1964,14 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                               dateOfBirth: undefined
                             });
                           }
-                        });
+
+                          // Persist guestId before check-in so the trigger links the correct guest
+                          if (guestId) {
+                            updateReservation(groupRes.id, { guestId });
+                          }
+
+                          await checkInReservation(groupRes.id, groupRes.roomNumber!);
+                        }
                         
                         onGroupOnboardSuccess?.({ 
                           groupName: selectedGroupForView.groupName, 
@@ -2151,6 +2403,330 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
               >
                 <Link2 size={12} /> Link to Group
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHECK-IN FORM MODAL */}
+      {showCheckInForm && activeGuest && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                    <Building2 size={24} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white font-sans">{globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}</h2>
+                    <p className="text-xs text-indigo-100 font-mono">{globalHotelSettings.checkin_form_title || 'Check-In Registration Form'}</p>
+                  </div>
+                </div>
+                <button onClick={() => {
+                  setShowCheckInForm(false);
+                  const target = pop();
+                  target?.restore();
+                }} className="p-2 hover:bg-white/20 text-white rounded-lg transition-colors duration-150">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Success Banner */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={20} className="text-emerald-600" />
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-800 font-sans">Check-In Successful</h4>
+                    <p className="text-xs text-emerald-600 font-sans">Guest has been successfully checked in to the hotel.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Guest Information */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-4 flex items-center gap-2">
+                  <User size={14} className="text-indigo-500" />
+                  Guest Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Full Name</label>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest.name}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Email Address</label>
+                    <div className="text-sm font-semibold text-slate-800 truncate">{activeGuest.email}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Phone Number</label>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest.phone || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">ID Status</label>
+                    <div className="text-sm font-semibold text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 size={14} /> Verified
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Guest Type</label>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest.status}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Nationality</label>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest.nationality || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Room Assignment */}
+              <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-indigo-700 tracking-wider font-bold mb-4 flex items-center gap-2">
+                  <Building2 size={14} className="text-indigo-600" />
+                  Room Assignment
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Room Number</label>
+                    <div className="text-lg font-bold text-slate-800">{pendingCheckInResData?.rm || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Check-In Date</label>
+                    <div className="text-sm font-bold text-slate-800">{pendingCheckInResData?.date || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Reservation ID</label>
+                    <div className="text-sm font-bold text-slate-800">{pendingCheckInResData?.resId || 'N/A'}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terms and Conditions */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-3 flex items-center gap-2">
+                  <FileText size={14} className="text-indigo-500" />
+                  Terms & Conditions
+                </h3>
+                <div className="text-xs text-slate-600 space-y-2 font-sans whitespace-pre-line">
+                  {globalHotelSettings.checkin_form_terms || '• Guest agrees to comply with all hotel rules and regulations.\n• Check-out time is 11:00 AM. Late check-out may incur additional charges.\n• The hotel is not responsible for lost or stolen items.\n• Payment for all charges is due upon check-out.\n• Cancellation policy applies as per reservation terms.'}
+                </div>
+              </div>
+
+              {/* Signature Area */}
+              <div className="bg-white border-2 border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-3 flex items-center gap-2">
+                  <PenTool size={14} className="text-indigo-500" />
+                  {globalHotelSettings.checkin_form_signature_label || 'Guest Signature'}
+                </h3>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-2 bg-slate-50">
+                  <canvas
+                    ref={signatureCanvasRef}
+                    width={500}
+                    height={150}
+                    className="w-full bg-white rounded cursor-crosshair"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                  />
+                </div>
+                <div className="flex justify-between items-center mt-3">
+                  <p className="text-2xs text-slate-500 font-mono">{globalHotelSettings.checkin_form_signature_hint || 'Please sign above to confirm check-in'}</p>
+                  <button
+                    onClick={clearSignature}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition-all duration-200"
+                  >
+                    Clear Signature
+                  </button>
+                </div>
+              </div>
+
+              {/* Date and Staff */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <label className="text-2xs text-slate-500 font-mono block mb-1">Date</label>
+                  <div className="text-sm font-semibold text-slate-800">{new Date().toLocaleDateString()}</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <label className="text-2xs text-slate-500 font-mono block mb-1">Time</label>
+                  <div className="text-sm font-semibold text-slate-800">{new Date().toLocaleTimeString()}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setShowCheckInForm(false);
+                    const target = pop();
+                    target?.restore();
+                  }}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-sm font-semibold rounded-xl transition-all duration-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    window.print();
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-700 hover:to-indigo-800 text-white font-sans text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-indigo-200"
+                >
+                  <Printer size={16} /> Print Form
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GROUP CHECK-IN FORM MODAL */}
+      {showGroupCheckInForm && groupCheckInData && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
+                    <Users2 size={24} className="text-purple-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white font-sans">{globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}</h2>
+                    <p className="text-xs text-purple-100 font-mono">{globalHotelSettings.group_checkin_form_title || 'Group Check-In Registration Form'}</p>
+                  </div>
+                </div>
+                <button onClick={() => {
+                  setShowGroupCheckInForm(false);
+                  const target = pop();
+                  target?.restore();
+                }} className="p-2 hover:bg-white/20 text-white rounded-lg transition-colors duration-150">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Success Banner */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 size={20} className="text-emerald-600" />
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-800 font-sans">Group Check-In Successful</h4>
+                    <p className="text-xs text-emerald-600 font-sans">Group has been successfully checked in to the hotel.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Group Information */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-4 flex items-center gap-2">
+                  <Users2 size={14} className="text-purple-500" />
+                  Group Information
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Group Name</label>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.groupName}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Person</label>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.contactName}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Email</label>
+                    <div className="text-sm font-semibold text-slate-800 truncate">{groupCheckInData.contactEmail}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Phone</label>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.contactPhone || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Room Count</label>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.roomCount}</div>
+                  </div>
+                  <div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Check-In Date</label>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.checkInDate}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Terms and Conditions */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-3 flex items-center gap-2">
+                  <FileText size={14} className="text-purple-500" />
+                  Terms & Conditions
+                </h3>
+                <div className="text-xs text-slate-600 space-y-2 font-sans whitespace-pre-line">
+                  {globalHotelSettings.group_checkin_form_terms || '• Group contact person agrees to comply with all hotel rules and regulations on behalf of all group members.\n• Check-out time is 11:00 AM. Late check-out may incur additional charges.\n• The hotel is not responsible for lost or stolen items.\n• Payment for all charges is due upon check-out.\n• Cancellation policy applies as per reservation terms.\n• Group leader is responsible for all charges incurred by group members.'}
+                </div>
+              </div>
+
+              {/* Signature Area */}
+              <div className="bg-white border-2 border-slate-200 rounded-xl p-5">
+                <h3 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold mb-3 flex items-center gap-2">
+                  <PenTool size={14} className="text-purple-500" />
+                  {globalHotelSettings.group_checkin_form_signature_label || 'Group Leader Signature'}
+                </h3>
+                <div className="border-2 border-dashed border-slate-300 rounded-lg p-2 bg-slate-50">
+                  <canvas
+                    ref={signatureCanvasRef}
+                    width={500}
+                    height={150}
+                    className="w-full bg-white rounded cursor-crosshair"
+                    onMouseDown={startDrawing}
+                    onMouseMove={draw}
+                    onMouseUp={stopDrawing}
+                    onMouseLeave={stopDrawing}
+                  />
+                </div>
+                <div className="flex justify-between items-center mt-3">
+                  <p className="text-2xs text-slate-500 font-mono">{globalHotelSettings.group_checkin_form_signature_hint || 'Please sign above to confirm group check-in'}</p>
+                  <button
+                    onClick={clearSignature}
+                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition-all duration-200"
+                  >
+                    Clear Signature
+                  </button>
+                </div>
+              </div>
+
+              {/* Date and Staff */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <label className="text-2xs text-slate-500 font-mono block mb-1">Date</label>
+                  <div className="text-sm font-semibold text-slate-800">{new Date().toLocaleDateString()}</div>
+                </div>
+                <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
+                  <label className="text-2xs text-slate-500 font-mono block mb-1">Time</label>
+                  <div className="text-sm font-semibold text-slate-800">{new Date().toLocaleTimeString()}</div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-slate-200">
+                <button
+                  onClick={() => {
+                    setShowGroupCheckInForm(false);
+                    const target = pop();
+                    target?.restore();
+                  }}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-sm font-semibold rounded-xl transition-all duration-200"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    window.print();
+                  }}
+                  className="flex-1 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-sans text-sm font-semibold rounded-xl transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-purple-200"
+                >
+                  <Printer size={16} /> Print Form
+                </button>
+              </div>
             </div>
           </div>
         </div>

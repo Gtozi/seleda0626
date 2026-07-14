@@ -34,13 +34,33 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
 
-type AdminTab = 'details' | 'billing' | 'invoice_settings' | 'policies';
+type AdminTab = 'details' | 'billing' | 'invoice_settings' | 'policies' | 'checkin_forms';
 
 interface BankAccountItem {
   bankName: string;
   accountName: string;
   accountNumber: string;
   swiftCode?: string;
+}
+
+interface DatabaseBankAccount {
+  id: string;
+  account_name: string;
+  bank_name: string;
+  account_number: string;
+  account_type: string;
+  currency: string;
+  is_active: boolean;
+  is_default_for_sales: boolean;
+  is_default_for_expenses: boolean;
+  swift_bic_code?: string;
+  branch_name?: string;
+  branch_address?: string;
+  description?: string;
+  current_balance: number;
+  coa_account_code?: string;
+  department?: string;
+  created_at: string;
 }
 
 const parseBankDetails = (text: string): BankAccountItem[] => {
@@ -185,15 +205,139 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
     return parseBankDetails(raw);
   });
 
+  // Database-backed bank accounts state
+  const [dbBankAccounts, setDbBankAccounts] = useState<DatabaseBankAccount[]>([]);
+  const [loadingBankAccounts, setLoadingBankAccounts] = useState(false);
+
   const [editingBankIndex, setEditingBankIndex] = useState<number | null>(null);
   const [bankForm, setBankForm] = useState({
     bankName: '',
     accountName: '',
     accountNumber: '',
-    swiftCode: ''
+    swiftCode: '',
+    accountType: 'Business',
+    currency: 'ETB',
+    isDefaultForSales: false,
+    isDefaultForExpenses: false,
+    coaAccountCode: '',
+    department: 'Finance'
   });
   const [showBankForm, setShowBankForm] = useState(false);
   const [isManualBankDetailsEdit, setIsManualBankDetailsEdit] = useState(false);
+
+  // Fetch database-backed bank accounts
+  React.useEffect(() => {
+    fetchBankAccounts();
+  }, []);
+
+  const fetchBankAccounts = async () => {
+    setLoadingBankAccounts(true);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch('/api/finance/bank-accounts', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setDbBankAccounts(data.bankAccounts || []);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch bank accounts:', error);
+    } finally {
+      setLoadingBankAccounts(false);
+    }
+  };
+
+  const saveBankAccount = async () => {
+    if (!bankForm.bankName || !bankForm.accountName || !bankForm.accountNumber) {
+      alert('Please fill in Bank Name, Account Name, and Account Number.');
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const url = editingBankIndex !== null 
+        ? `/api/finance/bank-accounts/${dbBankAccounts[editingBankIndex].id}`
+        : '/api/finance/bank-accounts';
+      
+      const method = editingBankIndex !== null ? 'PUT' : 'POST';
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          accountName: bankForm.accountName,
+          bankName: bankForm.bankName,
+          accountNumber: bankForm.accountNumber,
+          accountType: bankForm.accountType,
+          currency: bankForm.currency,
+          swiftBicCode: bankForm.swiftCode || undefined,
+          isDefaultForSales: bankForm.isDefaultForSales,
+          isDefaultForExpenses: bankForm.isDefaultForExpenses
+        })
+      });
+
+      if (response.ok) {
+        await fetchBankAccounts();
+        setShowBankForm(false);
+        setEditingBankIndex(null);
+        setBankForm({
+          bankName: '',
+          accountName: '',
+          accountNumber: '',
+          swiftCode: '',
+          accountType: 'Business',
+          currency: 'ETB',
+          isDefaultForSales: false,
+          isDefaultForExpenses: false,
+          coaAccountCode: '',
+          department: 'Finance'
+        });
+        setSaveToast({ show: true, msg: 'Bank account saved successfully', type: 'success' });
+        setTimeout(() => setSaveToast({ show: false, msg: '', type: 'success' }), 3000);
+      } else {
+        const error = await response.json();
+        alert('Failed to save bank account: ' + (error.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Failed to save bank account:', error);
+      alert('Failed to save bank account. Please try again.');
+    }
+  };
+
+  const deleteBankAccount = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this bank account?')) return;
+
+    try {
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/finance/bank-accounts/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        await fetchBankAccounts();
+        setSaveToast({ show: true, msg: 'Bank account deleted successfully', type: 'success' });
+        setTimeout(() => setSaveToast({ show: false, msg: '', type: 'success' }), 3000);
+      } else {
+        alert('Failed to delete bank account');
+      }
+    } catch (error) {
+      console.error('Failed to delete bank account:', error);
+      alert('Failed to delete bank account. Please try again.');
+    }
+  };
 
   React.useEffect(() => {
     if (!isManualBankDetailsEdit) {
@@ -211,6 +355,19 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
     opHoursRestaurant: globalHotelSettings.operatingHours?.restaurant || '06:00 - 23:00',
     opHoursBar: globalHotelSettings.operatingHours?.bar || '10:00 - 02:00',
     opHoursSpa: globalHotelSettings.operatingHours?.spa || '08:00 - 20:00',
+  });
+
+  // Check-in Form Settings local state
+  const [checkinFormSettings, setCheckinFormSettings] = useState({
+    individualTitle: globalHotelSettings.checkin_form_title || 'Check-In Registration Form',
+    hotelName: globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL',
+    individualTerms: globalHotelSettings.checkin_form_terms || '• Guest agrees to comply with all hotel rules and regulations.\n• Check-out time is 11:00 AM. Late check-out may incur additional charges.\n• The hotel is not responsible for lost or stolen items.\n• Payment for all charges is due upon check-out.\n• Cancellation policy applies as per reservation terms.',
+    individualSignatureLabel: globalHotelSettings.checkin_form_signature_label || 'Guest Signature',
+    individualSignatureHint: globalHotelSettings.checkin_form_signature_hint || 'Please sign above to confirm check-in',
+    groupTitle: globalHotelSettings.group_checkin_form_title || 'Group Check-In Registration Form',
+    groupTerms: globalHotelSettings.group_checkin_form_terms || '• Group contact person agrees to comply with all hotel rules and regulations on behalf of all group members.\n• Check-out time is 11:00 AM. Late check-out may incur additional charges.\n• The hotel is not responsible for lost or stolen items.\n• Payment for all charges is due upon check-out.\n• Cancellation policy applies as per reservation terms.\n• Group leader is responsible for all charges incurred by group members.',
+    groupSignatureLabel: globalHotelSettings.group_checkin_form_signature_label || 'Group Leader Signature',
+    groupSignatureHint: globalHotelSettings.group_checkin_form_signature_hint || 'Please sign above to confirm group check-in',
   });
   const [policySections, setPolicySections] = useState<{id: string, title: string, content: string}[]>(
     globalHotelSettings.policySections || [
@@ -418,6 +575,37 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
     triggerToast('Operational policies updated successfully!', 'success');
   };
 
+  const saveCheckinFormSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+    submitGlobalSettingsChange(
+      'Check-In Form Settings Update',
+      `Updated check-in form titles, terms, and signature labels`,
+      'checkin-form-config',
+      {
+        checkin_form_title: checkinFormSettings.individualTitle,
+        checkin_form_hotel_name: checkinFormSettings.hotelName,
+        checkin_form_terms: checkinFormSettings.individualTerms,
+        checkin_form_signature_label: checkinFormSettings.individualSignatureLabel,
+        checkin_form_signature_hint: checkinFormSettings.individualSignatureHint,
+        group_checkin_form_title: checkinFormSettings.groupTitle,
+        group_checkin_form_terms: checkinFormSettings.groupTerms,
+        group_checkin_form_signature_label: checkinFormSettings.groupSignatureLabel,
+        group_checkin_form_signature_hint: checkinFormSettings.groupSignatureHint,
+      }
+    );
+
+    addStructuredAuditLog({
+      action: 'UPDATE_CHECKIN_FORM_CONFIG',
+      user: 'Superadmin (Platform)',
+      details: `Updated check-in form settings for individual and group check-ins.`,
+      ipAddress: '192.168.1.10',
+      status: 'Success',
+      severity: 'Medium'
+    });
+
+    triggerToast('Check-in form settings updated successfully!', 'success');
+  };
+
 
 
 
@@ -536,7 +724,7 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
             <FileText size={13} />
             Invoicing
           </button>
-          <button 
+          <button
             id="tab-policies"
             onClick={() => setActiveTab('policies')}
             className={`px-3 py-2 flex items-center gap-2 rounded-lg text-[10px] font-sans font-black uppercase tracking-wider transition ${
@@ -545,6 +733,16 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
           >
             <Gavel size={13} />
             Policies
+          </button>
+          <button
+            id="tab-checkin-forms"
+            onClick={() => setActiveTab('checkin_forms')}
+            className={`px-3 py-2 flex items-center gap-2 rounded-lg text-[10px] font-sans font-black uppercase tracking-wider transition ${
+              activeTab === 'checkin_forms' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:text-slate-900 bg-white'
+            }`}
+          >
+            <FileText size={13} />
+            Check-In Forms
           </button>
         </div>
       </div>
@@ -1155,72 +1353,113 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {/* Active Accounts Grid */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {bankAccounts.map((acc, idx) => (
-                          <div key={idx} className="border border-slate-200 bg-slate-50/50 rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-200 transition relative group">
-                            <div className="space-y-2">
-                              <div className="flex justify-between items-start">
-                                <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 truncate pr-8">
-                                  <Building2 size={13} className="text-indigo-500" /> {acc.bankName}
-                                </span>
-                                <div className="flex items-center gap-1 absolute right-3 top-3">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setBankForm({
-                                        bankName: acc.bankName,
-                                        accountName: acc.accountName,
-                                        accountNumber: acc.accountNumber,
-                                        swiftCode: acc.swiftCode || ''
-                                      });
-                                      setEditingBankIndex(idx);
-                                      setShowBankForm(true);
-                                    }}
-                                    className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
-                                    title="Edit account details"
-                                  >
-                                    <Edit2 size={12} />
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setBankAccounts(prev => prev.filter((_, i) => i !== idx));
-                                    }}
-                                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
-                                    title="Delete account"
-                                  >
-                                    <Trash2 size={12} />
-                                  </button>
-                                </div>
-                              </div>
-                              
-                              <div className="text-[11px] space-y-1">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Account Name:</span>
-                                  <span className="font-semibold text-slate-700">{acc.accountName}</span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400">Account Number:</span>
-                                  <span className="font-mono font-bold text-slate-800">{acc.accountNumber}</span>
-                                </div>
-                                {acc.swiftCode && (
-                                  <div className="flex justify-between">
-                                    <span className="text-slate-400">SWIFT / BIC Code:</span>
-                                    <span className="font-mono text-slate-600 font-semibold">{acc.swiftCode}</span>
+                      {/* Active Accounts Grid - Database Backed */}
+                      {loadingBankAccounts ? (
+                        <div className="text-center py-8 text-slate-400 text-xs">Loading bank accounts...</div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          {dbBankAccounts.map((acc, idx) => (
+                            <div key={acc.id} className={`border ${acc.is_active ? 'border-slate-200 bg-slate-50/50' : 'border-slate-200 bg-slate-100/50 opacity-60'} rounded-2xl p-4 flex flex-col justify-between hover:border-indigo-200 transition relative group`}>
+                              <div className="space-y-2">
+                                <div className="flex justify-between items-start">
+                                  <span className="text-xs font-extrabold text-slate-800 flex items-center gap-1.5 truncate pr-8">
+                                    <Building2 size={13} className="text-indigo-500" /> {acc.bank_name}
+                                  </span>
+                                  <div className="flex items-center gap-1 absolute right-3 top-3">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setBankForm({
+                                          bankName: acc.bank_name,
+                                          accountName: acc.account_name,
+                                          accountNumber: acc.account_number,
+                                          swiftCode: acc.swift_bic_code || '',
+                                          accountType: acc.account_type,
+                                          currency: acc.currency,
+                                          isDefaultForSales: acc.is_default_for_sales,
+                                          isDefaultForExpenses: acc.is_default_for_expenses,
+                                          coaAccountCode: acc.coa_account_code || '',
+                                          department: acc.department || 'Finance'
+                                        });
+                                        setEditingBankIndex(idx);
+                                        setShowBankForm(true);
+                                      }}
+                                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition cursor-pointer"
+                                      title="Edit account details"
+                                    >
+                                      <Edit2 size={12} />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => deleteBankAccount(acc.id)}
+                                      className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                      title="Delete account"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
                                   </div>
-                                )}
+                                </div>
+                                
+                                <div className="text-[11px] space-y-1">
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Account Name:</span>
+                                    <span className="font-semibold text-slate-700">{acc.account_name}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Account Number:</span>
+                                    <span className="font-mono font-bold text-slate-800">{acc.account_number}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Type:</span>
+                                    <span className="font-semibold text-slate-600">{acc.account_type}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Currency:</span>
+                                    <span className="font-semibold text-slate-600">{acc.currency}</span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Current Balance:</span>
+                                    <span className="font-mono font-bold text-green-600">{acc.currency} {acc.current_balance.toLocaleString()}</span>
+                                  </div>
+                                  {acc.coa_account_code && (
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400">COA Account Code:</span>
+                                      <span className="font-mono text-indigo-600 font-semibold">{acc.coa_account_code}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-400">Department:</span>
+                                    <span className="font-semibold text-slate-600">{acc.department || 'Finance'}</span>
+                                  </div>
+                                  {acc.swift_bic_code && (
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-400">SWIFT / BIC:</span>
+                                      <span className="font-mono text-slate-600 font-semibold">{acc.swift_bic_code}</span>
+                                    </div>
+                                  )}
+                                  <div className="flex gap-2 pt-1">
+                                    {acc.is_default_for_sales && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded-full">Default for Sales</span>
+                                    )}
+                                    {acc.is_default_for_expenses && (
+                                      <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded-full">Default for Expenses</span>
+                                    )}
+                                    {!acc.is_active && (
+                                      <span className="px-2 py-0.5 bg-slate-200 text-slate-600 text-[9px] font-bold rounded-full">Inactive</span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
 
-                        {bankAccounts.length === 0 && (
-                          <div className="md:col-span-2 text-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
-                            No bank accounts added yet. Click "Add Bank Account" below to register one.
-                          </div>
-                        )}
-                      </div>
+                          {dbBankAccounts.length === 0 && (
+                            <div className="md:col-span-2 text-center p-8 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
+                              No bank accounts added yet. Click "Add Bank Account" below to register one.
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Add/Edit Account Inline Drawer form */}
                       {showBankForm ? (
@@ -1276,6 +1515,33 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                               />
                             </div>
                             <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Account Type</label>
+                              <select
+                                value={bankForm.accountType}
+                                onChange={e => setBankForm(prev => ({ ...prev, accountType: e.target.value }))}
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-medium text-slate-750"
+                              >
+                                <option value="Business">Business</option>
+                                <option value="Corporate">Corporate</option>
+                                <option value="Checking">Checking</option>
+                                <option value="Savings">Savings</option>
+                                <option value="Current">Current</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Currency</label>
+                              <select
+                                value={bankForm.currency}
+                                onChange={e => setBankForm(prev => ({ ...prev, currency: e.target.value }))}
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-medium text-slate-750"
+                              >
+                                <option value="ETB">ETB - Ethiopian Birr</option>
+                                <option value="USD">USD - US Dollar</option>
+                                <option value="EUR">EUR - Euro</option>
+                                <option value="GBP">GBP - British Pound</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
                               <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">SWIFT / BIC Code (Optional)</label>
                               <input
                                 type="text"
@@ -1285,6 +1551,56 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                                 className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-mono font-semibold text-slate-700"
                               />
                             </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">COA Account Code (Optional)</label>
+                              <select
+                                value={bankForm.coaAccountCode}
+                                onChange={e => setBankForm(prev => ({ ...prev, coaAccountCode: e.target.value }))}
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-mono font-semibold text-slate-700"
+                              >
+                                <option value="">Auto-assign based on type</option>
+                                {(chartOfAccounts || []).filter(a => a.category === 'Asset' && (a.subCategory === 'Bank' || a.subCategory === 'Cash')).map(a => (
+                                  <option key={a.code} value={a.code}>{a.code} - {a.name}</option>
+                                ))}
+                              </select>
+                              <p className="text-[9px] text-slate-400 italic">Links to Chart of Accounts for double-entry posting</p>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-450">Department (USALI)</label>
+                              <select
+                                value={bankForm.department}
+                                onChange={e => setBankForm(prev => ({ ...prev, department: e.target.value }))}
+                                className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-none focus:border-indigo-500 transition font-medium text-slate-750"
+                              >
+                                <option value="Finance">Finance</option>
+                                <option value="Front Office">Front Office</option>
+                                <option value="F&B">Food & Beverage</option>
+                                <option value="Rooms">Rooms</option>
+                                <option value="General">General</option>
+                              </select>
+                              <p className="text-[9px] text-slate-400 italic">USALI departmental tagging for reporting</p>
+                            </div>
+                          </div>
+
+                          <div className="flex gap-4 pt-2">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={bankForm.isDefaultForSales}
+                                onChange={e => setBankForm(prev => ({ ...prev, isDefaultForSales: e.target.checked }))}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="text-[10px] font-semibold text-slate-700">Default for Sales (Revenue)</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={bankForm.isDefaultForExpenses}
+                                onChange={e => setBankForm(prev => ({ ...prev, isDefaultForExpenses: e.target.checked }))}
+                                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                              />
+                              <span className="text-[10px] font-semibold text-slate-700">Default for Expenses</span>
+                            </label>
                           </div>
 
                           <div className="flex justify-end gap-2 pt-2">
@@ -1305,19 +1621,7 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                                   alert('Please fill in Bank Name, Account Name, and Account Number.');
                                   return;
                                 }
-                                const item: BankAccountItem = {
-                                  bankName: bankForm.bankName,
-                                  accountName: bankForm.accountName,
-                                  accountNumber: bankForm.accountNumber,
-                                  swiftCode: bankForm.swiftCode || undefined
-                                };
-                                if (editingBankIndex !== null) {
-                                  setBankAccounts(prev => prev.map((curr, idx) => idx === editingBankIndex ? item : curr));
-                                } else {
-                                  setBankAccounts(prev => [...prev, item]);
-                                }
-                                setShowBankForm(false);
-                                setEditingBankIndex(null);
+                                saveBankAccount();
                               }}
                               className="px-4 py-2 bg-indigo-600 text-white text-[10px] font-bold uppercase tracking-wider rounded-xl hover:bg-indigo-700 transition flex items-center gap-1 cursor-pointer"
                             >
@@ -1329,7 +1633,18 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                         <button
                           type="button"
                           onClick={() => {
-                            setBankForm({ bankName: '', accountName: '', accountNumber: '', swiftCode: '' });
+                            setBankForm({ 
+                              bankName: '', 
+                              accountName: '', 
+                              accountNumber: '', 
+                              swiftCode: '',
+                              accountType: 'Business',
+                              currency: 'ETB',
+                              isDefaultForSales: false,
+                              isDefaultForExpenses: false,
+                              coaAccountCode: '',
+                              department: 'Finance'
+                            });
                             setEditingBankIndex(null);
                             setShowBankForm(true);
                           }}
@@ -1467,6 +1782,125 @@ export default function BusinessAdmin({ initialTab = 'details', showNav = true }
                   <Save size={16} />
                   Save Policies
                 </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* TAB 5: CHECK-IN FORMS */}
+        {activeTab === 'checkin_forms' && (
+          <div className="max-w-5xl mx-auto animate-fade-in">
+            <form onSubmit={saveCheckinFormSettings} className="space-y-6" id="checkin-forms-form">
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+                <h2 className="text-base font-sans font-black text-slate-900 tracking-tight flex items-center gap-2 mb-4">
+                  <FileText size={18} className="text-indigo-500" /> Check-In Form Configuration
+                </h2>
+                <p className="text-xs text-slate-500 mb-6">Customize the content and appearance of check-in forms for individual guests and group bookings.</p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Individual Check-In Form Settings */}
+                  <div className="space-y-4 p-5 bg-indigo-50/50 rounded-2xl border border-indigo-200/60">
+                    <h4 className="text-[10px] font-mono font-black uppercase text-indigo-600 tracking-widest">Individual Check-In Form</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Form Title</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.individualTitle}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, individualTitle: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Hotel Name</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.hotelName}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, hotelName: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Terms & Conditions</label>
+                        <textarea
+                          rows={4}
+                          value={checkinFormSettings.individualTerms}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, individualTerms: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Signature Label</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.individualSignatureLabel}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, individualSignatureLabel: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Signature Hint</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.individualSignatureHint}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, individualSignatureHint: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Group Check-In Form Settings */}
+                  <div className="space-y-4 p-5 bg-purple-50/50 rounded-2xl border border-purple-200/60">
+                    <h4 className="text-[10px] font-mono font-black uppercase text-purple-600 tracking-widest">Group Check-In Form</h4>
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Form Title</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.groupTitle}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, groupTitle: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Terms & Conditions</label>
+                        <textarea
+                          rows={4}
+                          value={checkinFormSettings.groupTerms}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, groupTerms: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Signature Label</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.groupSignatureLabel}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, groupSignatureLabel: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-mono uppercase text-slate-450 font-bold block">Signature Hint</label>
+                        <input
+                          type="text"
+                          value={checkinFormSettings.groupSignatureHint}
+                          onChange={e => setCheckinFormSettings(f => ({ ...f, groupSignatureHint: e.target.value }))}
+                          className="w-full px-3 py-2 bg-white border rounded-xl text-xs font-sans"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <button type="submit"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-sans font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition">
+                    <Save size={16} />
+                    Save Check-In Form Settings
+                  </button>
+                </div>
               </div>
             </form>
           </div>

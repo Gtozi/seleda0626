@@ -41,11 +41,12 @@ const legacyPermissionMap: Record<string, string> = {
 };
 
 const fallbackRolePermissions: Record<string, string[]> = {
+  frontoffice: ['reservation:create', 'reservation:update', 'reservation:check_in', 'reservation:check_out', 'folio:charge:add', 'folio:charge:void', 'folio:payment:add', 'folio:payment:void', 'room:status:update', 'reports:view', 'finance:read'],
   housekeeping: ['room:status:update', 'reports:view'],
   'f&b': ['folio:charge:add', 'folio:payment:add', 'reports:view'],
   maintenance: ['room:status:update', 'reports:view'],
   inventory: ['inventory:stock:adjust', 'inventory:transfer:create', 'reports:view', 'reports:export'],
-  finance: ['folio:charge:void', 'folio:payment:void', 'rates:view', 'rates:update', 'settings:tax:update', 'audit:view', 'reports:view', 'reports:export', 'finance:journal:create', 'finance:journal:post', 'finance:period:close'],
+  finance: ['folio:charge:void', 'folio:payment:void', 'rates:view', 'rates:update', 'settings:tax:update', 'audit:view', 'reports:view', 'reports:export', 'finance:journal:create', 'finance:journal:post', 'finance:period:close', 'finance:read'],
   hr: ['users:manage', 'audit:view', 'reports:view'],
   executive: ['*'],
   general_manager: ['*'],

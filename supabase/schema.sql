@@ -428,6 +428,7 @@ create table if not exists folios (
   opened_at timestamp with time zone not null default now(),
   closed_at timestamp with time zone,
   created_by text references system_users(id) on delete set null,
+  created_at timestamp with time zone not null default now(),
   updated_at timestamp with time zone not null default now(),
   notes text default ''
 );
@@ -804,7 +805,7 @@ begin
           (elem->>'value')::numeric as value,
           (elem->>'accountCode')::text as account_code
         from global_settings, jsonb_array_elements(fee_components) as elem
-        where id = 'main'
+        where global_settings.id = 'main'
         and (elem->>'isEnabled')::boolean = true
         and lower((elem->>'name')::text) not like '%vat%'
         and lower((elem->>'name')::text) not like '%tax%'
@@ -846,7 +847,7 @@ begin
         (elem->>'accountCode')::text
       into v_vat_name, v_vat_rate, v_vat_account
       from global_settings, jsonb_array_elements(fee_components) as elem
-      where id = 'main'
+      where global_settings.id = 'main'
       and (elem->>'isEnabled')::boolean = true
       and (lower((elem->>'name')::text) like '%vat%' or lower((elem->>'name')::text) like '%tax%')
       limit 1;
@@ -994,7 +995,7 @@ begin
         (elem->>'value')::numeric as value,
         (elem->>'accountCode')::text as account_code
       from global_settings, jsonb_array_elements(fee_components) as elem
-      where id = 'main'
+      where global_settings.id = 'main'
       and (elem->>'isEnabled')::boolean = true
       and lower((elem->>'name')::text) not like '%vat%'
       and lower((elem->>'name')::text) not like '%tax%'
@@ -1036,7 +1037,7 @@ begin
       (elem->>'accountCode')::text
     into v_vat_name, v_vat_rate, v_vat_account
     from global_settings, jsonb_array_elements(fee_components) as elem
-    where id = 'main'
+    where global_settings.id = 'main'
     and (elem->>'isEnabled')::boolean = true
     and (lower((elem->>'name')::text) like '%vat%' or lower((elem->>'name')::text) like '%tax%')
     limit 1;

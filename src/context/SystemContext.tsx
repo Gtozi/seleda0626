@@ -10,6 +10,7 @@ import {
 import { initialNotifications, initialRoomTypeMetadata } from './initialState';
 import { toISODate } from '../utils/date';
 import { supabaseService } from '../services/supabaseService';
+import { validateFeeComponentsMatch } from '../utils/billing';
 
 export interface SystemContextType {
   platformView: 'erp' | 'direct' | 'mobile';
@@ -185,7 +186,22 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     await Promise.all([
       supabaseService.fetchGlobalSettings().then(dbSettings => {
         if (active && dbSettings) {
-          setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+          // Validate fee components match between frontend and backend
+          if (dbSettings.feeComponents && globalHotelSettings.feeComponents) {
+            const validation = validateFeeComponentsMatch(
+              globalHotelSettings.feeComponents,
+              dbSettings.feeComponents
+            );
+            if (!validation.valid) {
+              console.warn('Fee components mismatch detected between frontend and backend:', validation.mismatches);
+              // Auto-sync to backend to prevent discrepancies
+              setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+            } else {
+              setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+            }
+          } else {
+            setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+          }
         }
       }).catch(console.error),
       supabaseService.fetchSystemUsers().then(dbUsers => {

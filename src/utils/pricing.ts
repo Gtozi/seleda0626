@@ -2,19 +2,24 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  *
- * Shared pricing engine for the public booking portal.
+ * DEPRECATED: Frontend pricing calculation functions
  *
- * This module is the SINGLE SOURCE OF TRUTH for public-booking pricing and is
- * imported by BOTH the Express server (server.ts) and the public booking client
- * (BookingPage.tsx). Keeping the math in one place guarantees that the total a
- * guest sees on screen is byte-for-byte identical to the total persisted by the
- * server, and that both mirror the front-desk fee logic (ERPContext
- * `formatTaxesAndFees`).
+ * This module has been DEPRECATED. All monetary calculations should now be
+ * performed by the database using the following DB functions:
+ *   - calculate_billing_breakdown (existing)
+ *   - get_reservation_balance (migration 065)
+ *   - get_reservation_total (migration 065)
+ *   - get_effective_nightly_rate (migration 065)
  *
- * Fee model (matches front desk):
- *   1. Service charge + any non-VAT "additional" fees are applied to the base.
- *   2. VAT/tax is applied LAST, on (base + service charge + additional fees).
- *      i.e. VAT is compounded over the service charge — the Ethiopian standard.
+ * Frontend should fetch calculated values via API endpoints:
+ *   - GET /api/public/billing/calculate-breakdown
+ *   - GET /api/billing/calculate-breakdown
+ *   - GET /api/reservations/:id/balance
+ *   - GET /api/reservations/:id/total
+ *   - GET /api/rates/effective
+ *
+ * These functions are retained for backward compatibility only and should not
+ * be used for new monetary calculations.
  */
 
 export interface FeeComponent {

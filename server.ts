@@ -230,11 +230,12 @@ const legacyPermissionMap: Record<string, string> = {
 
 
 const fallbackRolePermissions: Record<string, string[]> = {
+  frontoffice: ['reservation:create', 'reservation:update', 'reservation:check_in', 'reservation:check_out', 'folio:charge:add', 'folio:charge:void', 'folio:payment:add', 'folio:payment:void', 'room:status:update', 'reports:view', 'finance:read'],
   housekeeping: ['room:status:update', 'reports:view'],
   'f&b': ['folio:charge:add', 'folio:payment:add', 'reports:view'],
   maintenance: ['room:status:update', 'reports:view'],
   inventory: ['inventory:stock:adjust', 'inventory:transfer:create', 'reports:view', 'reports:export'],
-  finance: ['folio:charge:void', 'folio:payment:void', 'rates:view', 'rates:update', 'settings:tax:update', 'audit:view', 'reports:view', 'reports:export', 'finance:journal:create', 'finance:journal:post', 'finance:period:close'],
+  finance: ['folio:charge:void', 'folio:payment:void', 'rates:view', 'rates:update', 'settings:tax:update', 'audit:view', 'reports:view', 'reports:export', 'finance:journal:create', 'finance:journal:post', 'finance:period:close', 'finance:read'],
   hr: ['users:manage', 'audit:view', 'reports:view'],
   executive: ['*'],
   general_manager: ['*'],
@@ -2736,6 +2737,105 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
+  // ID Card Upload for Check-In
+  app.post('/api/guests/:id/id-card', authenticate, requirePermission('reservation:check_in'), async (req, res) => {
+    const guestId = req.params.id;
+    const { docType, docNumber, expiryDate, issueDate, issuingCountry, frontImageBase64, backImageBase64 } = req.body;
+
+    if (!docType || !docNumber || !expiryDate) {
+      return res.status(400).json({ error: 'docType, docNumber, and expiryDate are required' });
+    }
+
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      let frontImageUrl = null;
+      let backImageUrl = null;
+
+      // Upload front image if provided
+      if (frontImageBase64) {
+        const frontBuffer = Buffer.from(frontImageBase64, 'base64');
+        const frontFileName = `${guestId}-front-${Date.now()}.jpg`;
+        const frontFilePath = `id-cards/${frontFileName}`;
+        
+        const { data: frontUpload, error: frontError } = await supabaseAdmin
+          .storage
+          .from('id-cards')
+          .upload(frontFilePath, frontBuffer, { contentType: 'image/jpeg' });
+
+        if (frontError) {
+          console.error('Error uploading front ID card:', frontError);
+          return res.status(500).json({ error: 'Failed to upload front ID card image' });
+        }
+
+        const { data: { publicUrl: frontPublicUrl } } = supabaseAdmin
+          .storage
+          .from('id-cards')
+          .getPublicUrl(frontFilePath);
+        
+        frontImageUrl = frontPublicUrl;
+      }
+
+      // Upload back image if provided
+      if (backImageBase64) {
+        const backBuffer = Buffer.from(backImageBase64, 'base64');
+        const backFileName = `${guestId}-back-${Date.now()}.jpg`;
+        const backFilePath = `id-cards/${backFileName}`;
+        
+        const { data: backUpload, error: backError } = await supabaseAdmin
+          .storage
+          .from('id-cards')
+          .upload(backFilePath, backBuffer, { contentType: 'image/jpeg' });
+
+        if (backError) {
+          console.error('Error uploading back ID card:', backError);
+          return res.status(500).json({ error: 'Failed to upload back ID card image' });
+        }
+
+        const { data: { publicUrl: backPublicUrl } } = supabaseAdmin
+          .storage
+          .from('id-cards')
+          .getPublicUrl(backFilePath);
+        
+        backImageUrl = backPublicUrl;
+      }
+
+      // Update guest identification_doc using the database function
+      const { data, error } = await supabaseAdmin.rpc('update_guest_id_card', {
+        p_guest_id: guestId,
+        p_doc_type: docType,
+        p_doc_number: docNumber,
+        p_expiry_date: expiryDate,
+        p_issue_date: issueDate || null,
+        p_issuing_country: issuingCountry || null,
+        p_front_image_url: frontImageUrl || null,
+        p_back_image_url: backImageUrl || null
+      });
+
+      if (error) {
+        console.error('Error updating guest ID card:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      await writeAuditEvent({ 
+        req, 
+        user: req.user, 
+        action: 'id_card_uploaded', 
+        entityType: 'Guest', 
+        entityId: guestId,
+        module: 'check_in',
+        details: { docType, docNumber, expiryDate, hasFrontImage: !!frontImageUrl, hasBackImage: !!backImageUrl }
+      });
+
+      return res.json({ success: true, identificationDoc: data });
+    } catch (error) {
+      console.error('Error in ID card upload:', error);
+      return res.status(500).json({ error: 'Failed to upload ID card' });
+    }
+  });
+
   app.post('/api/reservations/:id/change-room', authenticate, requirePermission('reservation:update'), async (req, res) => {
 
     const reservationId = req.params.id;
@@ -2777,7 +2877,10 @@ async function startServer() {
         p_user_id: req.user!.id,
       });
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error('check_in_reservation RPC error:', error);
+        return res.status(500).json({ error: error.message });
+      }
       if (!data?.success) return res.status(409).json({ error: data?.error || 'Check-in failed' });
 
       return res.json({ success: true, reservationId, roomNumber, status: 'CheckedIn', folioId: data.folioId });
@@ -2786,11 +2889,10 @@ async function startServer() {
     return res.status(503).json({ error: 'Database not configured' });
   });
 
-  async function ensureFolio(reservationId: string, userId: string, targetFolio?: string) {
-    if (!supabaseAdmin) return null;
-
-    // Look for existing open folio for this reservation
-    let query = supabaseAdmin
+  // Re-lookup helper used both for the happy path and as a race-recovery path
+  // when a concurrent request wins the insert race (unique violation).
+  async function findOpenFolio(reservationId: string, targetFolio?: string) {
+    let query = supabaseAdmin!
       .from('folios')
       .select('id, folio_type, target_folio')
       .eq('reservation_id', reservationId)
@@ -2799,7 +2901,6 @@ async function startServer() {
     if (targetFolio) {
       query = query.eq('target_folio', targetFolio);
     } else {
-      // Prefer Guest/Master folio (primary), fallback to any
       query = query.in('folio_type', ['Guest', 'Master']);
     }
 
@@ -2807,17 +2908,24 @@ async function startServer() {
     if (existing) return existing.id;
 
     // If no primary folio exists but other folios do, get the first open one
-    const { data: anyFolio } = await supabaseAdmin
+    const { data: anyFolio } = await supabaseAdmin!
       .from('folios')
       .select('id')
       .eq('reservation_id', reservationId)
       .eq('status', 'Open')
       .maybeSingle();
-    if (anyFolio) return anyFolio.id;
+    return anyFolio ? anyFolio.id : null;
+  }
+
+  async function ensureFolio(reservationId: string, userId: string, targetFolio?: string) {
+    if (!supabaseAdmin) return null;
+
+    const existingId = await findOpenFolio(reservationId, targetFolio);
+    if (existingId) return existingId;
 
     const { data: reservation } = await supabaseAdmin
       .from('reservations')
-      .select('status, total_amount, channel, group_booking_id')
+      .select('status, total_amount, channel, group_booking_id, discount_percent, room_type')
       .eq('id', reservationId)
       .maybeSingle();
 
@@ -2825,23 +2933,41 @@ async function startServer() {
 
     const isCorporate = reservation.channel === 'Corporate' || reservation.group_booking_id != null;
 
+    // Pre-tax base amount for the initial charge. The discount is now applied
+    // inside post_folio_charge RPC via p_discount_percent parameter, ensuring
+    // consistent fee/tax calculation with the backend. This folio-creation fallback
+    // path runs whenever a charge/payment is posted BEFORE check_in_reservation
+    // has run (e.g., collecting a pre-arrival deposit), so without seeding a real
+    // charge line here the folio would sit at $0.00 total_charges forever.
+    const rawTotal = reservation.total_amount || 0;
+    const discountPct = reservation.discount_percent || 0;
+
     if (isCorporate) {
-      // Create split folios: Master (A) + Guest (B)
+      // Create split folios: Master (A) + Guest (B). The `folios.balance`/
+      // `total_charges` columns start at 0 (they're just a cache); the real
+      // room charge is posted as an actual folio_line via post_folio_charge
+      // below so /folio-balance and /payments (which sum folio_lines/
+      // folio_payments directly) see the true amount due.
       const folioA = crypto.randomUUID();
       const folioB = crypto.randomUUID();
-      await supabaseAdmin.from('folios').insert({
+      const { error: errA } = await supabaseAdmin.from('folios').insert({
         id: folioA,
         reservation_id: reservationId,
         folio_type: 'Master',
         target_folio: 'A',
         status: 'Open',
-        balance: reservation.total_amount || 0,
-        total_charges: reservation.total_amount || 0,
+        balance: 0,
+        total_charges: 0,
         total_payments: 0,
         currency: 'USD',
         opened_at: new Date().toISOString(),
         created_by: userId,
       });
+      if (errA?.code === '23505') {
+        // Lost the creation race - another request created it concurrently.
+        const raceWinner = await findOpenFolio(reservationId, targetFolio);
+        if (raceWinner) return raceWinner;
+      }
       await supabaseAdmin.from('folios').insert({
         id: folioB,
         reservation_id: reservationId,
@@ -2855,30 +2981,65 @@ async function startServer() {
         opened_at: new Date().toISOString(),
         created_by: userId,
       });
+
+      // Corporate stays put the room charge on the Master (A) folio, same as
+      // check_in_reservation - the Guest (B) folio stays at $0 for incidentals.
+      if (rawTotal > 0) {
+        await supabaseAdmin.rpc('post_folio_charge', {
+          p_folio_id: folioA,
+          p_description: `Room charge - ${reservation.room_type || 'reservation'} (pre-arrival)`,
+          p_amount: rawTotal,
+          p_quantity: 1,
+          p_line_type: 'Room',
+          p_revenue_account_code: null,
+          p_user_id: userId,
+          p_source_reference: null,
+          p_discount_percent: discountPct,
+        });
+      }
       return targetFolio === 'B' ? folioB : folioA;
     }
 
     // Individual booking: single Guest folio
     const folioId = crypto.randomUUID();
-    await supabaseAdmin.from('folios').insert({
+    const { error: errGuest } = await supabaseAdmin.from('folios').insert({
       id: folioId,
       reservation_id: reservationId,
       folio_type: 'Guest',
       status: 'Open',
-      balance: reservation.total_amount || 0,
-      total_charges: reservation.total_amount || 0,
+      balance: 0,
+      total_charges: 0,
       total_payments: 0,
       currency: 'USD',
       opened_at: new Date().toISOString(),
       created_by: userId,
     });
+    if (errGuest?.code === '23505') {
+      // Lost the creation race - another request created it concurrently.
+      const raceWinner = await findOpenFolio(reservationId, targetFolio);
+      if (raceWinner) return raceWinner;
+    }
+
+    if (rawTotal > 0) {
+      await supabaseAdmin.rpc('post_folio_charge', {
+        p_folio_id: folioId,
+        p_description: `Room charge - ${reservation.room_type || 'reservation'} (pre-arrival)`,
+        p_amount: rawTotal,
+        p_quantity: 1,
+        p_line_type: 'Room',
+        p_revenue_account_code: null,
+        p_user_id: userId,
+        p_source_reference: null,
+        p_discount_percent: discountPct,
+      });
+    }
     return folioId;
   }
 
   app.post('/api/reservations/:id/charges', authenticate, requirePermission('folio:charge:add'), async (req, res) => {
 
     const reservationId = req.params.id;
-    const { description, amount, quantity, lineType, revenueAccountCode, sourceReference } = req.body;
+    const { description, amount, quantity, lineType, revenueAccountCode, sourceReference, discountPercent, targetFolio } = req.body;
 
     if (!description || typeof amount !== 'number' || amount <= 0) {
       return res.status(400).json({ error: 'description and positive amount are required' });
@@ -2897,12 +3058,221 @@ async function startServer() {
         p_revenue_account_code: revenueAccountCode || null,
         p_user_id: req.user!.id,
         p_source_reference: sourceReference || null,
+        p_discount_percent: discountPercent || 0,
       });
 
       if (error) return res.status(500).json({ error: error.message });
       if (!data?.success) return res.status(409).json({ error: data?.error || 'Charge failed' });
 
-      return res.json({ success: true, folioId, lineId: data.lineId, lineNumber: data.lineNumber, newBalance: data.newBalance });
+      // If an explicit targetFolio was provided, stamp it on the line row.
+      // post_folio_charge inherits target_folio from the folio itself; a per-
+      // charge override (e.g. manually routing to A or B) requires a follow-up
+      // update here. This also fires the sync trigger so reservations.charges
+      // gets the correct targetFolio in its JSONB.
+      if (targetFolio === 'A' || targetFolio === 'B') {
+        await supabaseAdmin
+          .from('folio_lines')
+          .update({ target_folio: targetFolio })
+          .eq('id', data.lineId);
+      }
+
+      // Keep the cached folio totals and reservation.payment_status in sync
+      // with the newly added charge (single source of truth = folio_lines).
+      const { data: recomputed } = await supabaseAdmin.rpc('recompute_folio_totals', { p_folio_id: folioId });
+      await supabaseAdmin.rpc('sync_reservation_payment_status', { p_folio_id: folioId });
+
+      return res.json({
+        success: true,
+        folioId,
+        lineId: data.lineId,
+        lineNumber: data.lineNumber,
+        newBalance: recomputed?.balance ?? data.newBalance,
+      });
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // Public billing calculation endpoint (no auth required for public booking portal)
+  app.get('/api/public/billing/calculate-breakdown', async (req, res) => {
+    const { baseAmount, discountPercent, reservationId } = req.query;
+
+    if (!baseAmount || isNaN(Number(baseAmount))) {
+      return res.status(400).json({ error: 'baseAmount is required and must be a number' });
+    }
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin.rpc('calculate_billing_breakdown', {
+          p_base_amount: Number(baseAmount),
+          p_discount_percent: discountPercent ? Number(discountPercent) : 0,
+          p_reservation_id: reservationId || null,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.get('/api/billing/calculate-breakdown', authenticate, async (req, res) => {
+    const { baseAmount, discountPercent, reservationId } = req.query;
+
+    if (!baseAmount || isNaN(Number(baseAmount))) {
+      return res.status(400).json({ error: 'baseAmount is required and must be a number' });
+    }
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin.rpc('calculate_billing_breakdown', {
+          p_base_amount: Number(baseAmount),
+          p_discount_percent: discountPercent ? Number(discountPercent) : 0,
+          p_reservation_id: reservationId || null,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.get('/api/reservations/:id/folio-balance', authenticate, async (req, res) => {
+    const reservationId = req.params.id;
+    const { folioType = 'consolidated' } = req.query; // 'consolidated', 'folio-a', 'folio-b'
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const folioId = await ensureFolio(reservationId, req.user!.id);
+        if (!folioId) return res.status(404).json({ error: 'Reservation not found or cannot create folio' });
+
+        // Get the folio's own target_folio to use as fallback for lines that
+        // have NULL target_folio (single non-split folio scenario).
+        const { data: folioRow } = await supabaseAdmin
+          .from('folios')
+          .select('target_folio')
+          .eq('id', folioId)
+          .single();
+        const folioOwnTarget: string | null = folioRow?.target_folio ?? null;
+
+        // Get total charges
+        const { data: chargesData } = await supabaseAdmin
+          .from('folio_lines')
+          .select('amount, target_folio')
+          .eq('folio_id', folioId)
+          .eq('is_voided', false);
+
+        // Get total payments
+        const { data: paymentsData } = await supabaseAdmin
+          .from('folio_payments')
+          .select('amount, target_folio')
+          .eq('folio_id', folioId)
+          .eq('is_voided', false);
+
+        // Resolve a line/payment's effective folio side, falling back to the
+        // folio's own target_folio when the row has NULL.
+        const resolveTarget = (rowTarget: string | null) =>
+          rowTarget ?? folioOwnTarget;
+
+        let totalCharges = 0;
+        let totalPayments = 0;
+
+        if (folioType === 'consolidated') {
+          totalCharges = (chargesData || []).reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+          totalPayments = (paymentsData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        } else if (folioType === 'folio-a') {
+          totalCharges = (chargesData || []).filter((c: any) => resolveTarget(c.target_folio) === 'A').reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+          totalPayments = (paymentsData || []).filter((p: any) => resolveTarget(p.target_folio) === 'A').reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        } else if (folioType === 'folio-b') {
+          totalCharges = (chargesData || []).filter((c: any) => resolveTarget(c.target_folio) === 'B').reduce((sum: number, c: any) => sum + (c.amount || 0), 0);
+          totalPayments = (paymentsData || []).filter((p: any) => resolveTarget(p.target_folio) === 'B').reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+        }
+
+        const outstandingBalance = Math.round((totalCharges - totalPayments) * 100) / 100;
+
+        return res.json({
+          folioId,
+          folioType,
+          totalCharges: Math.round(totalCharges * 100) / 100,
+          totalPayments: Math.round(totalPayments * 100) / 100,
+          outstandingBalance
+        });
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // Get reservation balance from database (DB-only calculation)
+  app.get('/api/reservations/:id/balance', authenticate, async (req, res) => {
+    const reservationId = req.params.id;
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin.rpc('get_reservation_balance', {
+          p_reservation_id: reservationId,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // Get reservation total breakdown from database (DB-only calculation)
+  app.get('/api/reservations/:id/total', authenticate, async (req, res) => {
+    const reservationId = req.params.id;
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin.rpc('get_reservation_total', {
+          p_reservation_id: reservationId,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // Get effective nightly rate from database (DB-only calculation)
+  app.get('/api/rates/effective', authenticate, async (req, res) => {
+    const { roomType, checkInDate, ratePlanId } = req.query;
+
+    if (!roomType || !checkInDate) {
+      return res.status(400).json({ error: 'roomType and checkInDate are required' });
+    }
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      try {
+        const { data, error } = await supabaseAdmin.rpc('get_effective_nightly_rate', {
+          p_room_type: roomType,
+          p_check_in_date: checkInDate,
+          p_rate_plan_id: ratePlanId || null,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        return res.json(data);
+      } catch (error: any) {
+        return res.status(500).json({ error: error.message });
+      }
     }
 
     return res.status(503).json({ error: 'Database not configured' });
@@ -2911,41 +3281,231 @@ async function startServer() {
   app.post('/api/reservations/:id/payments', authenticate, requirePermission('folio:payment:add'), async (req, res) => {
 
     const reservationId = req.params.id;
-    const { amount, paymentMethod, reference, receiptUrl, idempotencyKey } = req.body;
+    const { amount, paymentMethod, reference, receiptUrl, idempotencyKey, bankAccountId, paymentSplits } = req.body;
 
-    if (typeof amount !== 'number' || amount <= 0 || !paymentMethod) {
-      return res.status(400).json({ error: 'positive amount and paymentMethod are required' });
+    // Support both single payment and split payments
+    const splits = paymentSplits || [{ amount, paymentMethod, reference, receiptUrl, bankAccountId, idempotencyKey }];
+
+    // Validate splits
+    const totalSplitAmount = splits.reduce((sum: number, split: any) => sum + (split.amount || 0), 0);
+    if (typeof totalSplitAmount !== 'number' || totalSplitAmount <= 0) {
+      return res.status(400).json({ error: 'Total payment amount must be positive' });
     }
 
     if (hasSupabaseAdminConfig && supabaseAdmin) {
       const folioId = await ensureFolio(reservationId, req.user!.id);
       if (!folioId) return res.status(404).json({ error: 'Reservation not found or cannot create folio' });
 
-      const { data, error } = await supabaseAdmin.rpc('post_folio_payment', {
-        p_folio_id: folioId,
-        p_amount: amount,
-        p_payment_method: paymentMethod,
-        p_reference: reference || null,
-        p_user_id: req.user!.id,
-        p_receipt_url: receiptUrl || null,
-        p_idempotency_key: idempotencyKey || null,
-      });
+      // Calculate outstanding balance at the endpoint level for total validation
+      const { data: folioData } = await supabaseAdmin
+        .from('folios')
+        .select('status')
+        .eq('id', folioId)
+        .single();
 
-      if (error) return res.status(500).json({ error: error.message });
-      if (!data?.success) return res.status(409).json({ error: data?.error || 'Payment failed' });
+      if (!folioData || folioData.status !== 'Open') {
+        return res.status(400).json({ error: 'Folio is not open' });
+      }
 
-      // Handle idempotent response (duplicate request with same key)
-      if (data?.idempotent) {
-        return res.json({ 
-          success: true, 
-          folioId, 
-          paymentId: data.paymentId,
-          idempotent: true,
-          message: data.message 
+      // Get total charges
+      const { data: chargesData } = await supabaseAdmin
+        .from('folio_lines')
+        .select('amount')
+        .eq('folio_id', folioId)
+        .eq('is_voided', false);
+
+      const totalCharges = Math.round((chargesData || []).reduce((sum: number, c: any) => sum + (c.amount || 0), 0) * 100) / 100;
+
+      // Get total payments
+      const { data: paymentsData } = await supabaseAdmin
+        .from('folio_payments')
+        .select('amount')
+        .eq('folio_id', folioId)
+        .eq('is_voided', false);
+
+      const totalPayments = Math.round((paymentsData || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0) * 100) / 100;
+
+      const outstandingBalance = Math.round((totalCharges - totalPayments) * 100) / 100;
+
+      // Validate total payment amount against outstanding balance
+      // Use a larger tolerance for floating point precision issues
+      if (totalSplitAmount > outstandingBalance + 0.05) {
+        return res.status(409).json({
+          error: 'Payment amount exceeds outstanding balance',
+          outstandingBalance: Math.round(outstandingBalance * 100) / 100,
+          requestedAmount: Math.round(totalSplitAmount * 100) / 100
         });
       }
 
-      return res.json({ success: true, folioId, paymentId: data.paymentId, newBalance: data.newBalance });
+      const paymentResults = [];
+      const now = new Date().toISOString();
+
+      // Get VAT rate from settings (default 15%)
+      const { data: settings } = await supabaseAdmin
+        .from('global_settings')
+        .select('tax_percent, revenue_mappings')
+        .eq('id', 'main')
+        .single();
+
+      const vatRate = (settings?.tax_percent || 15) / 100;
+      const revenueAccountCode = settings?.revenue_mappings?.roomRevenueAccount || '4010';
+
+      // Process each payment split
+      for (const split of splits) {
+        const { amount: splitAmount, paymentMethod: splitMethod, reference: splitReference, receiptUrl: splitReceiptUrl, bankAccountId: splitBankAccountId, idempotencyKey: splitIdempotencyKey } = split;
+        
+        if (!splitMethod || typeof splitAmount !== 'number' || splitAmount <= 0) {
+          return res.status(400).json({ error: 'Each split must have a valid amount and payment method' });
+        }
+
+        const { data, error } = await supabaseAdmin.rpc('post_folio_payment', {
+          p_folio_id: folioId,
+          p_amount: splitAmount,
+          p_payment_method: splitMethod,
+          p_reference: splitReference || null,
+          p_user_id: req.user!.id,
+          p_receipt_url: splitReceiptUrl || null,
+          p_idempotency_key: splitIdempotencyKey || null,
+          p_bank_account_id: splitBankAccountId || null,
+        });
+
+        if (error) return res.status(500).json({ error: error.message });
+        if (!data?.success) return res.status(409).json({ error: data?.error || 'Payment failed' });
+
+        // Handle idempotent response
+        if (data?.idempotent) {
+          paymentResults.push({
+            success: true,
+            folioId,
+            paymentId: data.paymentId,
+            idempotent: true,
+            message: data.message,
+            amount: splitAmount,
+            method: splitMethod
+          });
+          continue;
+        }
+
+        // Create journal entry for this split
+        try {
+          const paymentId = data.paymentId;
+          const vatAmount = splitAmount * vatRate;
+          
+          // Create journal entry
+          const { data: journalEntry } = await supabaseAdmin
+            .from('journal_entries')
+            .insert({
+              id: crypto.randomUUID(),
+              date: now.split('T')[0],
+              reference: `FOLIO-PAY-${paymentId}`,
+              description: `Folio Payment - Reservation ${reservationId} (${splitMethod})`,
+              status: 'Posted',
+              created_by: req.user!.id,
+              amount: splitAmount,
+              department: 'Rooms'
+            })
+            .select('id')
+            .single();
+          
+          if (journalEntry) {
+            const journalEntryId = journalEntry.id;
+            
+            // Get bank account details if provided
+            let bankAccount = null;
+            if (splitBankAccountId) {
+              const { data: ba } = await supabaseAdmin
+                .from('bank_accounts')
+                .select('coa_account_code, bank_name')
+                .eq('id', splitBankAccountId)
+                .single();
+              bankAccount = ba;
+            }
+            
+            const coaAccountCode = bankAccount?.coa_account_code || '1100';
+            const accountName = bankAccount?.bank_name || 'Accounts Receivable';
+            
+            // Debit leg: Bank account or Accounts Receivable
+            await supabaseAdmin.from('journal_lines').insert({
+              id: crypto.randomUUID(),
+              journal_id: journalEntryId,
+              account_id: coaAccountCode,
+              account_name: accountName,
+              description: `Payment received for folio ${folioId} (${splitMethod})`,
+              debit: splitAmount,
+              credit: 0
+            });
+            
+            // Credit leg: Revenue account (excluding VAT)
+            await supabaseAdmin.from('journal_lines').insert({
+              id: crypto.randomUUID(),
+              journal_id: journalEntryId,
+              account_id: revenueAccountCode,
+              account_name: 'Room Revenue',
+              description: `Room revenue from folio ${folioId} (${splitMethod})`,
+              debit: 0,
+              credit: splitAmount - vatAmount
+            });
+            
+            // Credit leg: VAT Payable
+            await supabaseAdmin.from('journal_lines').insert({
+              id: crypto.randomUUID(),
+              journal_id: journalEntryId,
+              account_id: '2020',
+              account_name: 'VAT Payable',
+              description: `VAT on folio payment ${folioId} (${splitMethod})`,
+              debit: 0,
+              credit: vatAmount
+            });
+            
+            // Update chart of accounts balances
+            await supabaseAdmin
+              .from('chart_of_accounts')
+              .update({ balance: (await supabaseAdmin.from('chart_of_accounts').select('balance').eq('code', coaAccountCode).single()).data?.balance + splitAmount })
+              .eq('code', coaAccountCode);
+            
+            await supabaseAdmin
+              .from('chart_of_accounts')
+              .update({ balance: (await supabaseAdmin.from('chart_of_accounts').select('balance').eq('code', revenueAccountCode).single()).data?.balance - (splitAmount - vatAmount) })
+              .eq('code', revenueAccountCode);
+            
+            await supabaseAdmin
+              .from('chart_of_accounts')
+              .update({ balance: (await supabaseAdmin.from('chart_of_accounts').select('balance').eq('code', '2020').single()).data?.balance - vatAmount })
+              .eq('code', '2020');
+          }
+        } catch (journalError) {
+          console.error('Failed to create journal entry:', journalError);
+          // Continue anyway - payment was successful
+        }
+
+        paymentResults.push({
+          success: true,
+          folioId,
+          paymentId: data.paymentId,
+          amount: splitAmount,
+          method: splitMethod,
+          bankAccountId: splitBankAccountId
+        });
+      }
+
+      // Recompute the folio's authoritative totals from folio_lines/folio_payments
+      // (single source of truth) and sync reservations.payment_status. A partial
+      // payment intentionally leaves the folio status untouched (stays 'Open') -
+      // only an explicit checkout/invoice action closes a folio.
+      const { data: recomputed } = await supabaseAdmin.rpc('recompute_folio_totals', { p_folio_id: folioId });
+      await supabaseAdmin.rpc('sync_reservation_payment_status', { p_folio_id: folioId });
+
+      return res.json({ 
+        success: true, 
+        folioId, 
+        paymentResults,
+        totalAmount: totalSplitAmount,
+        splitCount: paymentResults.length,
+        remainingBalance: recomputed?.balance ?? Math.max(0, outstandingBalance - totalSplitAmount),
+        totalCharges: recomputed?.totalCharges,
+        totalPayments: recomputed?.totalPayments,
+        folioStatus: 'Open',
+      });
     }
 
     return res.status(503).json({ error: 'Database not configured' });
@@ -2970,6 +3530,46 @@ async function startServer() {
       if (!data?.success) return res.status(409).json({ error: data?.error || 'Void failed' });
 
       return res.json({ success: true, lineId: chargeId, amountReversed: data.amountReversed });
+    }
+
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.patch('/api/reservations/:reservationId/charges/:chargeId', authenticate, requirePermission('folio:charge:add'), async (req, res) => {
+    const { chargeId } = req.params;
+    const { targetFolio, amount } = req.body;
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const updates: Record<string, any> = {};
+      if (targetFolio === 'A' || targetFolio === 'B' || targetFolio === null) {
+        updates.target_folio = targetFolio;
+      }
+      if (typeof amount === 'number' && amount > 0) {
+        updates.amount = amount;
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      const { error } = await supabaseAdmin
+        .from('folio_lines')
+        .update(updates)
+        .eq('id', chargeId);
+
+      if (error) return res.status(500).json({ error: error.message });
+
+      // Fire sync to keep reservations.charges JSONB in sync
+      const { data: lineRow } = await supabaseAdmin
+        .from('folio_lines')
+        .select('folio_id')
+        .eq('id', chargeId)
+        .single();
+      if (lineRow?.folio_id) {
+        await supabaseAdmin.rpc('recompute_folio_totals', { p_folio_id: lineRow.folio_id });
+      }
+
+      return res.json({ success: true, lineId: chargeId });
     }
 
     return res.status(503).json({ error: 'Database not configured' });
@@ -3346,6 +3946,186 @@ async function startServer() {
   if (!isProduction && fs.existsSync(distIndex)) {
     try { fs.unlinkSync(distIndex); } catch { /* ignore */ }
   }
+  // Bank Accounts API endpoints
+  app.get('/api/finance/bank-accounts', authenticate, async (req, res) => {
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from('bank_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ success: true, bankAccounts: data });
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.get('/api/finance/bank-accounts/:id', authenticate, async (req, res) => {
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin
+        .from('bank_accounts')
+        .select('*')
+        .eq('id', req.params.id)
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: 'Bank account not found' });
+      return res.json({ success: true, bankAccount: data });
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.get('/api/finance/bank-accounts/:id/summary', authenticate, requirePermission('finance:read'), async (req, res) => {
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.rpc('get_bank_account_summary', {
+        p_bank_account_id: req.params.id
+      });
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json(data);
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.post('/api/finance/bank-accounts', authenticate, requirePermission('finance:write'), async (req, res) => {
+    const {
+      accountName,
+      bankName,
+      accountNumber,
+      accountType,
+      currency,
+      swiftBicCode,
+      branchName,
+      branchAddress,
+      description,
+      openingBalance,
+      isDefaultForSales,
+      isDefaultForExpenses
+    } = req.body;
+
+    if (!accountName || !bankName || !accountNumber || !accountType) {
+      return res.status(400).json({ error: 'accountName, bankName, accountNumber, and accountType are required' });
+    }
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const bankAccountId = crypto.randomUUID();
+      const insertData: any = {
+        id: bankAccountId,
+        account_name: accountName,
+        bank_name: bankName,
+        account_number: accountNumber,
+        account_type: accountType,
+        currency: currency || 'ETB',
+        swift_bic_code: swiftBicCode,
+        branch_name: branchName,
+        branch_address: branchAddress,
+        description,
+        opening_balance: openingBalance || 0,
+        current_balance: openingBalance || 0,
+        is_default_for_sales: isDefaultForSales || false,
+        is_default_for_expenses: isDefaultForExpenses || false,
+        created_by: req.user!.id
+      };
+
+      const { data, error } = await supabaseAdmin
+        .from('bank_accounts')
+        .insert(insertData)
+        .select()
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ success: true, bankAccount: data });
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.put('/api/finance/bank-accounts/:id', authenticate, requirePermission('finance:write'), async (req, res) => {
+    const {
+      accountName,
+      bankName,
+      accountNumber,
+      accountType,
+      currency,
+      isActive,
+      isDefaultForSales,
+      isDefaultForExpenses,
+      swiftBicCode,
+      branchName,
+      branchAddress,
+      description,
+      coaAccountCode,
+      department
+    } = req.body;
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const updateData: any = {
+        updated_at: new Date().toISOString()
+      };
+
+      if (accountName !== undefined) updateData.account_name = accountName;
+      if (bankName !== undefined) updateData.bank_name = bankName;
+      if (accountNumber !== undefined) updateData.account_number = accountNumber;
+      if (accountType !== undefined) updateData.account_type = accountType;
+      if (currency !== undefined) updateData.currency = currency;
+      if (isActive !== undefined) updateData.is_active = isActive;
+      if (isDefaultForSales !== undefined) updateData.is_default_for_sales = isDefaultForSales;
+      if (isDefaultForExpenses !== undefined) updateData.is_default_for_expenses = isDefaultForExpenses;
+      if (swiftBicCode !== undefined) updateData.swift_bic_code = swiftBicCode;
+      if (branchName !== undefined) updateData.branch_name = branchName;
+      if (branchAddress !== undefined) updateData.branch_address = branchAddress;
+      if (description !== undefined) updateData.description = description;
+
+      const { data, error } = await supabaseAdmin
+        .from('bank_accounts')
+        .update(updateData)
+        .eq('id', req.params.id)
+        .select()
+        .single();
+
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: 'Bank account not found' });
+      return res.json({ success: true, bankAccount: data });
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  app.delete('/api/finance/bank-accounts/:id', authenticate, requirePermission('finance:write'), async (req, res) => {
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const { error } = await supabaseAdmin
+        .from('bank_accounts')
+        .delete()
+        .eq('id', req.params.id);
+
+      if (error) return res.status(500).json({ error: error.message });
+      return res.json({ success: true, message: 'Bank account deleted' });
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
+  // Expense payment with bank account tracking
+  app.post('/api/finance/expenses/:id/payment', authenticate, requirePermission('finance:write'), async (req, res) => {
+    const { bankAccountId, paymentMethod, paymentReference } = req.body;
+
+    if (!paymentMethod) {
+      return res.status(400).json({ error: 'paymentMethod is required' });
+    }
+
+    if (hasSupabaseAdminConfig && supabaseAdmin) {
+      const { data, error } = await supabaseAdmin.rpc('update_expense_payment', {
+        p_expense_id: req.params.id,
+        p_bank_account_id: bankAccountId || null,
+        p_payment_method: paymentMethod,
+        p_payment_reference: paymentReference || null,
+        p_user_id: req.user!.id
+      });
+
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data?.success) return res.status(400).json({ error: data?.error || 'Payment failed' });
+      return res.json(data);
+    }
+    return res.status(503).json({ error: 'Database not configured' });
+  });
+
   const hasBuiltApp = fs.existsSync(distIndex);
   if (!isProduction && !hasBuiltApp) {
     const vite = await createViteServer({ 

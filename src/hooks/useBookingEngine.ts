@@ -347,7 +347,7 @@ export function useBookingEngine() {
           addFolioPayment(resId, {
             amount: individualTotalWithActivity,
             method: 'Pending Verification',
-            description: 'Direct website booking — pending front office confirmation',
+            notes: null,
           });
         }
       });

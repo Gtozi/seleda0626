@@ -54,6 +54,7 @@ export default function FrontDeskPortal({
         groupName?: string;
         contactName?: string;
         roomCount?: number;
+        pendingCheckIn?: boolean;
       }
     | undefined
   >(undefined);
@@ -71,14 +72,24 @@ export default function FrontDeskPortal({
     guestEmail: string;
     guestPhone?: string;
     checkInDate: string;
+    pendingCheckIn?: boolean;
   }) => {
+    const returnTab = activeTab;
+    push({
+      id: `frontdesk-tab-${returnTab}`,
+      name: returnTab,
+      restore: () => {
+        setActiveTab(returnTab);
+      }
+    });
     setCrmInitialData({
       name: resData.guestName,
       email: resData.guestEmail,
       phone: resData.guestPhone,
       resId: resData.id,
       rm: resData.roomNumber,
-      date: resData.checkInDate
+      date: resData.checkInDate,
+      pendingCheckIn: resData.pendingCheckIn
     });
     setActiveTab('crm');
   };

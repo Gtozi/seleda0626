@@ -37,7 +37,6 @@ import {
   ChevronRight as ChevronRightIcon
 } from 'lucide-react';
 import { calculateNights, calculateDailyRate, getSeasonalMultiplier } from '../../utils/billing';
-import { computeFees, FeeComponent } from '../../utils/pricing';
 import { supabase, hasSupabaseConfig } from '../../lib/supabase';
 import ReservationModal from './ReservationModal';
 import { ReservationFormData } from '../../schemas/reservationSchema';
@@ -58,7 +57,7 @@ export default function ReservationsModule({
   selectedCalendarRes: externalSelectedCalendarRes,
   onSelectedCalendarResChange
 }: { 
-  onNavigateToCRM?: (resData: { id: string, roomNumber?: string, guestName: string, guestEmail: string, guestPhone?: string, checkInDate: string }) => void;
+  onNavigateToCRM?: (resData: { id: string, roomNumber?: string, guestName: string, guestEmail: string, guestPhone?: string, checkInDate: string, pendingCheckIn?: boolean }) => void;
   onProcessCheckout?: (resId: string) => void;
   onGroupCheckIn?: (data: { id: string, groupName: string, contactName: string, contactEmail: string, contactPhone: string, roomCount: number, checkInDate: string }) => void;
   onViewGuestProfile?: (guestId: string, restore?: () => void) => void;
@@ -689,7 +688,6 @@ export default function ReservationsModule({
           });
 
           const subtotal = roomSubtotal + packageTotal + serviceTotal;
-          const fees = computeFees(subtotal, globalHotelSettings.feeComponents as FeeComponent[] | undefined, globalHotelSettings.taxPercent, globalHotelSettings.serviceChargePercent);
 
           const payload = {
             p_idempotency_key: `${data.guestEmail}::${data.checkInDate}::${data.checkOutDate}::${Date.now()}`,
@@ -709,9 +707,9 @@ export default function ReservationsModule({
             p_svc_charge_pct: globalHotelSettings.serviceChargePercent || 0,
             p_group_name: data.bookingType === 'Group' ? (data.groupName || data.guestName) : null,
             p_operator_id: data.operatorId || null,
-            p_tax_amount: fees.tax,
-            p_svc_amount: fees.serviceCharge,
-            p_addon_amount: fees.additionalFees,
+            p_tax_amount: 0,
+            p_svc_amount: 0,
+            p_addon_amount: 0,
             p_channel: data.channel,
             p_status: data.channel === 'Walk-In' ? 'Confirmed' : 'Waitlisted',
             p_voucher_code: data.voucherCode || null,
@@ -1041,6 +1039,7 @@ export default function ReservationsModule({
             packageIds: data.packageIds,
             guestServiceIds: data.guestServiceIds,
             additionalGuestIds: data.bookingType === 'Group' && data.groupName ? guestIdsForRooms : data.additionalGuestIds,
+            guestId: roomGuestId || guestId,
             guestTin: data.guestTin,
             guestVatNo: data.guestVatNo,
             guestVatDate: data.guestVatDate,
@@ -1831,8 +1830,7 @@ export default function ReservationsModule({
                                           {res.roomNumber ? (
                                             <button
                                               onClick={() => {
-                                                checkInReservation(res.id, res.roomNumber!);
-                                                onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate });
+                                                onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                                               }}
                                               className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                                             >
@@ -2243,19 +2241,18 @@ export default function ReservationsModule({
                                       
                                       // Check in all reservations with the same group ID
                                       const groupReservations = reservations.filter(r => r.bookingGroupId === res.bookingGroupId && r.status === 'Confirmed' && r.roomNumber);
-                                      groupReservations.forEach(groupRes => {
-                                        checkInReservation(groupRes.id, groupRes.roomNumber!);
-                                        
+                                      for (const groupRes of groupReservations) {
                                         // Auto-link guest to group profile (create if doesn't exist)
                                         // Match by email, name, and parentGroupId to ensure unique guests per reservation
-                                        let guest = guests.find(g => 
-                                          g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() && 
+                                        let guest = guests.find(g =>
+                                          g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() &&
                                           g.name.toLowerCase() === groupRes.guestName.toLowerCase() &&
                                           g.parentGroupId === res.bookingGroupId
                                         );
-                                        if (!guest) {
+                                        let guestId: string | undefined = guest?.id;
+                                        if (!guestId) {
                                           // Create guest profile
-                                          guest = addGuest({
+                                          guestId = addGuest({
                                             name: groupRes.guestName,
                                             lastName: groupRes.guestName.split(' ').pop() || groupRes.guestName,
                                             email: groupRes.guestEmail,
@@ -2276,7 +2273,15 @@ export default function ReservationsModule({
                                             dateOfBirth: undefined
                                           });
                                         }
-                                      });
+
+                                        // Persist guestId on the reservation before check-in so the
+                                        // trigger links the correct guest to the group profile.
+                                        if (guestId) {
+                                          updateReservation(groupRes.id, { guestId });
+                                        }
+
+                                        await checkInReservation(groupRes.id, groupRes.roomNumber!);
+                                      }
                                       // Update group booking status to CheckedIn
                                       if (res.bookingGroupId) {
                                         updateGroupBookingStatus(res.bookingGroupId, 'CheckedIn');
@@ -2300,8 +2305,7 @@ export default function ReservationsModule({
                                 ) : res.roomNumber ? (
                                   <button
                                     onClick={() => {
-                                      checkInReservation(res.id, res.roomNumber!);
-                                      onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate });
+                                      onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                                     }}
                                     className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                                   >

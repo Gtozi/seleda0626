@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
-import { computeFees, getSeasonMultiplier, getRatePlanModifier, getEffectiveNightlyRate } from '../utils/pricing';
+import { getEffectiveNightlyRate } from '../utils/pricing';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Calendar,
@@ -545,18 +545,13 @@ export default function BookingPage() {
   }, [selectedGuestServices]);
 
   const pricing = useMemo(() => {
-    if (selectedItems.length === 0 || nights === 0) return { roomTotal: 0, packageTotal: 0, guestServicesTotal: 0, tax: 0, serviceCharge: 0, total: 0, additionalFees: 0, seasonMultiplier: 1, ratePlanModifier: 1, seasonName: '', ratePlanName: '' };
+    if (selectedItems.length === 0 || nights === 0) return { roomTotal: 0, packageTotal: 0, guestServicesTotal: 0, tax: 0, serviceCharge: 0, total: 0, additionalFees: 0, seasonMultiplier: 1, ratePlanModifier: 1, seasonName: '', ratePlanName: '', addonDetails: [] };
 
-    // Get seasonal multiplier and rate plan modifier
-    const { multiplier: seasonMultiplier, name: seasonName } = getSeasonMultiplier(checkIn, seasons);
-    const { modifier: ratePlanModifier, name: ratePlanName } = getRatePlanModifier(selectedRatePlanId, ratePlans);
-
-    // Calculate room total with multipliers applied
+    // Calculate room total (base rate only - fees calculated by DB)
     const roomTotal = selectedItems.reduce((sum, item) => {
       const room = rooms.find(r => r.type === item.roomType);
       const baseRate = room ? room.baseRate || room.rate : 0;
-      const effectiveRate = getEffectiveNightlyRate(baseRate, seasonMultiplier, ratePlanModifier);
-      return sum + effectiveRate * nights * item.quantity;
+      return sum + baseRate * nights * item.quantity;
     }, 0);
 
     const packageTotal = selectedPackages.reduce((sum, p) => sum + p.price * p.quantity * (p.chargeFrequency === 'daily' ? nights : 1), 0);
@@ -568,24 +563,63 @@ export default function BookingPage() {
     }, 0);
     const subtotal = roomTotal + packageTotal + guestServicesTotal;
 
-    // Use shared pricing utilities for fee calculation
-    const feeBreakdown = computeFees(subtotal, settings?.feeComponents, settings?.taxPercent, settings?.serviceChargePercent);
-
+    // Return base pricing - fees will be calculated by DB API
     return {
       roomTotal,
       packageTotal,
       guestServicesTotal,
-      tax: feeBreakdown.tax,
-      serviceCharge: feeBreakdown.serviceCharge,
-      additionalFees: feeBreakdown.additionalFees,
-      total: subtotal + feeBreakdown.totalFees,
-      seasonMultiplier,
-      ratePlanModifier,
-      seasonName,
-      ratePlanName,
-      addonDetails: feeBreakdown.additionalFeeDetails
+      tax: 0,
+      serviceCharge: 0,
+      additionalFees: 0,
+      total: subtotal,
+      seasonMultiplier: 1,
+      ratePlanModifier: 1,
+      seasonName: '',
+      ratePlanName: '',
+      addonDetails: [],
+      subtotal
     };
-  }, [selectedItems, rooms, nights, selectedPackages, selectedGuestServices, settings, checkIn, seasons, selectedRatePlanId, ratePlans]);
+  }, [selectedItems, rooms, nights, selectedPackages, selectedGuestServices, checkIn]);
+
+  // Fetch fee breakdown from database
+  const [feeBreakdown, setFeeBreakdown] = useState<any>(null);
+  
+  useEffect(() => {
+    const fetchFeeBreakdown = async () => {
+      if (pricing.subtotal > 0 && settings) {
+        try {
+          const params = new URLSearchParams({
+            baseAmount: pricing.subtotal.toString(),
+          });
+          const response = await fetch(`/api/public/billing/calculate-breakdown?${params}`);
+          if (response.ok) {
+            const data = await response.json();
+            setFeeBreakdown(data);
+          }
+        } catch (error) {
+          console.error('Error fetching fee breakdown:', error);
+        }
+      }
+    };
+    fetchFeeBreakdown();
+  }, [pricing.subtotal, settings]);
+
+  // Combine base pricing with DB fee breakdown
+  const finalPricing = useMemo(() => {
+    if (!feeBreakdown) return pricing;
+    
+    return {
+      ...pricing,
+      tax: feeBreakdown.vat_amount || 0,
+      serviceCharge: feeBreakdown.service_charge_total || 0,
+      additionalFees: feeBreakdown.non_vat_fees || 0,
+      total: feeBreakdown.total_amount || finalPricing.subtotal,
+      addonDetails: (feeBreakdown.fee_breakdown || []).map((f: any) => ({
+        name: f.name,
+        amount: f.amount
+      }))
+    };
+  }, [pricing, feeBreakdown]);
 
   const setPackageQuantity = useCallback((id: string, quantity: number) => {
     setSelectedPackageQuantities(prev => {
@@ -1140,28 +1174,28 @@ export default function BookingPage() {
 
                   {/* Pricing Subtotal breakdown */}
                   <div className="border-t border-stone-100 pt-3 mt-3 text-xs space-y-1.5 text-stone-600">
-                    {pricing.packageTotal > 0 && (
+                    {finalPricing.packageTotal > 0 && (
                       <div className="flex justify-between">
                         <span>VIP Upgrades</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.packageTotal)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.packageTotal)}</span>
                       </div>
                     )}
-                    {pricing.guestServicesTotal > 0 && (
+                    {finalPricing.guestServicesTotal > 0 && (
                       <div className="flex justify-between">
                         <span>Guest Services</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.guestServicesTotal)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.guestServicesTotal)}</span>
                       </div>
                     )}
-                    {pricing.tax > 0 && (
+                    {finalPricing.tax > 0 && (
                       <div className="flex justify-between">
                         <span>Estimated Taxes</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.tax)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.tax)}</span>
                       </div>
                     )}
-                    {pricing.serviceCharge > 0 && (
+                    {finalPricing.serviceCharge > 0 && (
                       <div className="flex justify-between">
                         <span>Service Charge</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.serviceCharge)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.serviceCharge)}</span>
                       </div>
                     )}
                     
@@ -1516,22 +1550,22 @@ export default function BookingPage() {
                     {/* Stay Rates Subtotal */}
                     <div className="flex justify-between pt-3 border-t border-stone-100">
                       <span className="text-stone-400">Accommodation Base</span>
-                      <span className="font-semibold text-stone-800">{formatPrice(pricing.roomTotal)}</span>
+                      <span className="font-semibold text-stone-800">{formatPrice(finalPricing.roomTotal)}</span>
                     </div>
 
                     {/* Extras and upgrades */}
-                    {pricing.packageTotal > 0 && (
+                    {finalPricing.packageTotal > 0 && (
                       <div className="flex justify-between">
                         <span className="text-stone-400">VIP Upgrade Packages</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.packageTotal)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.packageTotal)}</span>
                       </div>
                     )}
 
                     {/* Guest Services */}
-                    {pricing.guestServicesTotal > 0 && (
+                    {finalPricing.guestServicesTotal > 0 && (
                       <div className="flex justify-between">
                         <span className="text-stone-400">Guest Services Extra</span>
-                        <span className="font-semibold text-stone-800">{formatPrice(pricing.guestServicesTotal)}</span>
+                        <span className="font-semibold text-stone-800">{formatPrice(finalPricing.guestServicesTotal)}</span>
                       </div>
                     )}
 
@@ -1549,16 +1583,16 @@ export default function BookingPage() {
                       </>
                     ) : (
                       <>
-                        {pricing.tax > 0 && (
+                        {finalPricing.tax > 0 && (
                           <div className="flex justify-between">
                             <span className="text-stone-400">Estimated Taxes</span>
-                            <span className="font-semibold text-stone-800">{formatPrice(pricing.tax)}</span>
+                            <span className="font-semibold text-stone-800">{formatPrice(finalPricing.tax)}</span>
                           </div>
                         )}
-                        {pricing.serviceCharge > 0 && (
+                        {finalPricing.serviceCharge > 0 && (
                           <div className="flex justify-between">
                             <span className="text-stone-400">Service Fee</span>
-                            <span className="font-semibold text-stone-800">{formatPrice(pricing.serviceCharge)}</span>
+                            <span className="font-semibold text-stone-800">{formatPrice(finalPricing.serviceCharge)}</span>
                           </div>
                         )}
                       </>
@@ -2068,16 +2102,16 @@ export default function BookingPage() {
                           </>
                         ) : (
                           <>
-                            {pricing.tax > 0 && (
+                            {finalPricing.tax > 0 && (
                               <div className="flex justify-between">
                                 <span>Tax</span>
-                                <span className="font-medium">{formatPrice(pricing.tax)}</span>
+                                <span className="font-medium">{formatPrice(finalPricing.tax)}</span>
                               </div>
                             )}
-                            {pricing.serviceCharge > 0 && (
+                            {finalPricing.serviceCharge > 0 && (
                               <div className="flex justify-between">
                                 <span>Service Charge</span>
-                                <span className="font-medium">{formatPrice(pricing.serviceCharge)}</span>
+                                <span className="font-medium">{formatPrice(finalPricing.serviceCharge)}</span>
                               </div>
                             )}
                           </>
@@ -2090,7 +2124,7 @@ export default function BookingPage() {
                           <p className="text-sm font-bold text-stone-900">Total Estimate</p>
                           <p className="text-[10px] text-stone-500">All fees included</p>
                         </div>
-                        <span className="text-2xl font-black text-amber-600">{formatPrice(pricing.total)}</span>
+                        <span className="text-2xl font-black text-amber-600">{formatPrice(finalPricing.total)}</span>
                       </div>
                     </div>
 
@@ -2668,7 +2702,7 @@ export default function BookingPage() {
                       const room = rooms.find(r => r.type === item.roomType);
                       if (!room) return null;
                       const baseRate = room.baseRate || room.rate;
-                      const effectiveRate = getEffectiveNightlyRate(baseRate, pricing.seasonMultiplier, pricing.ratePlanModifier);
+                      const effectiveRate = getEffectiveNightlyRate(baseRate, finalPricing.seasonMultiplier, finalPricing.ratePlanModifier);
                       return (
                         <div key={item.roomType} className="flex justify-between text-stone-600">
                           <span>{room.title} × {item.quantity} ({nights} night{nights > 1 ? 's' : ''})</span>
@@ -2688,40 +2722,40 @@ export default function BookingPage() {
                         <span className="font-medium">{formatPrice(gs.price * gs.quantity)}</span>
                       </div>
                     ))}
-                    {pricing.seasonName && (
+                    {finalPricing.seasonName && (
                       <div className="flex justify-between text-amber-700 text-xs">
-                        <span>Season: {pricing.seasonName} ({pricing.seasonMultiplier}x)</span>
+                        <span>Season: {finalPricing.seasonName} ({finalPricing.seasonMultiplier}x)</span>
                       </div>
                     )}
-                    {pricing.ratePlanName && (
+                    {finalPricing.ratePlanName && (
                       <div className="flex justify-between text-amber-700 text-xs">
-                        <span>Rate Plan: {pricing.ratePlanName} ({pricing.ratePlanModifier}x)</span>
+                        <span>Rate Plan: {finalPricing.ratePlanName} ({finalPricing.ratePlanModifier}x)</span>
                       </div>
                     )}
-                    {pricing.serviceCharge > 0 && (
+                    {finalPricing.serviceCharge > 0 && (
                       <div className="flex justify-between text-stone-600">
                         <span>Service Charge</span>
-                        <span className="font-medium">{formatPrice(pricing.serviceCharge)}</span>
+                        <span className="font-medium">{formatPrice(finalPricing.serviceCharge)}</span>
                       </div>
                     )}
-                    {pricing.addonDetails && pricing.addonDetails.length > 0 && (
-                      pricing.addonDetails.map((addon: any, idx: number) => (
+                    {finalPricing.addonDetails && finalPricing.addonDetails.length > 0 && (
+                      finalPricing.addonDetails.map((addon: any, idx: number) => (
                         <div key={idx} className="flex justify-between text-stone-600">
                           <span>{addon.name}</span>
                           <span className="font-medium">{formatPrice(addon.amount)}</span>
                         </div>
                       ))
                     )}
-                    {pricing.tax > 0 && (
+                    {finalPricing.tax > 0 && (
                       <div className="flex justify-between text-stone-600">
                         <span>VAT / Tax</span>
-                        <span className="font-medium">{formatPrice(pricing.tax)}</span>
+                        <span className="font-medium">{formatPrice(finalPricing.tax)}</span>
                       </div>
                     )}
-                    {pricing.additionalFees > 0 && pricing.additionalFees !== (pricing.addonDetails?.reduce((sum: number, a: any) => sum + a.amount, 0) || 0) && (
+                    {finalPricing.additionalFees > 0 && finalPricing.additionalFees !== (finalPricing.addonDetails?.reduce((sum: number, a: any) => sum + a.amount, 0) || 0) && (
                       <div className="flex justify-between text-stone-600">
                         <span>Additional Fees</span>
-                        <span className="font-medium">{formatPrice(pricing.additionalFees)}</span>
+                        <span className="font-medium">{formatPrice(finalPricing.additionalFees)}</span>
                       </div>
                     )}
                     {voucherDiscount > 0 && (
@@ -2732,7 +2766,7 @@ export default function BookingPage() {
                     )}
                     <div className="border-t border-stone-100 pt-3 flex justify-between text-base font-bold text-stone-900">
                       <span>Total</span>
-                      <span>{formatPrice(pricing.total - voucherDiscount)}</span>
+                      <span>{formatPrice(finalPricing.total - voucherDiscount)}</span>
                     </div>
                   </div>
                 </div>
@@ -2761,7 +2795,7 @@ export default function BookingPage() {
               </div>
               <div>
                 <p className="font-semibold text-stone-900">{totalSelectedRooms} room{totalSelectedRooms > 1 ? 's' : ''} selected</p>
-                <p className="text-xs text-stone-500">{nights} night{nights > 1 ? 's' : ''} · {formatPrice(pricing.roomTotal)}</p>
+                <p className="text-xs text-stone-500">{nights} night{nights > 1 ? 's' : ''} · {formatPrice(finalPricing.roomTotal)}</p>
               </div>
             </div>
             <div className="flex items-center gap-6">

@@ -1,0 +1,10 @@
+const fs = require('fs');
+const content = `SUPABASE_URL=https://oicpekbxfufqggkgdgyi.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pY3Bla2J4ZnVmcWdna2dkZ3lpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4MDkyMDQ5MSwiZXhwIjoyMDk2NDk2NDkxfQ.EeDCfjLLHiTeDiMrcawb6m4KX8rLopPTJtKtM4RZshg
+VITE_SUPABASE_URL=https://oicpekbxfufqggkgdgyi.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9pY3Bla2J4ZnVmcWdna2dkZ3lpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA5MjA0OTEsImV4cCI6MjA5NjQ5NjQ5MX0.gnt9YjACNVTfI8ad1pAjCfM_VdH_3dFSURYYPQZBToA
+DEV_LOGIN_PASSWORD=admin123
+AUTH_SECRET=replace-with-long-random-secret
+`;
+fs.writeFileSync('.env', content, 'utf8');
+console.log('.env file created successfully');

@@ -9,7 +9,7 @@ import {
   Promotion, RatePlan, Season, Package, ReservationStatus, 
   FolioCharge, FolioPayment, RoomStatus
 } from '../types/erp';
-import { calculateNights, calculateTotalCharges } from '../utils/billing';
+import { calculateNights } from '../utils/billing';
 import { toISODate } from '../utils/date';
 import { 
   initialRooms, initialReservations, initialGroupBookings, 
@@ -44,9 +44,10 @@ export interface ReservationContextType {
   editFolioCharge: (reservationId: string, chargeId: string, updates: Partial<FolioCharge>) => void;
   voidFolioCharge: (reservationId: string, chargeId: string) => Promise<void>;
   moveFolioCharge: (sourceReservationId: string, targetReservationId: string, chargeId: string) => Promise<void>;
-  addFolioPayment: (reservationId: string, payment: Omit<FolioPayment, 'id' | 'date'>) => Promise<void>;
+  addFolioPayment: (reservationId: string, payment: Omit<FolioPayment, 'id' | 'date'> | Array<Omit<FolioPayment, 'id' | 'date'>>) => Promise<any>;
   voidFolioPayment: (reservationId: string, paymentId: string) => Promise<void>;
-  
+  getFolioBalance: (reservationId: string, folioType?: 'consolidated' | 'folio-a' | 'folio-b') => Promise<number | null>;
+
   addGroupBooking: (group: Omit<GroupBooking, 'id'>) => Promise<GroupBooking | undefined>;
   updateGroupBookingStatus: (id: string, status: GroupBooking['status']) => void;
   addCorporateAccount: (account: Omit<CorporateAccount, 'id'>) => void;
@@ -195,7 +196,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       ...resData,
       id: newId,
       status,
-      totalAmount: calculateTotalCharges(charges),
+      totalAmount: 0, // Will be fetched from DB
       charges
     };
     
@@ -227,9 +228,15 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
               }
               return c;
             });
-            const newTotalAmount = calculateTotalCharges(updatedCharges);
-            const finalRes = { ...updatedRes, charges: updatedCharges, totalAmount: newTotalAmount };
+            const finalRes = { ...updatedRes, charges: updatedCharges, totalAmount: 0 };
             if (supabaseService.isConfigured()) supabaseService.upsertReservation(finalRes).catch(console.error);
+            // Fetch updated total from DB
+            fetch(`/api/reservations/${id}/total`, { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => {
+                setReservations(prev => prev.map(r => r.id === id ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+              })
+              .catch(console.error);
             return finalRes;
           }
           if (supabaseService.isConfigured()) supabaseService.upsertReservation(updatedRes).catch(console.error);
@@ -431,6 +438,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           amount: charge.amount,
           quantity: 1,
           lineType: charge.type || 'Extra',
+          targetFolio: charge.targetFolio ?? null,
         }),
       });
 
@@ -446,7 +454,14 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (r.id === reservationId) {
             const newCharge = { ...charge, id: result.lineId || result.lineNumber?.toString() || `C-${Date.now()}`, date: toISODate() };
             const updatedCharges = [...(r.charges || []), newCharge];
-            return { ...r, charges: updatedCharges, totalAmount: calculateTotalCharges(updatedCharges) };
+            // Fetch updated total from DB
+            fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => {
+                setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+              })
+              .catch(console.error);
+            return { ...r, charges: updatedCharges, totalAmount: 0 };
           }
           return r;
         });
@@ -458,16 +473,37 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   const editFolioCharge = useCallback((reservationId: string, chargeId: string, updates: Partial<FolioCharge>) => {
+    // Optimistic local update
     setReservations(prev => {
       const next = prev.map(r => {
         if (r.id === reservationId) {
           const updatedCharges = (r.charges || []).map(c => c.id === chargeId ? { ...c, ...updates } : c);
-          return { ...r, charges: updatedCharges, totalAmount: calculateTotalCharges(updatedCharges) };
+          // Fetch updated total from DB
+          fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+              setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+            })
+            .catch(console.error);
+          return { ...r, charges: updatedCharges, totalAmount: 0 };
         }
         return r;
       });
       return next;
     });
+
+    // Persist persistable fields (targetFolio, amount) to the DB
+    const persistable: Record<string, any> = {};
+    if (updates.targetFolio !== undefined) persistable.targetFolio = updates.targetFolio;
+    if (updates.amount !== undefined) persistable.amount = updates.amount;
+    if (Object.keys(persistable).length > 0) {
+      fetch(`/api/reservations/${reservationId}/charges/${chargeId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(persistable),
+      }).catch(err => console.error('Failed to persist charge update:', err));
+    }
   }, []);
 
   const voidFolioCharge = useCallback(async (reservationId: string, chargeId: string) => {
@@ -488,7 +524,14 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const next = prev.map(r => {
           if (r.id === reservationId) {
             const updatedCharges = (r.charges || []).map(c => c.id === chargeId ? { ...c, isVoided: true } : c);
-            return { ...r, charges: updatedCharges, totalAmount: calculateTotalCharges(updatedCharges) };
+            // Fetch updated total from DB
+            fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+              .then(res => res.json())
+              .then(data => {
+                setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+              })
+              .catch(console.error);
+            return { ...r, charges: updatedCharges, totalAmount: 0 };
           }
           return r;
         });
@@ -513,11 +556,25 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const next = prev.map(r => {
         if (r.id === sourceReservationId) {
           const updatedCharges = (r.charges || []).filter(c => c.id !== chargeId);
-          return { ...r, charges: updatedCharges, totalAmount: calculateTotalCharges(updatedCharges) };
+          // Fetch updated total from DB
+          fetch(`/api/reservations/${sourceReservationId}/total`, { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+              setReservations(prev => prev.map(r => r.id === sourceReservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+            })
+            .catch(console.error);
+          return { ...r, charges: updatedCharges, totalAmount: 0 };
         }
         if (r.id === targetReservationId) {
           const updatedCharges = [...(r.charges || []), chargeToMove!];
-          return { ...r, charges: updatedCharges, totalAmount: calculateTotalCharges(updatedCharges) };
+          // Fetch updated total from DB
+          fetch(`/api/reservations/${targetReservationId}/total`, { credentials: 'include' })
+            .then(res => res.json())
+            .then(data => {
+              setReservations(prev => prev.map(r => r.id === targetReservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
+            })
+            .catch(console.error);
+          return { ...r, charges: updatedCharges, totalAmount: 0 };
         }
         return r;
       });
@@ -541,37 +598,62 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
   }, []);
 
-  const addFolioPayment = useCallback(async (reservationId: string, payment: Omit<FolioPayment, 'id' | 'date'>) => {
+  // Unified payment poster: accepts either a single payment or an array of payment
+  // splits (multiple methods/bank accounts covering one folio settlement). Both
+  // shapes are funneled through the SAME backend call (`paymentSplits`), so single
+  // payments are just a one-element split under the hood - one system, one code path.
+  const addFolioPayment = useCallback(async (
+    reservationId: string,
+    payment: Omit<FolioPayment, 'id' | 'date'> | Array<Omit<FolioPayment, 'id' | 'date'>>
+  ) => {
+    const splits = Array.isArray(payment) ? payment : [payment];
+
+    if (splits.length === 0 || splits.some(p => !p.method || typeof p.amount !== 'number' || p.amount <= 0)) {
+      console.error('Invalid payment split(s):', splits);
+      return;
+    }
+
     try {
       const response = await fetch(`/api/reservations/${reservationId}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          amount: payment.amount,
-          paymentMethod: payment.method,
-          reference: payment.notes,
-          receiptUrl: payment.receiptUrl,
+          paymentSplits: splits.map(p => ({
+            amount: p.amount,
+            paymentMethod: p.method,
+            reference: p.notes,
+            receiptUrl: p.receiptUrl,
+            bankAccountId: p.bankAccountId || null,
+          })),
         }),
       });
 
       if (!response.ok) {
-        console.error('Failed to add folio payment:', await response.json());
-        return;
+        const err = await response.json().catch(() => ({}));
+        console.error('Failed to add folio payment:', err);
+        if (err.error === 'Payment amount exceeds outstanding balance') {
+          throw new Error(`Payment amount ($${err.requestedAmount?.toFixed(2)}) exceeds outstanding balance ($${err.outstandingBalance?.toFixed(2)}). Please adjust the payment amount.`);
+        }
+        throw new Error(err.error || 'Failed to post payment');
       }
 
-      setReservations(prev => {
-        const next = prev.map(r => {
-          if (r.id === reservationId) {
-            const newPayment = { ...payment, id: `P-${Date.now()}`, date: toISODate() };
-            return { ...r, payments: [...(r.payments || []), newPayment] };
-          }
-          return r;
-        });
-        return next;
-      });
+      const data = await response.json();
+
+      setReservations(prev => prev.map(r => {
+        if (r.id !== reservationId) return r;
+        const newPayments = splits.map((p, i) => ({
+          ...p,
+          id: data.paymentResults?.[i]?.paymentId || `P-${Date.now()}-${i}`,
+          date: toISODate(),
+        }));
+        return { ...r, payments: [...(r.payments || []), ...newPayments] };
+      }));
+
+      return data;
     } catch (error) {
       console.error('Error adding folio payment:', error);
+      throw error;
     }
   }, []);
 
@@ -601,6 +683,27 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       });
     } catch (error) {
       console.error('Error voiding folio payment:', error);
+    }
+  }, []);
+
+  const getFolioBalance = useCallback(async (reservationId: string, folioType: 'consolidated' | 'folio-a' | 'folio-b' = 'consolidated') => {
+    try {
+      const response = await fetch(`/api/reservations/${reservationId}/folio-balance?folioType=${folioType}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        console.error('Failed to fetch folio balance:', await response.json());
+        return null;
+      }
+
+      const data = await response.json();
+      return data.outstandingBalance || 0;
+    } catch (error) {
+      console.error('Error fetching folio balance:', error);
+      return null;
     }
   }, []);
 
@@ -763,10 +866,10 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const value = {
     rooms, reservations, groupBookings, corporateAccounts, promotions,
     ratePlans, seasons, packages,
-    addReservation, updateReservation, updateReservationStatus, updateDepositStatus, 
+    addReservation, updateReservation, updateReservationStatus, updateDepositStatus,
     assignRoomToReservation, changeRoom, promoteFromWaitlist,
     addFolioCharge, editFolioCharge, voidFolioCharge, moveFolioCharge,
-    addFolioPayment, voidFolioPayment,
+    addFolioPayment, voidFolioPayment, getFolioBalance,
     addGroupBooking, updateGroupBookingStatus, addCorporateAccount, updateCorporateAccount,
     addPromotion, addRatePlan, updateRatePlan, deleteRatePlan,
     addPackage, updatePackage, deletePackage, addSeason, updateSeason, deleteSeason,
