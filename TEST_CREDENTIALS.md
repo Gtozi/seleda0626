@@ -14,6 +14,7 @@ These accounts work when the app is running **without** a Supabase database conn
 | 8 | Inventory       | inventory@erp.com         | admin123  | inventory  |
 | 9 | Procurement     | procurement@erp.com       | admin123  | procurement|
 | 10| System Admin    | admin@erp.com             | admin123  | admin      |
+| 11| Operations      | operations@erp.com        | admin123  | operations |
 
 ## How to use
 

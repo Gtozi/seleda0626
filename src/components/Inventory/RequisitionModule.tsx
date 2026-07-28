@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ClipboardList,
   Plus,
@@ -15,10 +15,13 @@ import {
   AlertCircle,
   Box,
   X,
-  FileBarChart
+  FileBarChart,
+  RefreshCw
 } from 'lucide-react';
 import { Requisition, RequisitionStatus } from '../../types/inventory';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
+import { fetchRequisitions, createRequisition, updateRequisition, type Requisition as ProcReq } from '../../services/procurementService';
 
 const RequisitionModule: React.FC = () => {
   const [activeTab, setActiveTab] = useState<RequisitionStatus | 'All'>('All');
@@ -61,6 +64,46 @@ const RequisitionModule: React.FC = () => {
     });
 
     setShowRaiseModal(false);
+    handleDbCreate();
+  };
+  const [dbReqs, setDbReqs] = useState<ProcReq[]>([]);
+  const [dbLoading, setDbLoading] = useState(false);
+
+  const loadDbReqs = useCallback(async () => {
+    setDbLoading(true);
+    try {
+      setDbReqs(await fetchRequisitions());
+    } catch (err) {
+      console.error('Failed to load DB requisitions:', err);
+    } finally { setDbLoading(false); }
+  }, []);
+
+  useEffect(() => { loadDbReqs(); }, [loadDbReqs]);
+
+  const handleDbCreate = async () => {
+    const catalogItem = items.find(i => i.code === reqItemCode || i.id === reqItemCode);
+    try {
+      await createRequisition({
+        fromLocationId: 'Main Store',
+        toOutletId: reqDept,
+        department: reqDept,
+        priority: reqQty > 15 ? 'Urgent' : reqQty > 8 ? 'High' : 'Normal',
+        requiredDate: new Date().toISOString().split('T')[0],
+        lines: catalogItem ? [{ itemId: catalogItem.id, itemName: catalogItem.name, quantity: reqQty, unit: catalogItem.unit }] : [],
+      });
+      loadDbReqs();
+    } catch (err: any) {
+      console.error('Failed to create DB requisition:', err);
+    }
+  };
+
+  const handleDbStatusUpdate = async (id: string, status: string) => {
+    try {
+      await updateRequisition(id, { status });
+      loadDbReqs();
+    } catch (err: any) {
+      console.error('Failed to update requisition:', err);
+    }
   };
 
   const getStatusBadge = (status: RequisitionStatus) => {
@@ -101,13 +144,15 @@ const RequisitionModule: React.FC = () => {
         </div>
       </div>
 
-      {showRaiseModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4">
-              <div>
-                 <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Raise New Requisition</h3>
-                 <p className="text-xs text-slate-400">Request stock from Main Hotel Store.</p>
-              </div>
+      <ModalSystem
+        isOpen={showRaiseModal}
+        onClose={() => setShowRaiseModal(false)}
+        title="Raise New Requisition"
+        subtitle="Request stock from Main Hotel Store."
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
               <form onSubmit={handleRaiseRequisition} className="space-y-4">
                  <div className="space-y-1">
                     <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block">Department Node</label>
@@ -173,9 +218,7 @@ const RequisitionModule: React.FC = () => {
                     </button>
                  </div>
               </form>
-           </div>
-        </div>
-      )}
+      </ModalSystem>
 
       <div className="flex bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-x-auto no-scrollbar gap-1.5">
         {['All', 'Pending', 'Approved', 'Issued', 'Received', 'Cancelled'].map((status) => (
@@ -300,6 +343,51 @@ const RequisitionModule: React.FC = () => {
             ))}
          </div>
 
+         {/* DB-backed Requisitions */}
+         {dbReqs.length > 0 && (
+           <div className="lg:col-span-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                <ClipboardList size={14} className="text-emerald-500" /> DB Requisitions ({dbReqs.length})
+              </h3>
+              <button onClick={loadDbReqs} className="p-1.5 text-slate-400 hover:text-emerald-600 transition">
+                <RefreshCw size={14} className={dbLoading ? 'animate-spin' : ''} />
+              </button>
+            </div>
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+              {dbReqs.map((req) => (
+                <div key={req.id} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-mono font-black text-slate-400 uppercase">{req.req_number || req.id.slice(0, 8)}</span>
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                      req.status === 'Approved' ? 'bg-indigo-50 text-indigo-600' :
+                      req.status === 'Fulfilled' ? 'bg-emerald-50 text-emerald-600' :
+                      req.status === 'Draft' ? 'bg-slate-50 text-slate-600' :
+                      'bg-amber-50 text-amber-600'
+                    }`}>{req.status}</span>
+                  </div>
+                  <p className="text-xs font-black text-slate-900 dark:text-white">{req.department || '—'}</p>
+                  <p className="text-[9px] font-bold text-slate-400 mb-2">{req.priority} · {req.required_date || '—'}</p>
+                  {(req.requisition_lines || []).map((line) => (
+                    <div key={line.id} className="flex justify-between text-[10px] font-bold text-slate-500 py-1">
+                      <span>{line.item_name || '—'}</span>
+                      <span>{line.quantity} {line.unit}</span>
+                    </div>
+                  ))}
+                  <div className="flex gap-2 mt-2">
+                    {req.status === 'Draft' && (
+                      <button onClick={() => handleDbStatusUpdate(req.id, 'Approved')} className="flex-1 py-1.5 bg-indigo-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Approve</button>
+                    )}
+                    {req.status === 'Approved' && (
+                      <button onClick={() => handleDbStatusUpdate(req.id, 'Fulfilled')} className="flex-1 py-1.5 bg-emerald-600 text-white rounded-xl text-[8px] font-black uppercase tracking-widest hover:bg-emerald-700 transition">Fulfill</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+           </div>
+         )}
+
          <div className="lg:col-span-4 space-y-6">
             <div className="bg-slate-900 border border-white/5 p-6 rounded-3xl space-y-6 text-white">
                <div>
@@ -365,15 +453,15 @@ const RequisitionModule: React.FC = () => {
       </div>
 
       {/* Full Consumption Audit Modal */}
-      {showAuditModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <FileBarChart size={16} className="text-indigo-500" /> Full Consumption Audit
-              </h3>
-              <button onClick={() => setShowAuditModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showAuditModal}
+        onClose={() => setShowAuditModal(false)}
+        title="Full Consumption Audit"
+        icon={<FileBarChart size={20} className="text-indigo-500" />}
+        variant="info"
+        size="xl"
+        showFooter={false}
+      >
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-3">
                 {[
@@ -428,9 +516,7 @@ const RequisitionModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowAuditModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

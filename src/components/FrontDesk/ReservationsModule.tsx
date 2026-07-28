@@ -5,7 +5,6 @@ import { rangesOverlap } from '../../services/allocationService';
 import { toISODate } from '../../utils/date';
 import ReservationsForecasting from './ReservationsForecasting';
 import ModernCalendar from './ModernCalendar';
-import PricingRevenueManagement from '../Executive/PricingRevenueManagement';
 import {
   Plus,
   Calendar,
@@ -33,17 +32,24 @@ import {
   Mail,
   ExternalLink,
   Send,
+  Users,
   ChevronDown,
-  ChevronRight as ChevronRightIcon
+  ChevronRight as ChevronRightIcon,
+  Repeat,
+  CalendarDays,
+  Trash
 } from 'lucide-react';
 import { calculateNights, calculateDailyRate, getSeasonalMultiplier } from '../../utils/billing';
 import { supabase, hasSupabaseConfig } from '../../lib/supabase';
 import ReservationModal from './ReservationModal';
+import RecurringSeriesTab from './RecurringSeriesTab';
+import SharedGuestsPanel from './SharedGuestsPanel';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { ReservationFormData } from '../../schemas/reservationSchema';
 
-const allReservationStatuses = ['CheckedIn', 'Confirmed', 'CheckedOut', 'Waitlisted', 'Cancelled'] as const;
+const allReservationStatuses = ['CheckedIn', 'Confirmed', 'CheckedOut', 'Waitlisted', 'Cancelled', 'NoShow'] as const;
 
-type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast';
+type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast' | 'series';
 
 export default function ReservationsModule({ 
   onNavigateToCRM, 
@@ -80,6 +86,8 @@ export default function ReservationsModule({
     assignRoomToReservation,
     checkInReservation,
     checkOutReservation,
+    cancelReservation,
+    markNoShow,
     currentSystemDate,
     triggerLiveSyncSimulation,
     promotions,
@@ -102,7 +110,9 @@ export default function ReservationsModule({
     setActiveGuestPortalResId,
     getTypeAvailability,
     yieldPolicies,
-    globalHotelSettings
+    globalHotelSettings,
+    currentPropertyId,
+    refreshAllData
   } = useERP();
 
   // Screen Toggles
@@ -115,6 +125,7 @@ export default function ReservationsModule({
 
   const [editingReservation, setEditingReservation] = useState<Reservation | null>(null);
   const [promotingGroupRes, setPromotingGroupRes] = useState<Reservation | null>(null);
+  const [shareReservationTarget, setShareReservationTarget] = useState<Reservation | null>(null);
   const closeModalTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearCloseModalTimeout = () => {
@@ -146,6 +157,105 @@ export default function ReservationsModule({
 
   // Tour operators for B2B booking display
   const [tourOperators, setTourOperators] = useState<any[]>([]);
+
+  // Channel Manager state
+  const [channels, setChannels] = useState<any[]>([]);
+  const [parityRecords, setParityRecords] = useState<any[]>([]);
+  const [channelSyncing, setChannelSyncing] = useState<string | null>(null);
+  const [syncAllLoading, setSyncAllLoading] = useState(false);
+  const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+  const [channelBookings, setChannelBookings] = useState<any[]>([]);
+
+  const loadChannelData = async () => {
+    try {
+      const [chRes, parityRes] = await Promise.all([
+        fetch('/api/channels', { credentials: 'include' }),
+        fetch('/api/channels/parity-status', { credentials: 'include' }),
+      ]);
+      if (chRes.ok) {
+        const chData = await chRes.json();
+        setChannels(chData.channels || []);
+      }
+      if (parityRes.ok) {
+        const pData = await parityRes.json();
+        setParityRecords(pData.parityRecords || []);
+      }
+    } catch (e) {
+      console.error('Failed to load channel data:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ota') loadChannelData();
+  }, [activeTab]);
+
+  const handleSyncChannel = async (channelId: string, syncType: 'inventory' | 'rates' | 'bookings') => {
+    setChannelSyncing(`${channelId}-${syncType}`);
+    try {
+      const res = await fetch(`/api/channels/${channelId}/sync-${syncType}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      if (res.ok) {
+        await loadChannelData();
+      }
+    } catch (e) {
+      console.error(`Sync ${syncType} failed:`, e);
+    } finally {
+      setChannelSyncing(null);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    setSyncAllLoading(true);
+    try {
+      await fetch('/api/channels/sync-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+      await loadChannelData();
+    } catch (e) {
+      console.error('Sync all failed:', e);
+    } finally {
+      setSyncAllLoading(false);
+    }
+  };
+
+  const handleToggleChannel = async (channelId: string, active: boolean) => {
+    try {
+      await fetch(`/api/channels/${channelId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ active: !active }),
+      });
+      await loadChannelData();
+    } catch (e) {
+      console.error('Toggle channel failed:', e);
+    }
+  };
+
+  const handleViewChannelBookings = async (channelId: string) => {
+    if (selectedChannelId === channelId) {
+      setSelectedChannelId(null);
+      setChannelBookings([]);
+      return;
+    }
+    setSelectedChannelId(channelId);
+    try {
+      const res = await fetch(`/api/channels/${channelId}/bookings`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setChannelBookings(data.bookings || []);
+      }
+    } catch (e) {
+      console.error('Failed to load channel bookings:', e);
+    }
+  };
 
   useEffect(() => {
     const loadTourOperators = async () => {
@@ -1215,6 +1325,19 @@ export default function ReservationsModule({
           <span className="sm:hidden">Revenue</span>
           {activeTab === 'revenue' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
         </button>
+        <button
+          onClick={() => setActiveTab('series')}
+          className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
+            activeTab === 'series'
+              ? 'bg-gradient-to-r from-white to-white dark:from-slate-800 dark:to-slate-800 text-slate-900 dark:text-white font-bold shadow-md shadow-slate-200/50 dark:shadow-slate-900/50'
+              : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
+          }`}
+        >
+          <Repeat size={12} sm:size={14} className={activeTab === 'series' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <span className="hidden sm:inline">Recurring Series</span>
+          <span className="sm:hidden">Series</span>
+          {activeTab === 'series' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+        </button>
       </div>
 
       {/* RENDER ACTIVE SCREEN */}
@@ -1818,6 +1941,7 @@ export default function ReservationsModule({
                                       res.status === 'CheckedIn' ? 'bg-blue-100 text-blue-700' :
                                       res.status === 'CheckedOut' ? 'bg-slate-100 text-slate-600' :
                                       res.status === 'Cancelled' ? 'bg-red-100 text-red-700' :
+                                      res.status === 'NoShow' ? 'bg-orange-100 text-orange-700' :
                                       'bg-amber-100 text-amber-700'
                                     }`}>
                                       {res.status}
@@ -1850,11 +1974,18 @@ export default function ReservationsModule({
                                             </button>
                                           )}
                                           <button
-                                            onClick={() => updateReservationStatus(res.id, 'Cancelled')}
+                                            onClick={() => cancelReservation(res.id)}
                                             className="px-3 py-1.5 bg-rose-50/80 hover:bg-rose-100 text-rose-700 border border-rose-200/60 font-sans font-semibold text-xs rounded-lg transition-all duration-200 cursor-pointer hover:shadow-sm"
-                                            title="Cancel Booking"
+                                            title="Cancel Booking (auto-charges penalty if outside grace period)"
                                           >
                                             Cancel
+                                          </button>
+                                          <button
+                                            onClick={() => markNoShow(res.id)}
+                                            className="px-3 py-1.5 bg-orange-50/80 hover:bg-orange-100 text-orange-700 border border-orange-200/60 font-sans font-semibold text-xs rounded-lg transition-all duration-200 cursor-pointer hover:shadow-sm"
+                                            title="Mark as No-Show (auto-charges penalty)"
+                                          >
+                                            No-Show
                                           </button>
                                           <button
                                             onClick={() => {
@@ -2190,6 +2321,15 @@ export default function ReservationsModule({
                                 <Pencil size={14} />
                               </button>
                             )}
+                            {res.status !== 'Cancelled' && (
+                              <button
+                                onClick={() => setShareReservationTarget(res)}
+                                className="p-2 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-600 rounded-lg transition-all duration-200 cursor-pointer hover:shadow-sm"
+                                title="Manage Shared Guests"
+                              >
+                                <Users size={14} />
+                              </button>
+                            )}
                             {res.status === 'Waitlisted' && (
                               <button
                                 onClick={() => {
@@ -2452,69 +2592,130 @@ export default function ReservationsModule({
         <div className="bg-white border border-slate-105 rounded-xl p-5 shadow-sm space-y-6 animate-fade-in">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <h3 className="text-sm font-sans font-semibold text-slate-800">Channel Manager & OTA Sync panel</h3>
-              <p className="text-xs text-slate-400">Reconcile listings from active channels instantly.</p>
+              <h3 className="text-sm font-sans font-semibold text-slate-800">Channel Manager & OTA Sync</h3>
+              <p className="text-xs text-slate-400">Manage OTA connections, sync inventory & rates, monitor rate parity.</p>
             </div>
-            
-            <button
-              id="ota-sync-manual-btn"
-              onClick={triggerLiveSyncSimulation}
-              className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-white font-mono rounded-lg text-xs transition flex items-center justify-center gap-1.5"
-            >
-              <RefreshCw size={14} className="animate-spin" /> Fetch & Re-sync channels
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4" id="ota-cards">
-            {/* Booking.com */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-sans font-bold text-blue-800 text-sm">Booking.com API</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-3xs font-bold font-mono rounded-full">CONNECTED</span>
-              </div>
-              <p className="text-xs text-slate-500">Live rate parity: <span className="font-semibold text-slate-700">100%</span> | Average response time: <span className="font-semibold text-slate-700">45ms</span></p>
-              <div className="flex justify-between text-2xs font-mono text-slate-400 pt-1">
-                <span>Last Synced: 3 mins ago</span>
-                <span>Exp 30 bookings/mo</span>
-              </div>
-            </div>
-
-            {/* Expedia */}
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-sans font-bold text-amber-700 text-sm">Expedia Global GDS</span>
-                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-3xs font-bold font-mono rounded-full">CONNECTED</span>
-              </div>
-              <p className="text-xs text-slate-500">Live rate parity: <span className="font-semibold text-slate-700">100%</span> | Active listings: <span className="font-semibold text-slate-700">23 rooms</span></p>
-              <div className="flex justify-between text-2xs font-mono text-slate-400 pt-1">
-                <span>Last Synced: 2 mins ago</span>
-                <span>Active Campaign ROI: 410%</span>
-              </div>
-            </div>
-
-            {/* Direct Web engine */}
-            <div className="p-4 bg-indigo-50 border border-indigo-150 rounded-xl space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="font-sans font-bold text-indigo-900 text-sm">Direct Hotel Engine</span>
-                <span className="px-2 py-0.5 bg-indigo-200 text-indigo-800 text-3xs font-bold font-mono rounded-full">INTERNAL</span>
-              </div>
-              <p className="text-xs text-indigo-750">Direct commission savings of <span className="font-bold text-indigo-900">18.5%</span>. Live reservation state sync matches room matrix natively.</p>
-              <div className="flex justify-between text-2xs font-mono text-indigo-400 pt-1">
-                <span>Last Event: Instantaneous</span>
-                <span>SSL Secured</span>
-              </div>
+            <div className="flex gap-2">
+              <button
+                onClick={loadChannelData}
+                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-mono rounded-lg text-xs transition flex items-center gap-1.5"
+              >
+                <RefreshCw size={14} /> Refresh
+              </button>
+              <button
+                onClick={handleSyncAll}
+                disabled={syncAllLoading}
+                className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-white font-mono rounded-lg text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={syncAllLoading ? 'animate-spin' : ''} /> Sync All Channels
+              </button>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-xs font-mono uppercase text-slate-450 tracking-wider">Historical OTA Synchronization events</h4>
-            <div className="bg-slate-900 text-slate-350 p-4 rounded-xl font-mono text-2xs space-y-1.5 h-36 overflow-y-auto">
-              <div>[{toISODate()} 14:10] Sync: RECEIVED BOOKING R-2005 - Juliet Capulet via Expedia. Assigned Room 202.</div>
-              <div>[{toISODate()} 12:40] Sync: Room Status inventory synced to Booking.com. Occupied rate 34%.</div>
-              <div>[{toISODate()} 10:15] Rates: Dispatched dynamic pricing update to GDS channel matrices.</div>
-              <div>[{toISODate()} 08:00] Webhooks: Expedia ping checklist success. Keep alive check succeeded.</div>
+          {/* Channel Cards */}
+          {channels.length === 0 ? (
+            <div className="p-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-center">
+              <p className="text-xs text-slate-400">No channel connections found. Run migration 126 to seed channels.</p>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {channels.map((ch) => (
+                <div key={ch.id} className={`p-4 bg-slate-50 border rounded-xl space-y-3 ${ch.active ? 'border-slate-200' : 'border-slate-200 opacity-60'}`}>
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <span className="font-sans font-bold text-slate-800 text-sm">{ch.channel_name}</span>
+                      <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono rounded uppercase text-slate-500 bg-slate-200">{ch.channel_type}</span>
+                      {ch.test_mode && <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono rounded uppercase text-amber-700 bg-amber-100">TEST</span>}
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={ch.active} onChange={() => handleToggleChannel(ch.id, ch.active)} className="sr-only peer" />
+                      <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                    </label>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ch.inventory_sync_enabled && <span className="px-1.5 py-0.5 bg-blue-50 text-blue-700 text-[9px] font-mono rounded">INV</span>}
+                    {ch.rate_parity_enabled && <span className="px-1.5 py-0.5 bg-purple-50 text-purple-700 text-[9px] font-mono rounded">RATES</span>}
+                    {ch.booking_sync_enabled && <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 text-[9px] font-mono rounded">BOOKINGS</span>}
+                  </div>
+                  <div className="text-2xs font-mono text-slate-400 space-y-0.5">
+                    <div>Sync interval: <span className="text-slate-600">{ch.sync_interval_minutes}min</span></div>
+                    <div>Last sync: <span className="text-slate-600">{ch.last_sync_at ? new Date(ch.last_sync_at).toLocaleString() : 'Never'}</span></div>
+                    <div>Status: <span className={ch.last_sync_status === 'success' ? 'text-emerald-600' : ch.last_sync_status === 'partial' ? 'text-amber-600' : 'text-slate-500'}>{ch.last_sync_status || 'never'}</span></div>
+                  </div>
+                  <div className="flex gap-1.5 pt-1">
+                    <button onClick={() => handleSyncChannel(ch.id, 'inventory')} disabled={!ch.active || channelSyncing === `${ch.id}-inventory`} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-mono rounded disabled:opacity-40 transition flex items-center gap-1">
+                      {channelSyncing === `${ch.id}-inventory` && <RefreshCw size={10} className="animate-spin" />} Inv
+                    </button>
+                    <button onClick={() => handleSyncChannel(ch.id, 'rates')} disabled={!ch.active || channelSyncing === `${ch.id}-rates`} className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-mono rounded disabled:opacity-40 transition flex items-center gap-1">
+                      {channelSyncing === `${ch.id}-rates` && <RefreshCw size={10} className="animate-spin" />} Rates
+                    </button>
+                    <button onClick={() => handleSyncChannel(ch.id, 'bookings')} disabled={!ch.active || channelSyncing === `${ch.id}-bookings`} className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-mono rounded disabled:opacity-40 transition flex items-center gap-1">
+                      {channelSyncing === `${ch.id}-bookings` && <RefreshCw size={10} className="animate-spin" />} Bookings
+                    </button>
+                    <button onClick={() => handleViewChannelBookings(ch.id)} className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-700 text-[10px] font-mono rounded transition">
+                      {selectedChannelId === ch.id ? 'Hide' : 'View'} Bookings
+                    </button>
+                  </div>
+                  {selectedChannelId === ch.id && (
+                    <div className="mt-2 pt-2 border-t border-slate-200 space-y-1.5 max-h-40 overflow-y-auto">
+                      {channelBookings.length === 0 ? (
+                        <p className="text-2xs text-slate-400 text-center py-2">No channel bookings found.</p>
+                      ) : (
+                        channelBookings.map((b) => (
+                          <div key={b.id} className="text-2xs font-mono text-slate-600 bg-white rounded p-2 border border-slate-100">
+                            <div className="flex justify-between">
+                              <span className="font-semibold text-slate-700">{b.guest_name}</span>
+                              <span className={b.booking_status === 'confirmed' ? 'text-emerald-600' : b.booking_status === 'cancelled' ? 'text-red-600' : 'text-amber-600'}>{b.booking_status}</span>
+                            </div>
+                            <div className="text-slate-400">{b.check_in_date} → {b.check_out_date} | {b.channel_currency} {b.total_amount}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Rate Parity Monitor */}
+          {parityRecords.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="text-xs font-mono uppercase text-slate-450 tracking-wider">Rate Parity Monitor (Last 50)</h4>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="text-left text-slate-400 border-b border-slate-100">
+                      <th className="py-2 px-3 font-mono">Date</th>
+                      <th className="py-2 px-3 font-mono">Channel</th>
+                      <th className="py-2 px-3 font-mono">Room Type</th>
+                      <th className="py-2 px-3 font-mono text-right">Our Rate</th>
+                      <th className="py-2 px-3 font-mono text-right">Channel Rate</th>
+                      <th className="py-2 px-3 font-mono text-right">Diff %</th>
+                      <th className="py-2 px-3 font-mono text-center">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parityRecords.map((p, i) => (
+                      <tr key={i} className="border-b border-slate-50 text-slate-600">
+                        <td className="py-2 px-3 font-mono">{p.date ? new Date(p.date).toLocaleDateString() : '—'}</td>
+                        <td className="py-2 px-3">{p.channel_connections?.channel_name || '—'}</td>
+                        <td className="py-2 px-3">{p.room_types?.name || '—'}</td>
+                        <td className="py-2 px-3 text-right font-mono">{p.our_rate}</td>
+                        <td className="py-2 px-3 text-right font-mono">{p.channel_rate}</td>
+                        <td className="py-2 px-3 text-right font-mono">{p.difference_percent?.toFixed(2)}%</td>
+                        <td className="py-2 px-3 text-center">
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold font-mono ${p.parity_status === 'in_parity' ? 'bg-emerald-100 text-emerald-700' : p.parity_status === 'undercut' ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'}`}>
+                            {p.parity_status?.toUpperCase()}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* OUTBOUND GUEST PORTAL COMMUNICATOR GATEWAY */}
           <div className="border-t border-slate-100 pt-6 space-y-4">
@@ -2589,6 +2790,15 @@ export default function ReservationsModule({
         </div>
       )}
 
+      {/* RECURRING RESERVATION SERIES TAB */}
+      {activeTab === 'series' && (
+        <RecurringSeriesTab
+          roomTypes={roomTypes}
+          currentPropertyId={currentPropertyId}
+          onRefresh={refreshAllData}
+        />
+      )}
+
       {/* AI FORECASTING TAB VIEW */}
       {activeTab === 'forecast' && (
         <ReservationsForecasting
@@ -2601,10 +2811,6 @@ export default function ReservationsModule({
           setSuccessMsg={setSuccessMsg}
           successMsg={successMsg}
         />
-      )}
-
-      {activeTab === 'revenue' && (
-        <PricingRevenueManagement readOnly={true} />
       )}
 
       {/* Prefill data when promoting a waitlisted group booking so the form opens as a new group booking with guest info filled */}
@@ -2706,37 +2912,15 @@ export default function ReservationsModule({
         );
 
         return (
-          <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-xs flex items-center justify-center z-[60] p-4 animate-fade-in">
-            <div className="bg-white dark:bg-slate-900 text-slate-850 dark:text-slate-100 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl max-w-lg w-full overflow-hidden flex flex-col transition-colors duration-300">
-              {/* Modal Header */}
-              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-950/45">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded">
-                      FOLIO #{liveRes.id}
-                    </span>
-                    <span className={`px-2 py-0.5 text-3xs font-mono font-bold rounded-full border ${
-                      liveRes.status === 'CheckedIn' ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-205 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400' :
-                      liveRes.status === 'Confirmed' ? 'bg-sky-50 dark:bg-sky-950/20 border-sky-205 dark:border-sky-800 text-sky-700 dark:text-sky-400' :
-                      liveRes.status === 'Waitlisted' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-205 dark:border-amber-800 text-amber-700 dark:text-amber-400' :
-                      liveRes.status === 'Cancelled' ? 'bg-rose-50 dark:bg-rose-950/20 border-rose-205 dark:border-rose-800 text-rose-700 dark:text-rose-400' :
-                      'bg-slate-50 dark:bg-slate-950/20 border-slate-205 dark:border-slate-800 text-slate-600 dark:text-slate-400'
-                    }`}>
-                      {liveRes.status.toUpperCase()}
-                    </span>
-                  </div>
-                  <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white mt-1">
-                    Booking Detail Lookup
-                  </h3>
-                </div>
-                <button 
-                  onClick={() => setSelectedCalendarRes(null)} 
-                  className="p-2 hover:bg-slate-200 dark:hover:bg-slate-800 rounded-full transition cursor-pointer text-slate-400"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
+          <ModalSystem
+            isOpen={true}
+            onClose={() => setSelectedCalendarRes(null)}
+            title="Booking Detail Lookup"
+            subtitle={`FOLIO #${liveRes.id} • ${liveRes.status.toUpperCase()}`}
+            variant="info"
+            size="lg"
+            showFooter={false}
+          >
               {/* Modal Body */}
               <div className="p-6 space-y-6 overflow-y-auto max-h-[75vh]">
                 
@@ -3105,10 +3289,31 @@ export default function ReservationsModule({
                   </button>
                 )}
               </div>
-            </div>
-          </div>
+          </ModalSystem>
         );
       })()}
+
+      {/* SHARED GUESTS MODAL */}
+      {shareReservationTarget && (
+        <ModalSystem
+          isOpen={!!shareReservationTarget}
+          onClose={() => setShareReservationTarget(null)}
+          title={`Shared Guests — ${shareReservationTarget.guestName}`}
+          subtitle={`Reservation ${shareReservationTarget.id} · ${shareReservationTarget.roomType} · ${shareReservationTarget.adults}A${shareReservationTarget.children ? ` / ${shareReservationTarget.children}C` : ''}`}
+          icon={<Users size={20} className="text-indigo-500" />}
+          variant="form"
+          size="md"
+          showFooter={false}
+        >
+          <div className="p-5">
+            <SharedGuestsPanel
+              reservationId={shareReservationTarget.id}
+              guests={guests}
+              onRefresh={refreshAllData}
+            />
+          </div>
+        </ModalSystem>
+      )}
     </div>
   );
 }

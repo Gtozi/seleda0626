@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { Supplier } from '../../types/inventory';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 const SupplierModule: React.FC = () => {
   const { suppliers, addSupplier } = useERP();
@@ -182,13 +183,14 @@ const SupplierModule: React.FC = () => {
       </div>
 
       {/* Add Supplier Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Onboard Vendor</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Onboard Vendor"
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
             <form onSubmit={handleAdd} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -228,20 +230,18 @@ const SupplierModule: React.FC = () => {
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition">Add Vendor</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Performance Matrix Modal */}
-      {showPerformanceModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <BarChart2 size={16} className="text-emerald-500" /> Vendor Performance Matrix
-              </h3>
-              <button onClick={() => setShowPerformanceModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showPerformanceModal}
+        onClose={() => setShowPerformanceModal(false)}
+        title="Vendor Performance Matrix"
+        icon={<BarChart2 size={20} className="text-emerald-500" />}
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             <div className="space-y-4">
               {[
                 { label: 'On-Time Delivery', val: 94.2, target: 95, color: 'bg-emerald-500' },
@@ -267,18 +267,17 @@ const SupplierModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowPerformanceModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Vendor Detail Modal */}
-      {showVendorDetail && selectedVendor && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Vendor Profile</h3>
-              <button onClick={() => setShowVendorDetail(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showVendorDetail && !!selectedVendor}
+        onClose={() => setShowVendorDetail(false)}
+        title="Vendor Profile"
+        variant="info"
+        size="md"
+        showFooter={false}
+      >
             <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="w-16 h-16 rounded-2xl bg-emerald-50 dark:bg-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400 font-black text-xl">
                 {selectedVendor.name.split(' ').map(n => n[0]).join('')}
@@ -315,20 +314,18 @@ const SupplierModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowVendorDetail(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Communication Hub Modal */}
-      {showCommHub && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <MessageSquare size={16} className="text-indigo-500" /> Vendor Communication Hub
-              </h3>
-              <button onClick={() => setShowCommHub(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showCommHub}
+        onClose={() => setShowCommHub(false)}
+        title="Vendor Communication Hub"
+        icon={<MessageSquare size={20} className="text-indigo-500" />}
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {[
                 { vendor: 'Global Foods Ltd', subject: 'Q3 Price Adjustment Notice', body: 'Please be advised that dairy product prices will increase by 4% effective next quarter due to supply chain pressures.', date: 'Today, 09:15', type: 'in' },
@@ -353,9 +350,7 @@ const SupplierModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowCommHub(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

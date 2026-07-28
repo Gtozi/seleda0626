@@ -1,6 +1,6 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { X, Plane, Plus, Minus } from 'lucide-react';
+import { Plane, Plus, Minus } from 'lucide-react';
+import { ModalSystem } from './Shared/ModalSystem';
 
 export interface AirportShuttleLeg {
   quantity: number;
@@ -131,69 +131,40 @@ export default function AirportShuttleModal({
   );
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/50 backdrop-blur-sm"
+    <ModalSystem
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Airport Shuttle"
+      subtitle="Set quantity and details for each direction"
+      icon={<Plane size={20} className="text-amber-600" />}
+      variant="form"
+      size="lg"
+      showFooter={true}
+      footer={
+        <button
           onClick={onClose}
+          className="w-full py-2.5 bg-stone-900 text-white rounded-xl font-semibold text-sm hover:bg-stone-800 transition"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="p-5 border-b border-amber-100 bg-amber-50/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
-                  <Plane size={20} className="text-amber-600" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-semibold text-stone-900">Airport Shuttle</h2>
-                  <p className="text-xs text-stone-500">Set quantity and details for each direction</p>
-                </div>
-              </div>
-              <button
-                onClick={onClose}
-                className="w-8 h-8 rounded-lg bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-600 hover:text-stone-900 transition"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ShuttleLegCard type="pickup" leg={details.pickup} label="Airport Pickup" defaultDate={checkIn} />
-                <ShuttleLegCard type="dropOff" leg={details.dropOff} label="Airport Drop-off" defaultDate={checkOut} />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Notes</label>
-                <textarea
-                  value={details.notes}
-                  onChange={e => onChange({ ...details, notes: e.target.value })}
-                  rows={3}
-                  placeholder="Terminal, number of bags, special requests, etc."
-                  className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="p-4 border-t border-stone-100 bg-stone-50">
-              <button
-                onClick={onClose}
-                className="w-full py-2.5 bg-stone-900 text-white rounded-xl font-semibold text-sm hover:bg-stone-800 transition"
-              >
-                Done
-              </button>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+          Done
+        </button>
+      }
+      headerClassName="border-amber-100 bg-amber-50/50"
+      bodyClassName="space-y-4"
+    >
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <ShuttleLegCard type="pickup" leg={details.pickup} label="Airport Pickup" defaultDate={checkIn} />
+        <ShuttleLegCard type="dropOff" leg={details.dropOff} label="Airport Drop-off" defaultDate={checkOut} />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Notes</label>
+        <textarea
+          value={details.notes}
+          onChange={e => onChange({ ...details, notes: e.target.value })}
+          rows={3}
+          placeholder="Terminal, number of bags, special requests, etc."
+          className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition resize-none"
+        />
+      </div>
+    </ModalSystem>
   );
 }

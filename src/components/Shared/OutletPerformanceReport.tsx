@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { 
   TrendingUp, 
   ShoppingCart, 
@@ -10,7 +10,9 @@ import {
   Download,
   Calendar,
   Filter,
-  DollarSign
+  DollarSign,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -28,6 +30,12 @@ import {
   Line
 } from 'recharts';
 import { useERP } from '../../context/ERPContext';
+import { 
+  ReportTemplate, 
+  ReportExport, 
+  BarChartCard,
+  type ExportOption 
+} from './DashboardTemplate';
 
 const OutletPerformanceReport: React.FC = () => {
   const { inventoryItems, formatAmount } = useERP();
@@ -60,25 +68,36 @@ const OutletPerformanceReport: React.FC = () => {
 
   const COLORS = ['#B5563C', '#5F7A4F', '#C18A3B'];
 
+  const exportOptions: ExportOption[] = [
+    {
+      format: 'pdf',
+      label: 'Export as PDF',
+      icon: FileText,
+      action: () => console.log('Export PDF')
+    },
+    {
+      format: 'excel',
+      label: 'Export as Excel',
+      icon: FileSpreadsheet,
+      action: () => console.log('Export Excel')
+    }
+  ];
+
+  const handleExportAudit = () => {
+    console.log('Exporting audit data...');
+  };
+
   return (
-    <div className="space-y-6 pb-20">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-sans font-black text-slate-900 dark:text-white leading-tight uppercase tracking-tight">Outlet Performance Center</h2>
-          <p className="text-xs text-slate-400 font-medium font-mono uppercase tracking-widest mt-1">Property Operational Matrix</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
-            <Download size={16} />
-            Export Audit
-          </button>
-          <button className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition shadow-md shadow-indigo-200 dark:shadow-none">
-            <Calendar size={16} />
-            May 2026
-          </button>
-        </div>
-      </div>
+    <ReportTemplate 
+      title="Outlet Performance Center"
+      subtitle="Property Operational Matrix"
+      actions={
+        <ReportExport 
+          options={exportOptions}
+          onRefresh={() => console.log('Refresh data')}
+        />
+      }
+    >
 
       {/* Top Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -242,7 +261,7 @@ const OutletPerformanceReport: React.FC = () => {
            </table>
         </div>
       </div>
-    </div>
+    </ReportTemplate>
   );
 };
 

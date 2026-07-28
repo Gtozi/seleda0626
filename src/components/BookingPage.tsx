@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import { getEffectiveNightlyRate } from '../utils/pricing';
 import { motion, AnimatePresence } from 'motion/react';
+import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import {
   Calendar,
   Users,
@@ -44,7 +45,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Printer,
-  Building
+  Building,
+  ClipboardList,
+  UserCheck,
+  Car,
+  Globe
 } from 'lucide-react';
 import TermsAndConditionsModal from './TermsAndConditionsModal';
 import AirportShuttleModal, { AirportShuttleDetails } from './AirportShuttleModal';
@@ -353,6 +358,32 @@ export default function BookingPage() {
   const [paymentError, setPaymentError] = useState('');
   const [showWaitlistedReceipt, setShowWaitlistedReceipt] = useState(false);
 
+  // Pre-registration state
+  const [showPreRegForm, setShowPreRegForm] = useState(false);
+  const [preRegSubmitted, setPreRegSubmitted] = useState(false);
+  const [preRegSubmitting, setPreRegSubmitting] = useState(false);
+  const [preRegError, setPreRegError] = useState('');
+  const [preRegData, setPreRegData] = useState({
+    dateOfBirth: '',
+    passportNumber: '',
+    idType: 'passport' as 'passport' | 'national_id' | 'driver_license',
+    idNumber: '',
+    idExpiryDate: '',
+    idIssueDate: '',
+    idIssuingCountry: '',
+    roomTypePreference: '',
+    pillowPreference: '',
+    dietaryRestrictions: '',
+    languagePreference: '',
+    vehiclePlate: '',
+    vehicleMake: '',
+    vehicleModel: '',
+    emergencyContactName: '',
+    emergencyContactPhone: '',
+    emergencyContactRelationship: '',
+    estimatedArrivalTime: '',
+  });
+
   // B2B state fields
   const [tourOperators, setTourOperators] = useState<any[]>([]);
   const [selectedOperatorId, setSelectedOperatorId] = useState('');
@@ -427,6 +458,53 @@ export default function BookingPage() {
     };
     loadTourOperators();
   }, []);
+
+  // Realtime subscription to broadcast booking changes to admin dashboard
+  useEffect(() => {
+    if (!hasSupabaseConfig) return;
+
+    let isCancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let reconnectAttempts = 0;
+
+    const setupChannel = () => {
+      if (isCancelled) return;
+      channel = supabase
+        .channel('public-booking-realtime')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reservations' }, (payload) => {
+          console.log('Public booking: New reservation created via realtime:', payload);
+        })
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            reconnectAttempts = 0;
+            console.log('Public booking: Realtime subscribed');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`Public booking: Realtime ${status}, will retry...`);
+            if (channel && !isCancelled) {
+              try { supabase.removeChannel(channel); } catch (e) { /* ignore */ }
+              channel = null;
+            }
+            if (!isCancelled) {
+              const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+              reconnectAttempts++;
+              reconnectTimer = setTimeout(() => setupChannel(), delay);
+            }
+          }
+        });
+    };
+
+    setupChannel();
+
+    return () => {
+      isCancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch (e) { /* HMR race — ignore */ }
+      }
+    };
+  }, []);
+
 
   // Load rate plans and seasons
   useEffect(() => {
@@ -766,6 +844,20 @@ export default function BookingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Booking failed');
+      
+      // Broadcast to admin dashboard tabs for immediate update
+      try {
+        const broadcastChannel = new BroadcastChannel('seleda-booking-updates');
+        broadcastChannel.postMessage({
+          type: 'NEW_BOOKING',
+          reservationIds: data.reservationIds,
+          timestamp: Date.now()
+        });
+        broadcastChannel.close();
+      } catch (e) {
+        console.log('BroadcastChannel not supported or error:', e);
+      }
+      
       setConfirmation({
         reservationIds: data.reservationIds,
         totalAmount: data.totalAmount,
@@ -817,6 +909,33 @@ export default function BookingPage() {
       setPaymentError(e.message || 'Payment processing failed');
     } finally {
       setPaying(false);
+    }
+  };
+
+  const handlePreRegSubmit = async () => {
+    if (!confirmation) return;
+    setPreRegSubmitting(true);
+    setPreRegError('');
+    try {
+      const res = await fetch('/api/public/pre-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reservation_id: confirmation.reservationIds[0],
+          guest_email: guestEmail,
+          guest_name: guestName || primaryContact,
+          guest_phone: guestPhone,
+          guest_nationality: guestNationality,
+          ...preRegData,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Pre-registration failed');
+      setPreRegSubmitted(true);
+    } catch (e: any) {
+      setPreRegError(e.message || 'Pre-registration failed');
+    } finally {
+      setPreRegSubmitting(false);
     }
   };
 
@@ -1460,6 +1579,286 @@ export default function BookingPage() {
                     </div>
                   </li>
                 </ul>
+              </div>
+
+              {/* Pre-Registration Card */}
+              <div className="bg-gradient-to-br from-indigo-50 to-stone-50 border border-indigo-200/60 rounded-2xl shadow-sm p-6 space-y-4 print:hidden">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 bg-indigo-100 rounded-xl flex items-center justify-center">
+                      <ClipboardList size={18} className="text-indigo-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-stone-900 text-sm">Express Check-In</h3>
+                      <p className="text-[10px] text-stone-500">Pre-register to skip the front desk line</p>
+                    </div>
+                  </div>
+                  {preRegSubmitted && (
+                    <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-full">
+                      <CheckCircle2 size={12} /> Submitted
+                    </span>
+                  )}
+                </div>
+
+                {!preRegSubmitted && !showPreRegForm && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-stone-600 leading-relaxed">
+                      Complete your pre-registration now to submit your ID details, preferences, and emergency contact ahead of arrival.
+                      Our front desk team will review and have everything ready for a seamless check-in experience.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreRegForm(true)}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                    >
+                      <UserCheck size={14} /> Start Pre-Registration
+                    </button>
+                  </div>
+                )}
+
+                {!preRegSubmitted && showPreRegForm && (
+                  <div className="space-y-4">
+                    {/* ID & Passport Section */}
+                    <div className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
+                        <ShieldCheck size={12} /> Identification Documents
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">ID Type</label>
+                          <select
+                            value={preRegData.idType}
+                            onChange={e => setPreRegData({ ...preRegData, idType: e.target.value as any })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          >
+                            <option value="passport">Passport</option>
+                            <option value="national_id">National ID</option>
+                            <option value="driver_license">Driver's License</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">ID Number</label>
+                          <input
+                            type="text"
+                            value={preRegData.idNumber}
+                            onChange={e => setPreRegData({ ...preRegData, idNumber: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. P1234567"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Passport Number</label>
+                          <input
+                            type="text"
+                            value={preRegData.passportNumber}
+                            onChange={e => setPreRegData({ ...preRegData, passportNumber: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Date of Birth</label>
+                          <input
+                            type="date"
+                            value={preRegData.dateOfBirth}
+                            onChange={e => setPreRegData({ ...preRegData, dateOfBirth: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">ID Issue Date</label>
+                          <input
+                            type="date"
+                            value={preRegData.idIssueDate}
+                            onChange={e => setPreRegData({ ...preRegData, idIssueDate: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">ID Expiry Date</label>
+                          <input
+                            type="date"
+                            value={preRegData.idExpiryDate}
+                            onChange={e => setPreRegData({ ...preRegData, idExpiryDate: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-stone-400 flex items-center gap-1"><Globe size={10} /> Issuing Country</label>
+                          <input
+                            type="text"
+                            value={preRegData.idIssuingCountry}
+                            onChange={e => setPreRegData({ ...preRegData, idIssuingCountry: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. Ethiopia"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Preferences Section */}
+                    <div className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
+                        <Sparkles size={12} /> Stay Preferences
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Pillow Preference</label>
+                          <select
+                            value={preRegData.pillowPreference}
+                            onChange={e => setPreRegData({ ...preRegData, pillowPreference: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          >
+                            <option value="">No preference</option>
+                            <option value="Soft">Soft</option>
+                            <option value="Firm">Firm</option>
+                            <option value="Feather">Feather</option>
+                            <option value="Orthopedic">Orthopedic</option>
+                          </select>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Language</label>
+                          <input
+                            type="text"
+                            value={preRegData.languagePreference}
+                            onChange={e => setPreRegData({ ...preRegData, languagePreference: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. English, Amharic"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Dietary Restrictions</label>
+                          <input
+                            type="text"
+                            value={preRegData.dietaryRestrictions}
+                            onChange={e => setPreRegData({ ...preRegData, dietaryRestrictions: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. Vegetarian, Gluten-free, Nut allergy"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Estimated Arrival Time</label>
+                          <input
+                            type="time"
+                            value={preRegData.estimatedArrivalTime}
+                            onChange={e => setPreRegData({ ...preRegData, estimatedArrivalTime: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Vehicle & Emergency Contact */}
+                    <div className="bg-white border border-stone-200 rounded-xl p-4 space-y-3">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
+                        <Car size={12} /> Vehicle & Emergency Contact
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Plate Number</label>
+                          <input
+                            type="text"
+                            value={preRegData.vehiclePlate}
+                            onChange={e => setPreRegData({ ...preRegData, vehiclePlate: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="Optional"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Make</label>
+                          <input
+                            type="text"
+                            value={preRegData.vehicleMake}
+                            onChange={e => setPreRegData({ ...preRegData, vehicleMake: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. Toyota"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Model</label>
+                          <input
+                            type="text"
+                            value={preRegData.vehicleModel}
+                            onChange={e => setPreRegData({ ...preRegData, vehicleModel: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. Land Cruiser"
+                          />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-stone-100">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Emergency Contact Name</label>
+                          <input
+                            type="text"
+                            value={preRegData.emergencyContactName}
+                            onChange={e => setPreRegData({ ...preRegData, emergencyContactName: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="Full name"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Emergency Phone</label>
+                          <input
+                            type="tel"
+                            value={preRegData.emergencyContactPhone}
+                            onChange={e => setPreRegData({ ...preRegData, emergencyContactPhone: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="+1 (555) 000-0000"
+                          />
+                        </div>
+                        <div className="space-y-1 sm:col-span-2">
+                          <label className="text-[10px] font-bold uppercase text-stone-400">Relationship</label>
+                          <input
+                            type="text"
+                            value={preRegData.emergencyContactRelationship}
+                            onChange={e => setPreRegData({ ...preRegData, emergencyContactRelationship: e.target.value })}
+                            className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none"
+                            placeholder="e.g. Spouse, Parent, Sibling"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {preRegError && (
+                      <div className="text-xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3">{preRegError}</div>
+                    )}
+
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPreRegForm(false)}
+                        className="flex-1 py-2.5 border border-stone-200 text-stone-600 hover:bg-stone-50 text-xs font-bold rounded-xl transition cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handlePreRegSubmit}
+                        disabled={preRegSubmitting}
+                        className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        {preRegSubmitting ? (
+                          <><Loader2 size={14} className="animate-spin" /> Submitting...</>
+                        ) : (
+                          <><CheckCircle2 size={14} /> Submit Pre-Registration</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {preRegSubmitted && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+                    <CheckCircle2 size={20} className="text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-emerald-800">Pre-Registration Complete!</p>
+                      <p className="text-[11px] text-emerald-700 leading-relaxed">
+                        Your details have been submitted to our front desk team. We'll have everything ready for your arrival.
+                        Simply present your ID at check-in to receive your room keys.
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -12,6 +12,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { Requisition, RequisitionStatus } from '../../types/inventory';
 
 const OfficeInventoryModule: React.FC = () => {
@@ -344,13 +345,15 @@ const OfficeInventoryModule: React.FC = () => {
       </div>
 
       {/* Requisition Trigger Modal */}
-      {showRaiseModal && (
-         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4 text-slate-800 dark:text-slate-100">
-               <div>
-                  <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Request materials</h3>
-                  <p className="text-xs text-slate-400">Order from the Mother Warehouse ({mainStoreId}).</p>
-               </div>
+      <ModalSystem
+        isOpen={showRaiseModal}
+        onClose={() => setShowRaiseModal(false)}
+        title="Request materials"
+        subtitle={`Order from the Mother Warehouse (${mainStoreId}).`}
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
                <form onSubmit={handleCreateRequisition} className="space-y-4">
                   <div className="space-y-1">
                      <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block">Select Item</label>
@@ -420,9 +423,7 @@ const OfficeInventoryModule: React.FC = () => {
                      </button>
                   </div>
                </form>
-            </div>
-         </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

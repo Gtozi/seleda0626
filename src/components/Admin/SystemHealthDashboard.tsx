@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Activity, Server, Database, Wifi, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Activity, Server, Database, Wifi, RefreshCw, AlertTriangle, Bug, HardDrive, XCircle } from 'lucide-react';
 
 interface HealthResponse {
   status: string;
@@ -17,10 +17,30 @@ interface AuditEvent {
   user_name?: string;
 }
 
+interface ErrorLog {
+  id: string;
+  level: string;
+  message: string;
+  stack_trace: string | null;
+  context: any;
+  timestamp: string;
+}
+
+interface FailedJob {
+  id: string;
+  status: string;
+  error: string | null;
+  created_at: string;
+  scheduled_jobs?: { name: string } | null;
+}
+
 export default function SystemHealthDashboard() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([]);
+  const [failedJobs, setFailedJobs] = useState<FailedJob[]>([]);
+  const [tableCounts, setTableCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastChecked, setLastChecked] = useState<Date | null>(null);
@@ -52,6 +72,22 @@ export default function SystemHealthDashboard() {
       }
     } catch {
       setEvents([]);
+    }
+
+    const token = localStorage.getItem('erp_token');
+    const authHeaders = { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+
+    try {
+      const [errRes, jobRes, dbRes] = await Promise.all([
+        fetch('/api/admin/health/error-logs', { headers: authHeaders }).then(r => r.json()).catch(() => ({ logs: [] })),
+        fetch('/api/admin/health/job-failures', { headers: authHeaders }).then(r => r.json()).catch(() => ({ failedJobs: [] })),
+        fetch('/api/admin/health/db-stats', { headers: authHeaders }).then(r => r.json()).catch(() => ({ tableCounts: {} })),
+      ]);
+      setErrorLogs(errRes.logs || []);
+      setFailedJobs(jobRes.failedJobs || []);
+      setTableCounts(dbRes.tableCounts || {});
+    } catch {
+      // non-critical
     }
 
     setLoading(false);
@@ -174,6 +210,62 @@ export default function SystemHealthDashboard() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+          <h3 className="text-base font-sans font-black text-slate-900 tracking-tight mb-4 flex items-center gap-2">
+            <HardDrive size={18} /> Database Table Counts
+          </h3>
+          {Object.keys(tableCounts).length === 0 ? (
+            <div className="h-20 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400 font-mono">No data available</div>
+          ) : (
+            <div className="grid grid-cols-3 gap-3">
+              {Object.entries(tableCounts).map(([table, count]) => (
+                <div key={table} className="flex items-center justify-between px-3 py-2 bg-slate-50 rounded-xl">
+                  <span className="text-xs font-mono font-bold text-slate-600">{table}</span>
+                  <span className="text-xs font-black text-indigo-600">{count.toLocaleString()}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+          <h3 className="text-base font-sans font-black text-slate-900 tracking-tight mb-4 flex items-center gap-2">
+            <Bug size={18} /> Error Logs ({errorLogs.length})
+          </h3>
+          {errorLogs.length === 0 ? (
+            <div className="h-20 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400 font-mono">No error logs recorded</div>
+          ) : (
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {errorLogs.slice(0, 20).map((log) => (
+                <div key={log.id} className="flex items-start gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-xs">
+                  <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${log.level === 'error' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                  <span className="font-mono text-slate-400 w-36 shrink-0">{new Date(log.timestamp).toLocaleString()}</span>
+                  <span className="font-bold text-slate-700 truncate">{log.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm">
+          <h3 className="text-base font-sans font-black text-slate-900 tracking-tight mb-4 flex items-center gap-2">
+            <XCircle size={18} className="text-rose-500" /> Failed Jobs ({failedJobs.length})
+          </h3>
+          {failedJobs.length === 0 ? (
+            <div className="h-20 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-xs text-slate-400 font-mono">No failed jobs</div>
+          ) : (
+            <div className="space-y-1">
+              {failedJobs.map((job) => (
+                <div key={job.id} className="flex items-start gap-3 px-3 py-2 rounded-xl hover:bg-slate-50 text-xs">
+                  <XCircle size={14} className="text-rose-500 shrink-0 mt-0.5" />
+                  <span className="font-mono text-slate-400 w-36 shrink-0">{new Date(job.created_at).toLocaleString()}</span>
+                  <span className="font-bold text-slate-700 w-32 shrink-0 truncate">{job.scheduled_jobs?.name || 'Unknown'}</span>
+                  <span className="text-rose-600 truncate">{job.error}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

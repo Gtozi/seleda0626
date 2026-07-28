@@ -27,6 +27,7 @@ import {
   LineChart,
   Line
 } from 'recharts';
+import { DataTable, Column } from '../../Shared/DataTable';
 
 const TransportLogistics = () => {
   const stats = [
@@ -119,67 +120,62 @@ const TransportLogistics = () => {
         </div>
 
         {/* Expenses List */}
-        <div className="lg:col-span-12 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs">
-           <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+        <div className="lg:col-span-12">
+           <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Active Transport Expense Log</h3>
-              <div className="flex gap-2">
-                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                    <input 
-                      type="text" 
-                      placeholder="Search logistics..." 
-                      className="pl-9 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-indigo-500 w-48"
-                    />
-                 </div>
-                 <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight flex items-center gap-2">
-                    <Plus size={14} />
-                    New Entry
-                 </button>
-              </div>
+              <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight flex items-center gap-2">
+                 <Plus size={14} />
+                 New Entry
+              </button>
            </div>
-           <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">ID / Date</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description / Vehicle</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Type</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Value</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {vehicleExpenses.map((exp, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group">
-                    <td className="px-6 py-4">
-                       <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{exp.id}</span>
-                       <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{exp.date}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                       <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{exp.description}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{exp.vehicle}</span>
-                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                       <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                          exp.type === 'Fuel' ? 'bg-amber-50 text-amber-600' : 
-                          exp.type === 'Delivery' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'
-                       }`}>
-                          {exp.type}
-                       </span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                       <span className="text-xs font-black text-slate-900 dark:text-white font-mono">${exp.amount.toFixed(2)}</span>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                       <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
-                          <MoreVertical size={14} />
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-           </table>
+           <DataTable
+             columns={[
+               {
+                 key: 'id', label: 'ID / Date',
+                 render: (exp: any) => (
+                   <div>
+                     <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{exp.id}</span>
+                     <p className="text-[8px] font-bold text-slate-400 uppercase mt-0.5">{exp.date}</p>
+                   </div>
+                 ),
+               },
+               {
+                 key: 'description', label: 'Description / Vehicle',
+                 render: (exp: any) => (
+                   <div className="flex flex-col">
+                     <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{exp.description}</span>
+                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">{exp.vehicle}</span>
+                   </div>
+                 ),
+               },
+               {
+                 key: 'type', label: 'Type', align: 'center' as const,
+                 render: (exp: any) => (
+                   <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                     exp.type === 'Fuel' ? 'bg-amber-50 text-amber-600' :
+                     exp.type === 'Delivery' ? 'bg-indigo-50 text-indigo-600' : 'bg-rose-50 text-rose-600'
+                   }`}>{exp.type}</span>
+                 ),
+               },
+               {
+                 key: 'amount', label: 'Value', align: 'right' as const,
+                 render: (exp: any) => <span className="text-xs font-black text-slate-900 dark:text-white font-mono">${exp.amount.toFixed(2)}</span>,
+               },
+               {
+                 key: 'actions', label: 'Action', align: 'right' as const, sortable: false,
+                 render: () => (
+                   <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"><MoreVertical size={14} /></button>
+                 ),
+               },
+             ] as Column<any>[]}
+             data={vehicleExpenses}
+             rowKey={(exp) => exp.id}
+             sortable
+             filterable
+             filterPlaceholder="Search logistics..."
+             filterKeys={['id', 'description', 'vehicle', 'type']}
+             containerClassName="rounded-[32px]"
+           />
         </div>
       </div>
     </div>

@@ -18,8 +18,10 @@ import {
   Users, Users2, Briefcase, Building2, FolderOpen, Star, Link2, Unlink,
   ArrowRightLeft, ShieldCheck, Wallet, CreditCard, Receipt, AlertTriangle,
   CheckCircle2, UserCheck, Edit3, Trash2, ListChecks, BadgeDollarSign, Banknote,
-  Calendar, Mail, Phone, Bookmark, User, Printer, PenTool
+  Calendar, Mail, Phone, Bookmark, User, Printer, PenTool, ClipboardList, Download, Car
 } from 'lucide-react';
+import { ModalSystem } from '../Shared/ModalSystem';
+import PreRegistrationPanel from './PreRegistrationPanel';
 
 interface CRMModuleProps {
   initialGuestData?: { name?: string; email?: string; phone?: string; resId?: string; rm?: string; date?: string; isGroup?: boolean; groupId?: string; groupName?: string; contactName?: string; roomCount?: number; pendingCheckIn?: boolean };
@@ -82,7 +84,68 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   } = useGroup();
 
   // Tabs
-  const [crmTab, setCrmTab] = useState<'individual' | 'groups' | 'corporate'>('individual');
+  const [crmTab, setCrmTab] = useState<'individual' | 'groups' | 'corporate' | 'preregistration'>('individual');
+
+  // Pre-Registration state
+  const [preRegistrations, setPreRegistrations] = useState<any[]>([]);
+  const [preRegLoading, setPreRegLoading] = useState(false);
+  const [preRegFilter, setPreRegFilter] = useState<'all' | 'pending' | 'reviewed' | 'imported' | 'rejected'>('all');
+  const [selectedPreReg, setSelectedPreReg] = useState<any | null>(null);
+  const [preRegImporting, setPreRegImporting] = useState(false);
+
+  const fetchPreRegistrations = async () => {
+    setPreRegLoading(true);
+    try {
+      const params = preRegFilter !== 'all' ? `?status=${preRegFilter}` : '';
+      const res = await fetch(`/api/pre-registrations${params}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setPreRegistrations(data.preRegistrations || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setPreRegLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (crmTab === 'preregistration') {
+      fetchPreRegistrations();
+    }
+  }, [crmTab, preRegFilter]);
+
+  const handleImportPreReg = async (id: string) => {
+    setPreRegImporting(true);
+    try {
+      const res = await fetch(`/api/pre-registrations/${id}/import`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Import failed');
+      await fetchPreRegistrations();
+      setSelectedPreReg(null);
+    } catch (e: any) {
+      alert(e.message || 'Import failed');
+    } finally {
+      setPreRegImporting(false);
+    }
+  };
+
+  const handleReviewPreReg = async (id: string, status: string, notes?: string) => {
+    try {
+      await fetch(`/api/pre-registrations/${id}/review`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ status, review_notes: notes || '' }),
+      });
+      fetchPreRegistrations();
+    } catch {
+      // ignore
+    }
+  };
 
   // Search / Filter
   const [searchVal, setSearchVal] = useState('');
@@ -109,6 +172,9 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   const [showGuestDetail, setShowGuestDetail] = useState(false);
   const [customRoutingRules, setCustomRoutingRules] = useState<Record<string, 'A' | 'B'>>({});
   const [isEditingCustomRouting, setIsEditingCustomRouting] = useState(false);
+  const [loyaltyHistoryGuestId, setLoyaltyHistoryGuestId] = useState<string | null>(null);
+  const [loyaltyTransactions, setLoyaltyTransactions] = useState<any[]>([]);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   
   // Group Relationships UI
   const [showLinkToGroup, setShowLinkToGroup] = useState(false);
@@ -192,26 +258,26 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   // Fetch guest group relationships when guest detail is opened
   useEffect(() => {
     if (showGuestDetail && activeGuest) {
-      fetchGuestGroupRelationships(activeGuest.id);
-      getGuestGroupSummary(activeGuest.id).then(setGuestGroupSummary);
+      fetchGuestGroupRelationships(activeGuest?.id);
+      getGuestGroupSummary(activeGuest?.id).then(setGuestGroupSummary);
     }
   }, [showGuestDetail, activeGuest, fetchGuestGroupRelationships, getGuestGroupSummary]);
 
   // Sync edits
   useEffect(() => {
     if (activeGuest) {
-      setEditGName(activeGuest.name);
-      setEditGEmail(activeGuest.email);
-      setEditGPhone(activeGuest.phone || '');
-      setEditGNationality(activeGuest.nationality || '');
-      setEditGTin(activeGuest.tin || '');
-      setEditGVatNo(activeGuest.vatNo || '');
-      setEditGVatDate(activeGuest.vatDate || '');
-      setEditGPassport(activeGuest.passportNumber || '');
-      setEditGDob(activeGuest.dateOfBirth || '');
-      setEditParentGroupId(activeGuest.parentGroupId || '');
-      setEditParentCorporateId(activeGuest.parentCorporateId || '');
-      setEditIsPrimaryContact(activeGuest.isPrimaryContact || false);
+      setEditGName(activeGuest?.name);
+      setEditGEmail(activeGuest?.email);
+      setEditGPhone(activeGuest?.phone || '');
+      setEditGNationality(activeGuest?.nationality || '');
+      setEditGTin(activeGuest?.tin || '');
+      setEditGVatNo(activeGuest?.vatNo || '');
+      setEditGVatDate(activeGuest?.vatDate || '');
+      setEditGPassport(activeGuest?.passportNumber || '');
+      setEditGDob(activeGuest?.dateOfBirth || '');
+      setEditParentGroupId(activeGuest?.parentGroupId || '');
+      setEditParentCorporateId(activeGuest?.parentCorporateId || '');
+      setEditIsPrimaryContact(activeGuest?.isPrimaryContact || false);
       setIsEditingProfile(false);
     }
   }, [selectedGuestId]);
@@ -256,8 +322,41 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           setShowGuestDetail(true);
         }
       } else {
-        // Guest profile must be created during booking, not check-in
-        alert(`No CRM profile found for ${initialGuestData.name}. Please create a guest profile during the booking process before check-in.`);
+        // Auto-create guest profile if missing
+        const lastName = initialGuestData.name?.split(' ').pop() || initialGuestData.name || '';
+        const newGuestId = addGuest({
+          name: initialGuestData.name || '',
+          lastName: lastName,
+          email: initialGuestData.email || '',
+          phone: initialGuestData.phone || '',
+          status: 'Regular',
+          loyaltyPoints: 0,
+          specialRequests: '',
+          notes: `Auto-created during check-in for reservation: ${initialGuestData.resId || 'N/A'}`,
+          history: [],
+          totalSpend: 0,
+          nationality: undefined,
+          tin: undefined,
+          vatNo: undefined,
+          vatDate: undefined,
+          passportNumber: undefined,
+          dateOfBirth: undefined,
+          parentGroupId: initialGuestData.groupId || undefined,
+          isPrimaryContact: false
+        });
+        
+        setSelectedGuestId(newGuestId);
+        setCrmTab('individual');
+        if (initialGuestData.resId) {
+          setPendingCheckInResData({ resId: initialGuestData.resId, rm: initialGuestData.rm || 'TBD', date: initialGuestData.date || toISODate() });
+        }
+        setIsEditingProfile(true);
+        // Set pending check-in flag to show check-in button in guest profile
+        if (initialGuestData.pendingCheckIn) {
+          setPendingCheckIn(true);
+          // Open guest detail modal for check-in flow
+          setShowGuestDetail(true);
+        }
       }
       onClearInitialData?.();
     }
@@ -289,6 +388,30 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     }
   }, [viewGroupId, onClearViewGroupId, groupBookings]);
 
+  // Fetch loyalty transaction history
+  const fetchLoyaltyHistory = async (guestId: string) => {
+    setLoyaltyLoading(true);
+    try {
+      const res = await fetch(`/api/loyalty/transactions/${guestId}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setLoyaltyTransactions(data.transactions || []);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (loyaltyHistoryGuestId) {
+      fetchLoyaltyHistory(loyaltyHistoryGuestId);
+    } else {
+      setLoyaltyTransactions([]);
+    }
+  }, [loyaltyHistoryGuestId]);
+
   const handleIDScanUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -319,7 +442,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
         
         try {
           const token = localStorage.getItem('auth_token');
-          const response = await fetch(`/api/guests/${activeGuest.id}/id-card`, {
+          const response = await fetch(`/api/guests/${activeGuest?.id}/id-card`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -327,10 +450,10 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             },
             body: JSON.stringify({
               docType: 'Passport',
-              docNumber: activeGuest.passportNumber || 'N/A',
-              expiryDate: activeGuest.dateOfBirth || '2025-12-31',
+              docNumber: activeGuest?.passportNumber || 'N/A',
+              expiryDate: activeGuest?.dateOfBirth || '2025-12-31',
               issueDate: null,
-              issuingCountry: activeGuest.nationality || 'ET',
+              issuingCountry: activeGuest?.nationality || 'ET',
               frontImageBase64: base64.split(',')[1], // Remove data URL prefix
               backImageBase64: null
             })
@@ -341,7 +464,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             console.log('ID card uploaded successfully:', data);
             setIdUploaded(true);
             // Refresh guest data to show updated ID card
-            updateGuestData(activeGuest.id, {
+            updateGuestData(activeGuest?.id, {
               identificationDoc: data.identificationDoc
             });
           } else {
@@ -423,11 +546,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     await checkInReservation(pendingCheckInResData.resId, pendingCheckInResData.rm);
 
     // Update guest profile with ID document info
-    updateGuestData(activeGuest.id, {
+    updateGuestData(activeGuest?.id, {
       idDocuments: [
         {
           type: 'Passport',
-          number: activeGuest.passportNumber || 'N/A',
+          number: activeGuest?.passportNumber || 'N/A',
           uploadedAt: new Date().toISOString(),
           isUploaded: true
         }
@@ -445,16 +568,16 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   };
 
   const handleGroupCheckIn = async () => {
-    if (!activeGuest || !activeGuest.parentGroupId) return;
-    let group = groupBookings.find(g => g.id === activeGuest.parentGroupId);
+    if (!activeGuest || !activeGuest?.parentGroupId) return;
+    let group = groupBookings.find(g => g.id === activeGuest?.parentGroupId);
 
     // Auto-create group profile if it doesn't exist
     if (!group) {
       await addGroupBooking({
-        groupName: activeGuest.parentGroupId,
-        contactName: activeGuest.name,
-        contactEmail: activeGuest.email,
-        contactPhone: activeGuest.phone || '',
+        groupName: activeGuest?.parentGroupId,
+        contactName: activeGuest?.name,
+        contactEmail: activeGuest?.email,
+        contactPhone: activeGuest?.phone || '',
         roomTypeNeeded: 'Double',
         roomCount: 1,
         checkInDate: toISODate(),
@@ -462,12 +585,12 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
         discountPercent: 0,
         status: 'Confirmed'
       });
-      group = groupBookings.find(g => g.id === activeGuest.parentGroupId) || {
-        id: activeGuest.parentGroupId,
-        groupName: activeGuest.parentGroupId,
-        contactName: activeGuest.name,
-        contactEmail: activeGuest.email,
-        contactPhone: activeGuest.phone || '',
+      group = groupBookings.find(g => g.id === activeGuest?.parentGroupId) || {
+        id: activeGuest?.parentGroupId,
+        groupName: activeGuest?.parentGroupId,
+        contactName: activeGuest?.name,
+        contactEmail: activeGuest?.email,
+        contactPhone: activeGuest?.phone || '',
         roomTypeNeeded: 'Double',
         roomCount: 1,
         checkInDate: toISODate(),
@@ -478,13 +601,13 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     }
 
     // Check in all reservations with the same group ID
-    const groupReservations = reservations.filter(r => r.bookingGroupId === activeGuest.parentGroupId && r.status === 'Confirmed' && r.roomNumber);
+    const groupReservations = reservations.filter(r => r.bookingGroupId === activeGuest?.parentGroupId && r.status === 'Confirmed' && r.roomNumber);
     for (const groupRes of groupReservations) {
       // Guest profiles should already exist from booking - just verify they exist
       const guest = guests.find(g =>
         g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() &&
         g.name.toLowerCase() === groupRes.guestName.toLowerCase() &&
-        g.parentGroupId === activeGuest.parentGroupId
+        g.parentGroupId === activeGuest?.parentGroupId
       );
       let guestId: string | undefined = guest?.id;
       if (!guestId) {
@@ -497,11 +620,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           status: groupRes.guestStatus || 'Regular',
           loyaltyPoints: 0,
           specialRequests: '',
-          notes: `Auto-created from group booking: ${activeGuest.parentGroupId} - Reservation: ${groupRes.id}`,
+          notes: `Auto-created from group booking: ${activeGuest?.parentGroupId} - Reservation: ${groupRes.id}`,
           history: [],
           totalSpend: 0,
-          parentGroupId: activeGuest.parentGroupId,
-          isPrimaryContact: groupRes.guestName === activeGuest.name,
+          parentGroupId: activeGuest?.parentGroupId,
+          isPrimaryContact: groupRes.guestName === activeGuest?.name,
           nationality: undefined,
           tin: groupRes.guestTin,
           vatNo: groupRes.guestVatNo,
@@ -638,7 +761,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     // Keep denormalized guest fields on linked reservations in sync
     reservations.forEach(res => {
       const matchesById = res.guestId === updatedGuest.id;
-      const matchesByFallback = !res.guestId && res.guestName === activeGuest.name && res.guestEmail === activeGuest.email;
+      const matchesByFallback = !res.guestId && res.guestName === activeGuest?.name && res.guestEmail === activeGuest?.email;
       if (matchesById || matchesByFallback) {
         updateReservation(res.id, {
           guestName: updatedGuest.name,
@@ -658,7 +781,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
 
   const handleAddNoteToGuest = () => {
     if (!activeGuest || !newNote) return;
-    updateGuest({ ...activeGuest, notes: (activeGuest.notes ? activeGuest.notes + '\n' : '') + `[${toISODate()}] ${newNote}` });
+    updateGuest({ ...activeGuest, notes: (activeGuest?.notes ? activeGuest?.notes + '\n' : '') + `[${toISODate()}] ${newNote}` });
     setNewNote('');
   };
 
@@ -711,7 +834,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   const handleLinkToGroup = async () => {
     if (!activeGuest || !selectedGroupForLink) return;
     
-    const relationship = await linkGuestToGroup(activeGuest.id, selectedGroupForLink, {
+    const relationship = await linkGuestToGroup(activeGuest?.id, selectedGroupForLink, {
       relationshipType: 'GroupReservation',
       isPrimaryContact: false,
     });
@@ -720,7 +843,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
       setShowLinkToGroup(false);
       setSelectedGroupForLink('');
       // Refresh the summary
-      const summary = await getGuestGroupSummary(activeGuest.id);
+      const summary = await getGuestGroupSummary(activeGuest?.id);
       setGuestGroupSummary(summary);
     }
   };
@@ -728,11 +851,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   const handleUnlinkFromGroup = async (groupId: string) => {
     if (!activeGuest) return;
     
-    const success = await unlinkGuestFromGroup(activeGuest.id, groupId, 'Manual unlink by user');
+    const success = await unlinkGuestFromGroup(activeGuest?.id, groupId, 'Manual unlink by user');
     
     if (success) {
       // Refresh the summary
-      const summary = await getGuestGroupSummary(activeGuest.id);
+      const summary = await getGuestGroupSummary(activeGuest?.id);
       setGuestGroupSummary(summary);
     }
   };
@@ -830,6 +953,15 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           className={`px-4 py-2.5 flex items-center gap-1.5 border-b-2 hover:bg-slate-50 transition-all duration-200 ${crmTab === 'corporate' ? 'border-b-indigo-600 text-indigo-700 font-semibold bg-indigo-50/50' : 'border-b-transparent hover:text-slate-700'}`}
         >
           <Briefcase size={14} /> Corporate Accounts
+        </button>
+        <button
+          onClick={() => setCrmTab('preregistration')}
+          className={`px-4 py-2.5 flex items-center gap-1.5 border-b-2 hover:bg-slate-50 transition-all duration-200 ${crmTab === 'preregistration' ? 'border-b-indigo-600 text-indigo-700 font-semibold bg-indigo-50/50' : 'border-b-transparent hover:text-slate-700'}`}
+        >
+          <ClipboardList size={14} /> Pre-Registration
+          {preRegistrations.filter(p => p.status === 'pending').length > 0 && (
+            <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold">{preRegistrations.filter(p => p.status === 'pending').length}</span>
+          )}
         </button>
       </div>
 
@@ -1024,7 +1156,43 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   {g.nationality && (
                     <div><span className="text-slate-400 font-mono block">Nationality</span><span className="font-semibold text-slate-700">{g.nationality}</span></div>
                   )}
-                  <div><span className="text-slate-400 font-mono block">Loyalty Points</span><span className="font-semibold text-slate-700">{g.loyaltyPoints} pts</span></div>
+                  <div className="col-span-2">
+                    <button
+                      onClick={() => setLoyaltyHistoryGuestId(loyaltyHistoryGuestId === g.id ? null : g.id)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border border-indigo-100 dark:border-indigo-800/50 hover:shadow-sm transition-all"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Award size={12} className="text-indigo-500" />
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Loyalty Points</span>
+                      </span>
+                      <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400">{g.loyaltyPoints.toLocaleString()} pts</span>
+                    </button>
+                    {loyaltyHistoryGuestId === g.id && (
+                      <div className="mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-2 max-h-40 overflow-y-auto">
+                        {loyaltyLoading ? (
+                          <div className="text-[10px] text-slate-400 text-center py-2">Loading...</div>
+                        ) : loyaltyTransactions.length === 0 ? (
+                          <div className="text-[10px] text-slate-400 text-center py-2">No transactions yet</div>
+                        ) : (
+                          <div className="space-y-1">
+                            {loyaltyTransactions.slice(0, 10).map((tx: any) => (
+                              <div key={tx.id} className="flex items-center justify-between text-[10px] font-mono py-1 border-b border-slate-100 dark:border-slate-700 last:border-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`px-1 py-0.5 rounded text-[8px] font-bold uppercase ${tx.transaction_type === 'accrual' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : tx.transaction_type === 'redemption' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'}`}>
+                                    {tx.transaction_type}
+                                  </span>
+                                  <span className="text-slate-500 dark:text-slate-400 truncate max-w-[120px]">{tx.description || '-'}</span>
+                                </div>
+                                <span className={`font-bold ${tx.points > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                                  {tx.points > 0 ? '+' : ''}{tx.points}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {g.parentGroupId && (
                     <div className="col-span-2"><span className="text-slate-400 font-mono block">Group</span><span className="font-semibold text-slate-700">{g.parentGroupId}</span></div>
                   )}
@@ -1045,22 +1213,14 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
     </div>
 
       {/* CREATE NEW GUEST PROFILE SLIDEOVER MODAL */}
-      {showAddGuest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-sans font-semibold text-sm text-slate-800">Onboard Premium CRM Profile</h3>
-              <button 
-                onClick={() => {
-                  setShowAddGuest(false);
-                  resetNewGuestForm();
-                }}
-                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
+      <ModalSystem
+        isOpen={showAddGuest}
+        onClose={() => { setShowAddGuest(false); resetNewGuestForm(); }}
+        title="Onboard Premium CRM Profile"
+        variant="form"
+        size="sm"
+        showFooter={false}
+      >
             {/* Hidden file input for ID scanning */}
             <input 
               type="file" 
@@ -1251,20 +1411,26 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 Onboard CRM Profile
               </button>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
         </>
       )}
 
       {/* PROFILE MATCH MODAL */}
-      {showProfileMatch && matchCandidate && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-sans font-semibold text-sm text-slate-800 flex items-center gap-2"><AlertTriangle size={16} className="text-amber-500" /> Potential Duplicate Profile</h3>
-              <button onClick={() => setShowProfileMatch(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showProfileMatch && !!matchCandidate}
+        onClose={() => setShowProfileMatch(false)}
+        title="Potential Duplicate Profile"
+        icon={<AlertTriangle size={20} className="text-amber-500" />}
+        variant="info"
+        size="sm"
+        showFooter={true}
+        footer={
+          <div className="flex gap-2">
+            <button onClick={() => { setShowProfileMatch(false); handleAddNewGuest(); }} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200">Create New Anyway</button>
+            <button onClick={() => { if (matchCandidate) { setSelectedGuestId(matchCandidate.id); setShowProfileMatch(false); setShowAddGuest(false); resetNewGuestForm(); } }} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-sans text-xs font-semibold rounded-lg transition-all duration-200 shadow-md shadow-indigo-200">Use Existing Profile</button>
+          </div>
+        }
+      >
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
               <p className="text-xs text-slate-700 font-sans">A matching profile was found based on:</p>
               <ul className="text-xs text-slate-600 font-sans list-disc list-inside space-y-1">
@@ -1274,35 +1440,31 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-semibold text-sm">{matchCandidate.name.split(' ').map(n => n[0]).join('')}</div>
+                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-white font-semibold text-sm">{matchCandidate?.name?.split(' ').map(n => n[0]).join('') || '?'}</div>
                 <div>
-                  <div className="text-sm font-semibold text-slate-800">{matchCandidate.name}</div>
-                  <div className="text-xs text-slate-500">{matchCandidate.email}</div>
+                  <div className="text-sm font-semibold text-slate-800">{matchCandidate?.name || 'Unknown'}</div>
+                  <div className="text-xs text-slate-500">{matchCandidate?.email || ''}</div>
                 </div>
               </div>
               <div className="flex gap-2 text-xs">
-                <span className={`px-2 py-0.5 rounded border ${getLoyaltyBadge(matchCandidate.status)}`}>{matchCandidate.status}</span>
-                {matchCandidate.nationality && <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded">{matchCandidate.nationality}</span>}
+                <span className={`px-2 py-0.5 rounded border ${getLoyaltyBadge(matchCandidate?.status)}`}>{matchCandidate?.status || 'Guest'}</span>
+                {matchCandidate?.nationality && <span className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded">{matchCandidate.nationality}</span>}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={() => { setShowProfileMatch(false); handleAddNewGuest(); }} className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200">Create New Anyway</button>
-              <button onClick={() => { setSelectedGuestId(matchCandidate.id); setShowProfileMatch(false); setShowAddGuest(false); resetNewGuestForm(); }} className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-sans text-xs font-semibold rounded-lg transition-all duration-200 shadow-md shadow-indigo-200">Use Existing Profile</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* FOLIO ROUTING MODAL */}
-      {showFolioRouting && folioRoutingTarget && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 p-6 pb-4">
-              <h3 className="font-sans font-semibold text-sm text-slate-800 flex items-center gap-2"><Receipt size={16} className="text-indigo-500" /> Configure Folio Routing</h3>
-              <button onClick={() => setShowFolioRouting(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 pt-2">
-              <p className="text-xs text-slate-600 font-sans mb-4">Configure billing routing for {folioRoutingTarget.type === 'guest' ? 'this guest' : folioRoutingTarget.type === 'group' ? 'all guests in this group' : 'all guests in this corporate account'}:</p>
+      <ModalSystem
+        isOpen={showFolioRouting && !!folioRoutingTarget}
+        onClose={() => setShowFolioRouting(false)}
+        title="Configure Folio Routing"
+        icon={<Receipt size={20} className="text-indigo-500" />}
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
+            <div className="">
+              <p className="text-xs text-slate-600 font-sans mb-4">Configure billing routing for {folioRoutingTarget?.type === 'guest' ? 'this guest' : folioRoutingTarget?.type === 'group' ? 'all guests in this group' : 'all guests in this corporate account'}:</p>
               
               {!isEditingCustomRouting ? (
                 <>
@@ -1377,33 +1539,19 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 </>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* GUEST DETAIL MODAL */}
-      {showGuestDetail && activeGuest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[85vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 p-6 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-lg shadow-xl shadow-indigo-300/50 ring-4 ring-indigo-100">
-                  {activeGuest.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h3 className="font-sans font-bold text-base text-slate-800">{activeGuest.name}</h3>
-                  <p className="text-3xs text-slate-400 font-mono">ID: {activeGuest.id}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className={`px-2 py-0.5 font-mono text-3xs border rounded uppercase ${getLoyaltyBadge(activeGuest.status)}`}>
-                      {activeGuest.status}
-                    </span>
-                    <span className="text-2xs text-slate-400 font-mono">{activeGuest.loyaltyPoints} pts</span>
-                  </div>
-                </div>
-              </div>
-              <button onClick={handleCloseGuestDetail} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 pt-2">
+      <ModalSystem
+        isOpen={showGuestDetail && !!activeGuest}
+        onClose={handleCloseGuestDetail}
+        title={activeGuest?.name ?? ''}
+        subtitle={`ID: ${activeGuest?.id ?? ''}`}
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
+            <div className="flex-1 overflow-y-auto">
               <div className="space-y-4">
                 {/* Contact Info */}
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
@@ -1529,66 +1677,66 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     <div className="space-y-2 text-xs text-slate-600 font-sans">
                       <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                         <Mail size={14} className="text-indigo-500" />
-                        <span className="font-medium text-slate-800">{activeGuest.email}</span>
+                        <span className="font-medium text-slate-800">{activeGuest?.email || 'Not provided'}</span>
                       </div>
                       <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                         <Phone size={14} className="text-indigo-500" />
-                        <span className="font-medium text-slate-800">{activeGuest.phone || 'Not provided'}</span>
+                        <span className="font-medium text-slate-800">{activeGuest?.phone || 'Not provided'}</span>
                       </div>
-                      {activeGuest.nationality && (
+                      {activeGuest?.nationality && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <Globe size={14} className="text-indigo-500" />
-                          <span>Nationality: <strong className="font-bold text-slate-800">{activeGuest.nationality}</strong></span>
+                          <span>Nationality: <strong className="font-bold text-slate-800">{activeGuest?.nationality}</strong></span>
                         </div>
                       )}
-                      {activeGuest.passportNumber && (
+                      {activeGuest?.passportNumber && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <ShieldCheck size={14} className="text-indigo-500" />
-                          <span className="font-mono font-semibold text-slate-800">Passport: {activeGuest.passportNumber}</span>
+                          <span className="font-mono font-semibold text-slate-800">Passport: {activeGuest?.passportNumber}</span>
                         </div>
                       )}
-                      {activeGuest.dateOfBirth && (
+                      {activeGuest?.dateOfBirth && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <Calendar size={14} className="text-indigo-500" />
-                          <span className="font-mono font-semibold text-slate-800">DOB: {activeGuest.dateOfBirth}</span>
+                          <span className="font-mono font-semibold text-slate-800">DOB: {activeGuest?.dateOfBirth}</span>
                         </div>
                       )}
-                      {activeGuest.tin && (
+                      {activeGuest?.tin && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <span className="font-mono text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded uppercase font-bold border border-indigo-200">TIN</span>
-                          <span className="font-mono font-semibold text-slate-800">{activeGuest.tin}</span>
+                          <span className="font-mono font-semibold text-slate-800">{activeGuest?.tin}</span>
                         </div>
                       )}
-                      {activeGuest.vatNo && (
+                      {activeGuest?.vatNo && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <span className="font-mono text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded uppercase font-bold border border-indigo-200">VAT</span>
-                          <span className="font-mono font-semibold text-slate-800">{activeGuest.vatNo} {activeGuest.vatDate && `(Reg. ${activeGuest.vatDate})`}</span>
+                          <span className="font-mono font-semibold text-slate-800">{activeGuest?.vatNo} {activeGuest?.vatDate && `(Reg. ${activeGuest?.vatDate})`}</span>
                         </div>
                       )}
-                      {activeGuest.parentGroupId && (
+                      {activeGuest?.parentGroupId && (
                         <div className="flex gap-2.5 items-center p-2 bg-indigo-50 rounded-lg border border-indigo-100">
                           <Users2 size={14} className="text-indigo-600" />
-                          <span className="font-mono font-semibold">Group: <strong className="text-slate-800">{activeGuest.parentGroupId}</strong></span>
-                          {activeGuest.isPrimaryContact && <Star size={12} className="text-amber-500 fill-amber-500" />}
+                          <span className="font-mono font-semibold">Group: <strong className="text-slate-800">{activeGuest?.parentGroupId}</strong></span>
+                          {activeGuest?.isPrimaryContact && <Star size={12} className="text-amber-500 fill-amber-500" />}
                         </div>
                       )}
-                      {activeGuest.parentCorporateId && (
+                      {activeGuest?.parentCorporateId && (
                         <div className="flex gap-2.5 items-center p-2 bg-emerald-50 rounded-lg border border-emerald-100">
                           <Building2 size={14} className="text-emerald-600" />
-                          <span className="font-mono font-semibold">Corporate: <strong className="text-slate-800">{corporateAccounts.find(c => c.id === activeGuest.parentCorporateId)?.companyName || activeGuest.parentCorporateId}</strong></span>
-                          {activeGuest.isPrimaryContact && <Star size={12} className="text-amber-500 fill-amber-500" />}
+                          <span className="font-mono font-semibold">Corporate: <strong className="text-slate-800">{corporateAccounts.find(c => c.id === activeGuest?.parentCorporateId)?.companyName || activeGuest?.parentCorporateId}</strong></span>
+                          {activeGuest?.isPrimaryContact && <Star size={12} className="text-amber-500 fill-amber-500" />}
                         </div>
                       )}
                       <div className="flex gap-2.5 items-center p-2 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-100">
                         <Wallet size={14} className="text-indigo-600" />
-                        <span className="font-mono font-semibold text-slate-800">Total Spend: ${activeGuest.totalSpend.toLocaleString()}</span>
+                        <span className="font-mono font-semibold text-slate-800">Total Spend: ${activeGuest?.totalSpend?.toLocaleString() || '0'}</span>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {/* ID Document Display */}
-                {activeGuest.identificationDoc && activeGuest.identificationDoc.isUploaded ? (
+                {activeGuest?.identificationDoc && activeGuest?.identificationDoc?.isUploaded ? (
                   <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
                     <div className="flex items-center gap-2 mb-3">
                       <ShieldCheck size={14} className="text-emerald-600" />
@@ -1597,42 +1745,42 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     <div className="space-y-2 text-xs text-slate-700 font-sans">
                       <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                         <span className="font-mono text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded uppercase font-bold border border-emerald-200">
-                          {activeGuest.identificationDoc.type}
+                          {activeGuest?.identificationDoc?.type}
                         </span>
-                        <span className="font-mono font-semibold text-slate-800">{activeGuest.identificationDoc.number}</span>
+                        <span className="font-mono font-semibold text-slate-800">{activeGuest?.identificationDoc?.number}</span>
                       </div>
-                      {activeGuest.identificationDoc.expiryDate && (
+                      {activeGuest?.identificationDoc?.expiryDate && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <Calendar size={14} className="text-emerald-600" />
-                          <span className="font-mono font-semibold text-slate-800">Expires: {activeGuest.identificationDoc.expiryDate}</span>
+                          <span className="font-mono font-semibold text-slate-800">Expires: {activeGuest?.identificationDoc?.expiryDate}</span>
                         </div>
                       )}
-                      {activeGuest.identificationDoc.issuingCountry && (
+                      {activeGuest?.identificationDoc?.issuingCountry && (
                         <div className="flex gap-2.5 items-center p-2 bg-white rounded-lg">
                           <Globe size={14} className="text-emerald-600" />
-                          <span className="font-mono font-semibold text-slate-800">Issuing Country: {activeGuest.identificationDoc.issuingCountry}</span>
+                          <span className="font-mono font-semibold text-slate-800">Issuing Country: {activeGuest?.identificationDoc?.issuingCountry}</span>
                         </div>
                       )}
                       {/* ID Card Images */}
                       <div className="grid grid-cols-2 gap-2 mt-3">
-                        {activeGuest.identificationDoc.frontImageUrl && (
+                        {activeGuest?.identificationDoc?.frontImageUrl && (
                           <div className="relative group">
                             <img 
-                              src={activeGuest.identificationDoc.frontImageUrl} 
+                              src={activeGuest?.identificationDoc?.frontImageUrl} 
                               alt="ID Card Front" 
                               className="w-full h-32 object-cover rounded-lg border border-emerald-200 cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(activeGuest.identificationDoc.frontImageUrl, '_blank')}
+                              onClick={() => window.open(activeGuest?.identificationDoc?.frontImageUrl, '_blank')}
                             />
                             <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-mono">Front</div>
                           </div>
                         )}
-                        {activeGuest.identificationDoc.backImageUrl && (
+                        {activeGuest?.identificationDoc?.backImageUrl && (
                           <div className="relative group">
                             <img 
-                              src={activeGuest.identificationDoc.backImageUrl} 
+                              src={activeGuest?.identificationDoc?.backImageUrl} 
                               alt="ID Card Back" 
                               className="w-full h-32 object-cover rounded-lg border border-emerald-200 cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(activeGuest.identificationDoc.backImageUrl, '_blank')}
+                              onClick={() => window.open(activeGuest?.identificationDoc?.backImageUrl, '_blank')}
                             />
                             <div className="absolute bottom-1 left-1 bg-black/60 text-white text-[8px] px-1.5 py-0.5 rounded font-mono">Back</div>
                           </div>
@@ -1640,7 +1788,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                       </div>
                       <div className="flex items-center gap-1.5 text-2xs text-emerald-600 mt-2">
                         <CheckCircle2 size={10} className="fill-emerald-600" />
-                        <span>Verified on {new Date(activeGuest.identificationDoc.uploadedAt || Date.now()).toLocaleDateString()}</span>
+                        <span>Verified on {new Date(activeGuest?.identificationDoc?.uploadedAt || Date.now()).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -1789,12 +1937,12 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                         </div>
                       </div>
                     </div>
-                  ) : activeGuest.parentGroupId ? (
+                  ) : activeGuest?.parentGroupId ? (
                     <div className="space-y-3">
                       <div className="p-3 bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[10px] font-mono uppercase text-indigo-600 font-bold">Linked Group</span>
-                          {activeGuest.isPrimaryContact && (
+                          {activeGuest?.isPrimaryContact && (
                             <span className="flex items-center gap-1 text-[10px] font-semibold text-amber-600">
                               <Star size={10} className="fill-amber-500" /> Primary Contact
                             </span>
@@ -1802,12 +1950,12 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                         </div>
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-sm font-semibold text-slate-800">{activeGuest.parentGroupId}</div>
+                            <div className="text-sm font-semibold text-slate-800">{activeGuest?.parentGroupId}</div>
                             <div className="text-2xs text-slate-500 font-mono mt-1">Tracked via guest profile parentGroupId</div>
                           </div>
                           <button
                             onClick={() => {
-                              console.log('Navigate to group:', activeGuest.parentGroupId);
+                              console.log('Navigate to group:', activeGuest?.parentGroupId);
                             }}
                             className="p-2 bg-white hover:bg-indigo-100 text-indigo-600 rounded-lg transition-colors"
                             title="View Group Profile"
@@ -1838,7 +1986,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     Special Requests & Preferences
                   </h4>
                   <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-xs text-slate-700 leading-relaxed font-sans italic shadow-sm">
-                    "{activeGuest.specialRequests || 'No special requests listed on file.'}"
+                    "{activeGuest?.specialRequests || 'No special requests listed on file.'}"
                   </div>
                 </div>
 
@@ -1849,7 +1997,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     Operational CRM Notes & Logs
                   </h4>
                   <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg text-2xs font-mono text-slate-600 h-32 overflow-y-auto whitespace-pre-line leading-normal shadow-inner">
-                    {activeGuest.notes || 'No current notes logged for checkout reviews.'}
+                    {activeGuest?.notes || 'No current notes logged for checkout reviews.'}
                   </div>
                   <div className="flex gap-2 mt-3">
                     <input
@@ -1870,41 +2018,36 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2">
-                  <button onClick={() => openFolioRouting('guest', activeGuest.id)} className="flex-1 px-3 py-2 bg-slate-100 font-sans hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"><Receipt size={12} /> Folio Routing</button>
-                  {activeGuest.parentGroupId ? (
+                  <button onClick={() => openFolioRouting('guest', activeGuest?.id)} className="flex-1 px-3 py-2 bg-slate-100 font-sans hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"><Receipt size={12} /> Folio Routing</button>
+                  {activeGuest?.parentGroupId ? (
                     <button onClick={handleGroupCheckIn} className="flex-1 px-3 py-2 bg-emerald-50 font-sans hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"><UserCheck size={12} /> Group Check-In</button>
                   ) : null}
-                  {activeGuest.parentGroupId || activeGuest.parentCorporateId ? (
-                    <button onClick={() => handleUnlinkGuest(activeGuest.id)} className="flex-1 px-3 py-2 bg-rose-50 font-sans hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"><Unlink size={12} /> Unlink</button>
+                  {activeGuest?.parentGroupId || activeGuest?.parentCorporateId ? (
+                    <button onClick={() => handleUnlinkGuest(activeGuest?.id)} className="flex-1 px-3 py-2 bg-rose-50 font-sans hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"><Unlink size={12} /> Unlink</button>
                   ) : (
                     <>
-                      <select onChange={(e) => { if (e.target.value) { handleLinkGuestToGroup(activeGuest.id, e.target.value); e.target.value = ''; } }} className="flex-1 px-3 py-2 bg-indigo-50 font-sans text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold cursor-pointer shadow-sm"><option value="">Link to Group</option>{groupBookings.map(gb => (<option key={gb.id} value={gb.id}>{gb.groupName}</option>))}</select>
-                      <select onChange={(e) => { if (e.target.value) { handleLinkGuestToCorp(activeGuest.id, e.target.value); e.target.value = ''; } }} className="flex-1 px-3 py-2 bg-emerald-50 font-sans text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold cursor-pointer shadow-sm"><option value="">Link to Corp</option>{corporateAccounts.map(c => (<option key={c.id} value={c.id}>{c.companyName}</option>))}</select>
+                      <select onChange={(e) => { if (e.target.value) { handleLinkGuestToGroup(activeGuest?.id, e.target.value); e.target.value = ''; } }} className="flex-1 px-3 py-2 bg-indigo-50 font-sans text-indigo-700 border border-indigo-200 rounded-xl text-xs font-semibold cursor-pointer shadow-sm"><option value="">Link to Group</option>{groupBookings.map(gb => (<option key={gb.id} value={gb.id}>{gb.groupName}</option>))}</select>
+                      <select onChange={(e) => { if (e.target.value) { handleLinkGuestToCorp(activeGuest?.id, e.target.value); e.target.value = ''; } }} className="flex-1 px-3 py-2 bg-emerald-50 font-sans text-emerald-700 border border-emerald-200 rounded-xl text-xs font-semibold cursor-pointer shadow-sm"><option value="">Link to Corp</option>{corporateAccounts.map(c => (<option key={c.id} value={c.id}>{c.companyName}</option>))}</select>
                     </>
                   )}
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* GROUP GUESTS VIEW MODAL */}
-      {showGroupGuests && selectedGroupForView && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 p-6 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold shadow-md"><Users2 size={18} /></div>
-                <div>
-                  <h3 className="font-sans font-semibold text-sm text-slate-800">{selectedGroupForView.groupName}</h3>
-                  <p className="text-3xs text-slate-400 font-mono">Group Guests ({guests.filter(g => g.parentGroupId === selectedGroupForView.id).length})</p>
-                </div>
-              </div>
-              <button onClick={handleCloseGroupGuests} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"><X size={18} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 pt-2">
-              {guests.filter(g => g.parentGroupId === selectedGroupForView.id).length === 0 ? (
+      <ModalSystem
+        isOpen={showGroupGuests && !!selectedGroupForView}
+        onClose={handleCloseGroupGuests}
+        title={selectedGroupForView?.groupName ?? ''}
+        subtitle={`Group Guests (${selectedGroupForView ? guests.filter(g => g.parentGroupId === selectedGroupForView?.id).length : 0})`}
+        icon={<Users2 size={20} className="text-indigo-500" />}
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
+            <div className="flex-1 overflow-y-auto">
+              {guests.filter(g => g.parentGroupId === selectedGroupForView?.id).length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400 font-mono italic bg-slate-50 rounded-xl border border-slate-100">
                   No guests linked to this group booking yet.
                 </div>
@@ -1914,31 +2057,31 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     <button
                       onClick={async () => {
                         // Auto-create group profile if it doesn't exist
-                        const existingGroup = groupBookings.find(g => g.id === selectedGroupForView.id);
+                        const existingGroup = groupBookings.find(g => g.id === selectedGroupForView?.id);
                         if (!existingGroup) {
                           await addGroupBooking({
-                            groupName: selectedGroupForView.groupName,
-                            contactName: selectedGroupForView.contactName,
-                            contactEmail: selectedGroupForView.contactEmail,
-                            contactPhone: selectedGroupForView.contactPhone || '',
+                            groupName: selectedGroupForView?.groupName,
+                            contactName: selectedGroupForView?.contactName,
+                            contactEmail: selectedGroupForView?.contactEmail,
+                            contactPhone: selectedGroupForView?.contactPhone || '',
                             roomTypeNeeded: 'Double',
-                            roomCount: selectedGroupForView.roomCount,
-                            checkInDate: selectedGroupForView.checkInDate,
-                            checkOutDate: toISODate(new Date(new Date(selectedGroupForView.checkInDate).getTime() + 7 * 24 * 60 * 60 * 1000)),
+                            roomCount: selectedGroupForView?.roomCount,
+                            checkInDate: selectedGroupForView?.checkInDate,
+                            checkOutDate: toISODate(new Date(new Date(selectedGroupForView?.checkInDate || new Date()).getTime() + 7 * 24 * 60 * 60 * 1000)),
                             discountPercent: 0,
                             status: 'Confirmed'
                           });
                         }
                         
                         // Check in all reservations with the same group ID
-                        const groupReservations = reservations.filter(r => r.bookingGroupId === selectedGroupForView.id && r.status === 'Confirmed' && r.roomNumber);
+                        const groupReservations = reservations.filter(r => r.bookingGroupId === selectedGroupForView?.id && r.status === 'Confirmed' && r.roomNumber);
                         for (const groupRes of groupReservations) {
                           // Auto-link guest to group profile (create if doesn't exist)
                           // Match by email, name, and parentGroupId to ensure unique guests per reservation
                           let guest = guests.find(g =>
                             g.email.toLowerCase() === groupRes.guestEmail.toLowerCase() &&
                             g.name.toLowerCase() === groupRes.guestName.toLowerCase() &&
-                            g.parentGroupId === selectedGroupForView.id
+                            g.parentGroupId === selectedGroupForView?.id
                           );
                           let guestId: string | undefined = guest?.id;
                           if (!guestId) {
@@ -1951,11 +2094,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                               status: groupRes.guestStatus || 'Regular',
                               loyaltyPoints: 0,
                               specialRequests: '',
-                              notes: `Auto-created from group booking: ${selectedGroupForView.id} - Reservation: ${groupRes.id}`,
+                              notes: `Auto-created from group booking: ${selectedGroupForView?.id} - Reservation: ${groupRes.id}`,
                               history: [],
                               totalSpend: 0,
-                              parentGroupId: selectedGroupForView.id,
-                              isPrimaryContact: groupRes.guestName === selectedGroupForView.contactName,
+                              parentGroupId: selectedGroupForView?.id,
+                              isPrimaryContact: groupRes.guestName === selectedGroupForView?.contactName,
                               nationality: undefined,
                               tin: groupRes.guestTin,
                               vatNo: groupRes.guestVatNo,
@@ -1974,13 +2117,13 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                         }
                         
                         onGroupOnboardSuccess?.({ 
-                          groupName: selectedGroupForView.groupName, 
-                          contactName: selectedGroupForView.contactName, 
-                          contactEmail: selectedGroupForView.contactEmail, 
-                          contactPhone: selectedGroupForView.contactPhone || '', 
-                          groupId: selectedGroupForView.id, 
+                          groupName: selectedGroupForView?.groupName, 
+                          contactName: selectedGroupForView?.contactName, 
+                          contactEmail: selectedGroupForView?.contactEmail, 
+                          contactPhone: selectedGroupForView?.contactPhone || '', 
+                          groupId: selectedGroupForView?.id, 
                           roomCount: groupReservations.length, 
-                          checkInDate: selectedGroupForView.checkInDate 
+                          checkInDate: selectedGroupForView?.checkInDate 
                         });
                       }}
                       className="w-full py-2.5 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-sans text-xs font-semibold rounded-lg hover:from-emerald-600 hover:to-emerald-700 transition-all duration-200 flex items-center justify-center gap-1.5 shadow-md shadow-emerald-200"
@@ -1989,8 +2132,8 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     </button>
                   </div>
                   <div className="space-y-2">
-                    {guests.filter(g => g.parentGroupId === selectedGroupForView.id).map(guest => {
-                      const roomingListEntry = selectedGroupForView.roomingList?.find(rl => rl.guestId === guest.id);
+                    {guests.filter(g => g.parentGroupId === selectedGroupForView?.id).map(guest => {
+                      const roomingListEntry = selectedGroupForView?.roomingList?.find(rl => rl.guestId === guest.id);
                       const assignedRoomType = roomingListEntry?.roomType || guest.preferences?.roomTypePreference;
                       return (
                         <div key={guest.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-all duration-200">
@@ -2047,9 +2190,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 </>
               )}
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* GROUP BOOKINGS TAB */}
       {crmTab === 'groups' && (
@@ -2193,18 +2334,14 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           </div>
 
           {/* CREATE NEW CORPORATE PARTNER AGREEMENT */}
-          {showAddCorp && (
-            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 space-y-4 animate-in zoom-in-95 duration-200">
-                <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                  <h3 className="font-sans font-semibold text-sm text-slate-800">Establish Corporate Agreement</h3>
-                  <button 
-                    onClick={() => setShowAddCorp(false)}
-                    className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150"
-                  >
-                    <X size={18} />
-                  </button>
-                </div>
+          <ModalSystem
+            isOpen={showAddCorp}
+            onClose={() => setShowAddCorp(false)}
+            title="Establish Corporate Agreement"
+            variant="form"
+            size="sm"
+            showFooter={false}
+          >
 
                 <form onSubmit={handleCreateCorp} className="space-y-3 font-sans text-xs">
                   <div className="space-y-1">
@@ -2345,31 +2482,56 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     Establish Contracted Agreement
                   </button>
                 </form>
-              </div>
-            </div>
-          )}
+          </ModalSystem>
         </div>
       )}
 
+      {/* PRE-REGISTRATION TAB */}
+      {crmTab === 'preregistration' && (
+        <PreRegistrationPanel
+          preRegistrations={preRegistrations}
+          loading={preRegLoading}
+          filter={preRegFilter}
+          setFilter={setPreRegFilter}
+          onImport={handleImportPreReg}
+          onReview={handleReviewPreReg}
+          importing={preRegImporting}
+        />
+      )}
+
       {/* LINK TO GROUP MODAL */}
-      {showLinkToGroup && activeGuest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-sans font-semibold text-sm text-slate-800 flex items-center gap-2">
-                <Link2 size={16} className="text-indigo-500" />
-                Link Guest to Group
-              </h3>
-              <button onClick={() => setShowLinkToGroup(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors duration-150">
-                <X size={18} />
-              </button>
-            </div>
+      <ModalSystem
+        isOpen={showLinkToGroup && !!activeGuest}
+        onClose={() => setShowLinkToGroup(false)}
+        title="Link Guest to Group"
+        icon={<Link2 size={20} className="text-indigo-500" />}
+        variant="form"
+        size="md"
+        showFooter={true}
+        footer={
+          <div className="flex gap-2 pt-2">
+            <button
+              onClick={() => setShowLinkToGroup(false)}
+              className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleLinkToGroup}
+              disabled={!selectedGroupForLink}
+              className="flex-1 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-sans text-xs font-semibold rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              <Link2 size={12} /> Link to Group
+            </button>
+          </div>
+        }
+      >
             
             <div className="space-y-3">
               <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
                 <div className="text-xs text-slate-500 font-mono">Guest</div>
-                <div className="text-sm font-semibold text-slate-800">{activeGuest.name}</div>
-                <div className="text-2xs text-slate-400">{activeGuest.email}</div>
+                <div className="text-sm font-semibold text-slate-800">{activeGuest?.name}</div>
+                <div className="text-2xs text-slate-400">{activeGuest?.email}</div>
               </div>
               
               <div className="space-y-1">
@@ -2388,52 +2550,19 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 </select>
               </div>
             </div>
-            
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setShowLinkToGroup(false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-sans text-xs font-semibold rounded-lg transition-all duration-200"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleLinkToGroup}
-                disabled={!selectedGroupForLink}
-                className="flex-1 py-2 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white font-sans text-xs font-semibold rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all duration-200 shadow-md shadow-indigo-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-              >
-                <Link2 size={12} /> Link to Group
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* CHECK-IN FORM MODAL */}
-      {showCheckInForm && activeGuest && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 rounded-t-2xl">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                    <Building2 size={24} className="text-indigo-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white font-sans">{globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}</h2>
-                    <p className="text-xs text-indigo-100 font-mono">{globalHotelSettings.checkin_form_title || 'Check-In Registration Form'}</p>
-                  </div>
-                </div>
-                <button onClick={() => {
-                  setShowCheckInForm(false);
-                  const target = pop();
-                  target?.restore();
-                }} className="p-2 hover:bg-white/20 text-white rounded-lg transition-colors duration-150">
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
+      <ModalSystem
+        isOpen={showCheckInForm && !!activeGuest}
+        onClose={() => { setShowCheckInForm(false); const target = pop(); target?.restore(); }}
+        title={globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}
+        subtitle={globalHotelSettings.checkin_form_title || 'Check-In Registration Form'}
+        icon={<Building2 size={20} className="text-indigo-600" />}
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
             <div className="p-6 space-y-6">
               {/* Success Banner */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
@@ -2455,15 +2584,15 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Full Name</label>
-                    <div className="text-sm font-semibold text-slate-800">{activeGuest.name}</div>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest?.name}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Email Address</label>
-                    <div className="text-sm font-semibold text-slate-800 truncate">{activeGuest.email}</div>
+                    <div className="text-sm font-semibold text-slate-800 truncate">{activeGuest?.email}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Phone Number</label>
-                    <div className="text-sm font-semibold text-slate-800">{activeGuest.phone || 'N/A'}</div>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest?.phone || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">ID Status</label>
@@ -2473,11 +2602,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Guest Type</label>
-                    <div className="text-sm font-semibold text-slate-800">{activeGuest.status}</div>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest?.status}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Nationality</label>
-                    <div className="text-sm font-semibold text-slate-800">{activeGuest.nationality || 'N/A'}</div>
+                    <div className="text-sm font-semibold text-slate-800">{activeGuest?.nationality || 'N/A'}</div>
                   </div>
                 </div>
               </div>
@@ -2578,36 +2707,19 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* GROUP CHECK-IN FORM MODAL */}
-      {showGroupCheckInForm && groupCheckInData && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-4 rounded-t-2xl">
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shadow-lg">
-                    <Users2 size={24} className="text-purple-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-bold text-white font-sans">{globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}</h2>
-                    <p className="text-xs text-purple-100 font-mono">{globalHotelSettings.group_checkin_form_title || 'Group Check-In Registration Form'}</p>
-                  </div>
-                </div>
-                <button onClick={() => {
-                  setShowGroupCheckInForm(false);
-                  const target = pop();
-                  target?.restore();
-                }} className="p-2 hover:bg-white/20 text-white rounded-lg transition-colors duration-150">
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
-
+      <ModalSystem
+        isOpen={showGroupCheckInForm && !!groupCheckInData}
+        onClose={() => { setShowGroupCheckInForm(false); const target = pop(); target?.restore(); }}
+        title={globalHotelSettings.checkin_form_hotel_name || 'SELEDA HOTEL'}
+        subtitle="Group Check-In Registration Form"
+        icon={<Users2 size={20} className="text-purple-600" />}
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
             <div className="p-6 space-y-6">
               {/* Success Banner */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
@@ -2629,27 +2741,27 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Group Name</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.groupName}</div>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.groupName}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Person</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.contactName}</div>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.contactName}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Email</label>
-                    <div className="text-sm font-semibold text-slate-800 truncate">{groupCheckInData.contactEmail}</div>
+                    <div className="text-sm font-semibold text-slate-800 truncate">{groupCheckInData?.contactEmail}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Contact Phone</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.contactPhone || 'N/A'}</div>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.contactPhone || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Room Count</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.roomCount}</div>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.roomCount}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Check-In Date</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData.checkInDate}</div>
+                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.checkInDate}</div>
                   </div>
                 </div>
               </div>
@@ -2728,9 +2840,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
     </div>
   );

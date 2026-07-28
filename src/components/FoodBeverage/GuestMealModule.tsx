@@ -105,7 +105,12 @@ export default function GuestMealModule() {
         date: new Date().toISOString(),
         description: `Extra ${selectedMealPeriod} Meal`,
         amount: 25.0, // Mock price for extra meal
-        type: 'Other'
+        type: 'Other',
+        // USALI tracking
+        usaliCode: '6100',
+        usaliRevenueCode: '6100',
+        usaliCostCode: '3110',
+        department: 'Restaurant'
       });
       addNotification(`Extra meal charged to room ${res.roomNumber}`, 'success', 'F&B');
     }

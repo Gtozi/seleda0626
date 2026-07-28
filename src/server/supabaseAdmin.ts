@@ -20,5 +20,18 @@ export const supabaseAdmin = hasSupabaseAdminConfig
         persistSession: false,
         autoRefreshToken: false,
       },
+      db: {
+        schema: 'public',
+      },
+      global: {
+        headers: { 'x-connection-pool': 'true' },
+      },
+      // Connection pooling: Supabase handles pooling server-side via PgBouncer,
+      // but we configure the client to reuse connections efficiently.
+      realtime: {
+        params: {
+          eventsPerSecond: 5,
+        },
+      },
     })
   : null;

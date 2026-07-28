@@ -1,43 +1,35 @@
 import React from 'react';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  Wallet, 
-  Banknote, 
-  PieChart as PieIcon, 
-  BarChart3, 
-  CreditCard,
+import {
+  TrendingUp,
+  DollarSign,
+  Wallet,
+  Banknote,
   Building2,
-  Calendar,
   AlertCircle,
-  Activity
+  Activity,
 } from 'lucide-react';
-import { 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  Cell, 
-  PieChart, 
-  Pie 
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+  PieChart,
+  Pie,
 } from 'recharts';
+import { DashboardTemplate, type KpiTile } from '../Shared/DashboardTemplate';
 
 const FinanceDashboard = () => {
-  const kpis = [
-    { label: "Daily Yield", value: "$84,520", trend: "+12.5%", isPositive: true, icon: DollarSign, color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
-    { label: "AR (0-30 Days)", value: "$142,500", trend: "-2.4%", isPositive: true, icon: Wallet, color: "text-indigo-500", bg: "bg-indigo-50 dark:bg-indigo-500/10" },
-    { label: "Net Cash Position", value: "$1,850,200", trend: "+5.1%", isPositive: true, icon: Banknote, color: "text-emerald-600", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
-    { label: "Daily ADR", value: "$349.25", trend: "+8.2%", isPositive: true, icon: TrendingUp, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
-    { label: "RevPAR", value: "$308.73", trend: "+1.2%", isPositive: true, icon: Activity, color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-500/10" },
-    { label: "Unreconciled", value: "$8,400", trend: "Alert", isPositive: false, icon: AlertCircle, color: "text-rose-500", bg: "bg-rose-50 dark:bg-rose-500/10" },
+  const kpis: KpiTile[] = [
+    { label: 'Daily Yield', value: '$84,520', trend: '+12.5%', isPositive: true, icon: DollarSign, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'AR (0-30 Days)', value: '$142,500', trend: '-2.4%', isPositive: true, icon: Wallet, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Net Cash Position', value: '$1,850,200', trend: '+5.1%', isPositive: true, icon: Banknote, colorClass: 'text-emerald-600', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Daily ADR', value: '$349.25', trend: '+8.2%', isPositive: true, icon: TrendingUp, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'RevPAR', value: '$308.73', trend: '+1.2%', isPositive: true, icon: Activity, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
+    { label: 'GOPPAR', value: '$192.45', trend: '+4.8%', isPositive: true, icon: Building2, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
+    { label: 'Unreconciled', value: '$8,400', trend: 'Alert', isPositive: false, icon: AlertCircle, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
   ];
 
   const revenueExpenseData = [
@@ -65,29 +57,10 @@ const FinanceDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      {/* KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
-        {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-3xl transition-all hover:shadow-sm">
-            <div className={`p-2 w-fit rounded-xl ${kpi.bg} ${kpi.color} mb-3`}>
-              <kpi.icon size={18} />
-            </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{kpi.label}</p>
-            <div className="flex items-baseline justify-between">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white capitalize">{kpi.value}</h3>
-              <div className={`flex items-center gap-0.5 text-[10px] font-bold ${kpi.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                {kpi.isPositive ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
-                {kpi.trend}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid lg:grid-cols-12 gap-6">
+    <DashboardTemplate kpiTiles={kpis}>
+      <div className="grid lg:grid-cols-12 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Revenue vs Expense Chart */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h3 className="text-sm font-black text-slate-900 dark:text-white flex items-center gap-2 uppercase tracking-tight">
@@ -144,7 +117,7 @@ const FinanceDashboard = () => {
         </div>
 
         {/* Dept Revenue Pie */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '100ms' }}>
           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Revenue by Dept.</h3>
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -180,7 +153,7 @@ const FinanceDashboard = () => {
         </div>
 
         {/* AR Aging */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '200ms' }}>
           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-6">AR Aging Buckets</h3>
           <div className="space-y-4">
             {arAgingData.map((bucket, i) => {
@@ -214,10 +187,10 @@ const FinanceDashboard = () => {
         </div>
 
         {/* Cash Flow Summary */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '300ms' }}>
            <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Bank Accounts & Cash Pos.</h3>
-              <button className="text-[10px] font-black text-indigo-600 uppercase hover:underline">Manage Accounts</button>
+              <button className="text-[10px] font-black text-indigo-600 uppercase hover:text-indigo-700 hover:underline transition-colors">Manage Accounts</button>
            </div>
            <div className="grid md:grid-cols-3 gap-4">
               {[
@@ -248,13 +221,13 @@ const FinanceDashboard = () => {
                     <span className="text-sm font-black text-rose-500">$8.4k</span>
                  </div>
               </div>
-              <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-950 text-[10px] font-black uppercase px-6 py-2.5 rounded-xl hover:opacity-90 transition">
+              <button className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white text-[10px] font-black uppercase px-6 py-2.5 rounded-xl hover:shadow-lg transition-all duration-300">
                 Download Exec. Summary
               </button>
            </div>
         </div>
       </div>
-    </div>
+    </DashboardTemplate>
   );
 };
 

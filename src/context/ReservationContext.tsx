@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { 
   Room, Reservation, GroupBooking, CorporateAccount, 
   Promotion, RatePlan, Season, Package, ReservationStatus, 
@@ -21,6 +21,7 @@ import { useGuest } from './GuestContext';
 import { supabaseService } from '../services/supabaseService';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
 import { getTypeAvailability, TypeAvailability } from '../services/allocationService';
+import { mapRoomFromDb, mapReservationFromDb, mapGroupBookingFromDb } from '../services/dataMapper';
 
 export interface ReservationContextType {
   rooms: Room[];
@@ -82,7 +83,7 @@ export const useReservation = () => {
 };
 
 export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { logAudit, addNotification, addDispatchedEmail, globalHotelSettings } = useSystem();
+  const { logAudit, addNotification, addDispatchedEmail, globalHotelSettings, currentPropertyId } = useSystem();
   const { addGuest, guests, setGuests } = useGuest();
 
   const [rooms, setRooms] = useState<Room[]>(initialRooms);
@@ -106,8 +107,8 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         fetchedSeasons,
         fetchedPackages
       ] = await Promise.all([
-        supabaseService.fetchRooms(),
-        supabaseService.fetchReservations(),
+        supabaseService.fetchRooms(currentPropertyId),
+        supabaseService.fetchReservations(currentPropertyId),
         supabaseService.fetchGroupBookings(),
         supabaseService.fetchCorporateAccounts(),
         supabaseService.fetchRatePlans(),
@@ -124,31 +125,155 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } catch (error) {
       console.error("Failed to fetch Supabase state:", error);
     }
-  }, []);
+  }, [currentPropertyId]);
 
   React.useEffect(() => {
     refreshData();
   }, [refreshData]);
 
+  // ── Delta-based realtime subscriptions ─────────────────────────────────────
+  // Instead of refetching entire tables on every postgres_changes event,
+  // we apply the payload delta directly to state and only fall back to a
+  // full refresh if the delta is ambiguous. A 500ms debounce batches
+  // bursts of changes (e.g. bulk operations) into a single refresh.
+
+  const pendingRefresh = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleFallbackRefresh = useCallback(() => {
+    if (pendingRefresh.current) clearTimeout(pendingRefresh.current);
+    pendingRefresh.current = setTimeout(() => {
+      refreshData();
+    }, 500);
+  }, [refreshData]);
+
   React.useEffect(() => {
     if (!hasSupabaseConfig) return;
-    const channel = supabase
+
+    let isCancelled = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    let reconnectAttempts = 0;
+
+    const setupChannel = () => {
+      if (isCancelled) return;
+      channel = supabase
       .channel('erp-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, async () => {
-        const fresh = await supabaseService.fetchReservations();
-        if (fresh.length > 0) setReservations(fresh);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, (payload: any) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        try {
+          if (eventType === 'INSERT' && newRow) {
+            const mapped = mapReservationFromDb(newRow) as unknown as Reservation;
+            setReservations(prev => prev.some(r => r.id === mapped.id) ? prev : [...prev, mapped]);
+          } else if (eventType === 'UPDATE' && newRow) {
+            const mapped = mapReservationFromDb(newRow) as unknown as Reservation;
+            setReservations(prev => prev.map(r => r.id === mapped.id ? mapped : r));
+          } else if (eventType === 'DELETE' && oldRow) {
+            const oldId = String(oldRow.id ?? '');
+            setReservations(prev => prev.filter(r => r.id !== oldId));
+          } else {
+            scheduleFallbackRefresh();
+          }
+        } catch (error) {
+          console.error('Realtime: Failed to apply reservation delta, falling back:', error);
+          scheduleFallbackRefresh();
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, async () => {
-        const fresh = await supabaseService.fetchRooms();
-        if (fresh.length > 0) setRooms(fresh);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms' }, (payload: any) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        try {
+          if (eventType === 'INSERT' && newRow) {
+            const mapped = mapRoomFromDb(newRow) as unknown as Room;
+            setRooms(prev => prev.some(r => r.id === mapped.id) ? prev : [...prev, mapped]);
+          } else if (eventType === 'UPDATE' && newRow) {
+            const mapped = mapRoomFromDb(newRow) as unknown as Room;
+            setRooms(prev => prev.map(r => r.id === mapped.id ? mapped : r));
+          } else if (eventType === 'DELETE' && oldRow) {
+            const oldId = String(oldRow.id ?? '');
+            setRooms(prev => prev.filter(r => r.id !== oldId));
+          } else {
+            scheduleFallbackRefresh();
+          }
+        } catch (error) {
+          console.error('Realtime: Failed to apply room delta, falling back:', error);
+          scheduleFallbackRefresh();
+        }
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_bookings' }, async () => {
-        const fresh = await supabaseService.fetchGroupBookings();
-        if (fresh.length > 0) setGroupBookings(fresh);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'group_bookings' }, (payload: any) => {
+        const { eventType, new: newRow, old: oldRow } = payload;
+        try {
+          if (eventType === 'INSERT' && newRow) {
+            const mapped = mapGroupBookingFromDb(newRow) as unknown as GroupBooking;
+            setGroupBookings(prev => prev.some(g => g.id === mapped.id) ? prev : [...prev, mapped]);
+          } else if (eventType === 'UPDATE' && newRow) {
+            const mapped = mapGroupBookingFromDb(newRow) as unknown as GroupBooking;
+            setGroupBookings(prev => prev.map(g => g.id === mapped.id ? mapped : g));
+          } else if (eventType === 'DELETE' && oldRow) {
+            const oldId = String(oldRow.id ?? '');
+            setGroupBookings(prev => prev.filter(g => g.id !== oldId));
+          } else {
+            scheduleFallbackRefresh();
+          }
+        } catch (error) {
+          console.error('Realtime: Failed to apply group_booking delta, falling back:', error);
+          scheduleFallbackRefresh();
+        }
       })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, []);
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          reconnectAttempts = 0;
+          console.log('Realtime: Successfully subscribed to ERP tables');
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`Realtime: Channel ${status}, will retry...`);
+          if (channel && !isCancelled) {
+            supabase.removeChannel(channel);
+            channel = null;
+          }
+          if (!isCancelled) {
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+            reconnectAttempts++;
+            reconnectTimer = setTimeout(() => {
+              console.log(`Realtime: Reconnecting (attempt ${reconnectAttempts})...`);
+              setupChannel();
+            }, delay);
+          }
+        }
+      });
+    };
+
+    setupChannel();
+
+    return () => {
+      isCancelled = true;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      if (pendingRefresh.current) clearTimeout(pendingRefresh.current);
+      if (channel) {
+        try { supabase.removeChannel(channel); } catch (e) { /* HMR race — ignore */ }
+      }
+    };
+  }, [scheduleFallbackRefresh]);
+
+  // BroadcastChannel listener for cross-tab booking notifications
+  React.useEffect(() => {
+    let broadcastChannel: BroadcastChannel | null = null;
+    try {
+      broadcastChannel = new BroadcastChannel('seleda-booking-updates');
+      broadcastChannel.onmessage = (event) => {
+        console.log('Admin dashboard: Received booking notification from public page:', event.data);
+        if (event.data.type === 'NEW_BOOKING') {
+          // Refresh reservations immediately when a new booking is created
+          refreshData();
+        }
+      };
+    } catch (e) {
+      console.log('BroadcastChannel not supported:', e);
+    }
+
+    return () => {
+      if (broadcastChannel) {
+        broadcastChannel.close();
+      }
+    };
+  }, [refreshData]);
 
   const addReservation = useCallback((resData: Omit<Reservation, 'id'>): string => {
     const newId = `R-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -439,6 +564,11 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           quantity: 1,
           lineType: charge.type || 'Extra',
           targetFolio: charge.targetFolio ?? null,
+          // USALI tracking fields
+          usaliCode: charge.usaliCode,
+          usaliRevenueCode: charge.usaliRevenueCode,
+          usaliCostCode: charge.usaliCostCode,
+          department: charge.department,
         }),
       });
 

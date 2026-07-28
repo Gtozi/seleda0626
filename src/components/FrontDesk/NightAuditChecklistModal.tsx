@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Moon, AlertTriangle, CheckCircle2, X, ChevronRight, ChevronLeft, Loader2, Printer } from 'lucide-react';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 interface Props {
   isOpen: boolean;
@@ -100,24 +101,31 @@ export function NightAuditChecklistModal({
 
   if (step === 1) {
     return (
-      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 shadow-2xl max-w-sm w-full text-center space-y-4">
+      <ModalSystem
+        isOpen={true}
+        onClose={() => {}}
+        title="Executing Night Audit..."
+        variant="async"
+        size="sm"
+        showFooter={false}
+      >
           <Loader2 size={32} className="animate-spin text-amber-500 mx-auto" />
-          <h3 className="text-sm font-black uppercase tracking-tight text-slate-950 dark:text-white">Executing Night Audit...</h3>
-          <p className="text-4xs text-slate-400 font-mono">Posting charges • Reconciling ledgers • Rolling business date</p>
-        </div>
-      </div>
+          <p className="text-4xs text-slate-400 font-mono text-center">Posting charges • Reconciling ledgers • Rolling business date</p>
+      </ModalSystem>
     );
   }
 
   if (step === 2 && result) {
     return (
-      <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl max-w-md w-full space-y-4 text-xs">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-emerald-500" />
-            <h3 className="text-sm font-black uppercase tracking-tight text-slate-950 dark:text-white">Night Audit Complete</h3>
-          </div>
+      <ModalSystem
+        isOpen={true}
+        onClose={reset}
+        title="Night Audit Complete"
+        icon={<CheckCircle2 size={20} className="text-emerald-500" />}
+        variant="info"
+        size="md"
+        showFooter={false}
+      >
           <div className="p-3 bg-emerald-50/30 border border-emerald-200 dark:border-emerald-900/40 rounded-xl space-y-1 text-3xs font-mono">
             <p><strong>Previous Date:</strong> {result.date}</p>
             <p><strong>New Date:</strong> {result.newDate || result.date}</p>
@@ -159,25 +167,21 @@ export function NightAuditChecklistModal({
             <button onClick={reset} className="flex-1 py-2.5 bg-slate-50 dark:bg-slate-950 text-slate-500 text-3xs font-black rounded-xl border border-transparent hover:bg-slate-100 transition">Close</button>
             <button onClick={() => window.print()} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-3xs font-black rounded-xl transition flex items-center justify-center gap-1"><Printer size={11} /> Print Handover</button>
           </div>
-        </div>
-      </div>
+      </ModalSystem>
     );
   }
 
   return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[92vh]">
-        <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 bg-amber-100 dark:bg-amber-950 text-amber-600 rounded-lg"><Moon size={16} /></div>
-            <div>
-              <h3 className="text-sm font-black uppercase tracking-tight text-slate-950 dark:text-white">Night Audit Checklist</h3>
-              <p className="text-4xs text-slate-400 font-mono">Operating Date: {currentSystemDate}</p>
-            </div>
-          </div>
-          <button onClick={reset} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><X size={16} className="text-slate-400" /></button>
-        </div>
-
+    <ModalSystem
+      isOpen={true}
+      onClose={reset}
+      title="Night Audit Checklist"
+      subtitle={`Operating Date: ${currentSystemDate}`}
+      icon={<Moon size={20} className="text-amber-600" />}
+      variant="form"
+      size="xl"
+      showFooter={false}
+    >
         <div className="p-6 overflow-y-auto space-y-5 text-xs">
           {/* Step cards */}
           {checklistItems.map(item => {
@@ -336,7 +340,6 @@ export function NightAuditChecklistModal({
             </div>
           </div>
         </div>
-      </div>
-    </div>
+    </ModalSystem>
   );
 }

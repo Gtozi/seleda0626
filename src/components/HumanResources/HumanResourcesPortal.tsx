@@ -17,12 +17,13 @@ import {
 import HRDashboard from './HRDashboard';
 import EmployeeDirectory from './EmployeeDirectory';
 import AttendanceManagement from './AttendanceManagement';
-import PayrollManagement from './PayrollManagement';
+import PayrollEngine from './PayrollEngine';
 import LeaveManagement from './LeaveManagement';
 import PerformanceManagement from './PerformanceManagement';
 import TrainingDevelopment from './TrainingDevelopment';
 import RecruitmentFlow from './RecruitmentFlow';
 import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
+import { StandardHRReports } from './StandardHRReports';
 
 const HumanResourcesPortal = ({ activeModule = 'dashboard' }: { activeModule?: string }) => {
 
@@ -32,12 +33,13 @@ const HumanResourcesPortal = ({ activeModule = 'dashboard' }: { activeModule?: s
         {activeModule === 'dashboard' && <HRDashboard />}
         {activeModule === 'employees' && <EmployeeDirectory />}
         {activeModule === 'attendance' && <AttendanceManagement />}
-        {activeModule === 'payroll' && <PayrollManagement />}
+        {activeModule === 'payroll' && <PayrollEngine />}
         {activeModule === 'leave' && <LeaveManagement />}
         {activeModule === 'performance' && <PerformanceManagement />}
         {activeModule === 'training' && <TrainingDevelopment />}
         {activeModule === 'recruitment' && <RecruitmentFlow />}
         {activeModule === 'reports' && <DepartmentReportsModule departmentName="HR" />}
+        {activeModule === 'standard-reports' && <StandardHRReports />}
       </div>
     </div>
   );

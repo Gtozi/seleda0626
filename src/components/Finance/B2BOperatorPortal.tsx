@@ -4,6 +4,7 @@ import {
   CalendarDays, FileText, CheckCircle2, AlertCircle,
   Package, ClipboardList, DollarSign, Percent, Edit2, Save, X
 } from 'lucide-react';
+import { DataTable, Column } from '../Shared/DataTable';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -278,30 +279,26 @@ const B2BOperatorPortal: React.FC = () => {
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead><tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                {['Code','Name','Contact','Model','Credit Limit','Terms','Status',''].map((h,i) => (
-                  <th key={i} className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {operators.map(op => (
-                  <tr key={op.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-4 py-3"><span className="text-[10px] font-black text-indigo-600 font-mono">{op.code}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{op.name}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] text-slate-500">{op.contact_email || '—'}</span></td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${op.commission_model === 'net' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{op.commission_model}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">ETB {fmt(op.credit_limit)}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] text-slate-500">{op.payment_terms}</span></td>
-                    <td className="px-4 py-3"><span className={`text-[9px] font-black ${op.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>{op.is_active ? 'Active' : 'Inactive'}</span></td>
-                    <td className="px-4 py-3"><button onClick={() => startEditOp(op)} className="p-1 text-slate-400 hover:text-indigo-600 transition"><Edit2 size={12}/></button></td>
-                  </tr>
-                ))}
-                {operators.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs">No operators registered yet</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { key: 'code', label: 'Code', render: (op: TourOperator) => <span className="text-[10px] font-black text-indigo-600 font-mono">{op.code}</span> },
+              { key: 'name', label: 'Name', render: (op: TourOperator) => <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{op.name}</span> },
+              { key: 'contact_email', label: 'Contact', render: (op: TourOperator) => <span className="text-[10px] text-slate-500">{op.contact_email || '—'}</span> },
+              { key: 'commission_model', label: 'Model', render: (op: TourOperator) => <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${op.commission_model === 'net' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{op.commission_model}</span> },
+              { key: 'credit_limit', label: 'Credit Limit', render: (op: TourOperator) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">ETB {fmt(op.credit_limit)}</span> },
+              { key: 'payment_terms', label: 'Terms', render: (op: TourOperator) => <span className="text-[10px] text-slate-500">{op.payment_terms}</span> },
+              { key: 'is_active', label: 'Status', render: (op: TourOperator) => <span className={`text-[9px] font-black ${op.is_active ? 'text-emerald-600' : 'text-slate-400'}`}>{op.is_active ? 'Active' : 'Inactive'}</span> },
+              { key: 'actions', label: '', sortable: false, render: (op: TourOperator) => <button onClick={() => startEditOp(op)} className="p-1 text-slate-400 hover:text-indigo-600 transition"><Edit2 size={12}/></button> },
+            ] as Column<TourOperator>[]}
+            data={operators}
+            rowKey={(op) => op.id}
+            sortable
+            filterable
+            filterPlaceholder="Search operators..."
+            filterKeys={['code', 'name', 'contact_email', 'commission_model', 'payment_terms']}
+            containerClassName="rounded-[32px]"
+            emptyMessage="No operators registered yet"
+          />
         </div>
       )}
 
@@ -363,38 +360,26 @@ const B2BOperatorPortal: React.FC = () => {
             </div>
           )}
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead><tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                {['Operator','Room Type','Stay Date','Blocked','Picked Up','Available','Cut-off','Status'].map((h,i) => (
-                  <th key={i} className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {allotments.map(a => {
-                  const avail = a.blocked_qty - a.picked_up_qty;
-                  const released = a.is_released || a.release_date < today;
-                  return (
-                    <tr key={a.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3"><span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{a.tour_operators?.name || '—'}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] text-slate-600 dark:text-slate-300">{a.room_types?.name || a.room_type_id}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 font-mono">{a.stay_date}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-black text-slate-900 dark:text-white">{a.blocked_qty}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-bold text-indigo-600">{a.picked_up_qty}</span></td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-black ${avail > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{avail}</span></td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-bold ${a.release_date < today ? 'text-rose-500' : 'text-slate-500'}`}>{a.release_date}</span></td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${released ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>
-                          {released ? 'Released' : 'Active'}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {allotments.length === 0 && <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-400 text-xs">No allotment blocks</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { key: 'operator', label: 'Operator', render: (a: Allotment) => <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{a.tour_operators?.name || '—'}</span> },
+              { key: 'room_type', label: 'Room Type', render: (a: Allotment) => <span className="text-[10px] text-slate-600 dark:text-slate-300">{a.room_types?.name || a.room_type_id}</span> },
+              { key: 'stay_date', label: 'Stay Date', render: (a: Allotment) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 font-mono">{a.stay_date}</span> },
+              { key: 'blocked_qty', label: 'Blocked', render: (a: Allotment) => <span className="text-[10px] font-black text-slate-900 dark:text-white">{a.blocked_qty}</span> },
+              { key: 'picked_up_qty', label: 'Picked Up', render: (a: Allotment) => <span className="text-[10px] font-bold text-indigo-600">{a.picked_up_qty}</span> },
+              { key: 'available', label: 'Available', render: (a: Allotment) => { const avail = a.blocked_qty - a.picked_up_qty; return <span className={`text-[10px] font-black ${avail > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{avail}</span>; } },
+              { key: 'release_date', label: 'Cut-off', render: (a: Allotment) => <span className={`text-[10px] font-bold ${a.release_date < today ? 'text-rose-500' : 'text-slate-500'}`}>{a.release_date}</span> },
+              { key: 'status', label: 'Status', render: (a: Allotment) => { const released = a.is_released || a.release_date < today; return <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${released ? 'bg-slate-100 text-slate-400' : 'bg-emerald-50 text-emerald-600'}`}>{released ? 'Released' : 'Active'}</span>; } },
+            ] as Column<Allotment>[]}
+            data={allotments}
+            rowKey={(a) => a.id}
+            sortable
+            filterable
+            filterPlaceholder="Search allotments..."
+            filterKeys={['stay_date', 'release_date']}
+            containerClassName="rounded-[32px]"
+            emptyMessage="No allotment blocks"
+          />
         </div>
       )}
 
@@ -404,32 +389,28 @@ const B2BOperatorPortal: React.FC = () => {
           <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{contracts.length} Rate Contracts</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead><tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                {['Operator','Room Type','Board','Model','Net Rate','Sell Rate','Comm %','Valid From','Valid To','Status'].map((h,i) => (
-                  <th key={i} className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                ))}
-              </tr></thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {contracts.map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-4 py-3"><span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{c.tour_operators?.name || '—'}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] text-slate-600 dark:text-slate-300">{c.room_types?.name || c.room_type_id}</span></td>
-                    <td className="px-4 py-3"><span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded">{c.board_basis}</span></td>
-                    <td className="px-4 py-3"><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${c.rate_model === 'net' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{c.rate_model}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{c.net_rate != null ? `ETB ${fmt(c.net_rate)}` : '—'}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{c.sell_rate != null ? `ETB ${fmt(c.sell_rate)}` : '—'}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-bold text-indigo-600">{c.commission_pct > 0 ? `${c.commission_pct}%` : '—'}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-mono text-slate-500">{c.valid_from}</span></td>
-                    <td className="px-4 py-3"><span className="text-[10px] font-mono text-slate-500">{c.valid_to}</span></td>
-                    <td className="px-4 py-3"><span className={`text-[9px] font-black ${c.is_active && c.valid_to >= today ? 'text-emerald-600' : 'text-slate-400'}`}>{c.is_active && c.valid_to >= today ? 'Active' : 'Inactive'}</span></td>
-                  </tr>
-                ))}
-                {contracts.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400 text-xs">No rate contracts configured. Use POST /api/b2b/contracts to add.</td></tr>}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            columns={[
+              { key: 'operator', label: 'Operator', render: (c: Contract) => <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{c.tour_operators?.name || '—'}</span> },
+              { key: 'room_type', label: 'Room Type', render: (c: Contract) => <span className="text-[10px] text-slate-600 dark:text-slate-300">{c.room_types?.name || c.room_type_id}</span> },
+              { key: 'board_basis', label: 'Board', render: (c: Contract) => <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded">{c.board_basis}</span> },
+              { key: 'rate_model', label: 'Model', render: (c: Contract) => <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${c.rate_model === 'net' ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600'}`}>{c.rate_model}</span> },
+              { key: 'net_rate', label: 'Net Rate', render: (c: Contract) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{c.net_rate != null ? `ETB ${fmt(c.net_rate)}` : '—'}</span> },
+              { key: 'sell_rate', label: 'Sell Rate', render: (c: Contract) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200">{c.sell_rate != null ? `ETB ${fmt(c.sell_rate)}` : '—'}</span> },
+              { key: 'commission_pct', label: 'Comm %', render: (c: Contract) => <span className="text-[10px] font-bold text-indigo-600">{c.commission_pct > 0 ? `${c.commission_pct}%` : '—'}</span> },
+              { key: 'valid_from', label: 'Valid From', render: (c: Contract) => <span className="text-[10px] font-mono text-slate-500">{c.valid_from}</span> },
+              { key: 'valid_to', label: 'Valid To', render: (c: Contract) => <span className="text-[10px] font-mono text-slate-500">{c.valid_to}</span> },
+              { key: 'status', label: 'Status', render: (c: Contract) => <span className={`text-[9px] font-black ${c.is_active && c.valid_to >= today ? 'text-emerald-600' : 'text-slate-400'}`}>{c.is_active && c.valid_to >= today ? 'Active' : 'Inactive'}</span> },
+            ] as Column<Contract>[]}
+            data={contracts}
+            rowKey={(c) => c.id}
+            sortable
+            filterable
+            filterPlaceholder="Search contracts..."
+            filterKeys={['valid_from', 'valid_to', 'board_basis', 'rate_model']}
+            containerClassName="rounded-[32px]"
+            emptyMessage="No rate contracts configured. Use POST /api/b2b/contracts to add."
+          />
         </div>
       )}
 
@@ -457,39 +438,35 @@ const B2BOperatorPortal: React.FC = () => {
             <div className="p-5 border-b border-slate-100 dark:border-slate-800">
               <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{vouchers.length} Vouchers</span>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead><tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                  {['Voucher No','Operator','Room Type','Board','Pax','Nights','Net Value','Valid From','Valid To','Status'].map((h,i) => (
-                    <th key={i} className="px-4 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
-                  ))}
-                </tr></thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                  {vouchers.map(v => (
-                    <tr key={v.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                      <td className="px-4 py-3"><span className="text-[10px] font-black text-indigo-600 font-mono">{v.voucher_no}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{v.tour_operators?.name || '—'}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] text-slate-600 dark:text-slate-300">{v.room_types?.name || '—'}</span></td>
-                      <td className="px-4 py-3"><span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded">{v.board_basis}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{v.pax_count}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{v.nights ?? '—'}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-bold text-slate-700 dark:text-white">{v.net_value != null ? `ETB ${fmt(v.net_value)}` : '—'}</span></td>
-                      <td className="px-4 py-3"><span className="text-[10px] font-mono text-slate-500">{v.valid_from}</span></td>
-                      <td className="px-4 py-3"><span className={`text-[10px] font-mono ${v.valid_to < today ? 'text-rose-500' : 'text-slate-500'}`}>{v.valid_to}</span></td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                          v.status === 'issued'   ? 'bg-blue-50 text-blue-600' :
-                          v.status === 'redeemed' ? 'bg-emerald-50 text-emerald-600' :
-                          v.status === 'expired'  ? 'bg-slate-100 text-slate-400' :
-                                                    'bg-rose-50 text-rose-600'
-                        }`}>{v.status}</span>
-                      </td>
-                    </tr>
-                  ))}
-                  {vouchers.length === 0 && <tr><td colSpan={10} className="px-4 py-8 text-center text-slate-400 text-xs">No vouchers issued yet</td></tr>}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              columns={[
+                { key: 'voucher_no', label: 'Voucher No', render: (v: Voucher) => <span className="text-[10px] font-black text-indigo-600 font-mono">{v.voucher_no}</span> },
+                { key: 'operator', label: 'Operator', render: (v: Voucher) => <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase">{v.tour_operators?.name || '—'}</span> },
+                { key: 'room_type', label: 'Room Type', render: (v: Voucher) => <span className="text-[10px] text-slate-600 dark:text-slate-300">{v.room_types?.name || '—'}</span> },
+                { key: 'board_basis', label: 'Board', render: (v: Voucher) => <span className="text-[9px] font-black bg-slate-100 dark:bg-slate-800 text-slate-600 px-2 py-0.5 rounded">{v.board_basis}</span> },
+                { key: 'pax_count', label: 'Pax', render: (v: Voucher) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{v.pax_count}</span> },
+                { key: 'nights', label: 'Nights', render: (v: Voucher) => <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{v.nights ?? '—'}</span> },
+                { key: 'net_value', label: 'Net Value', render: (v: Voucher) => <span className="text-[10px] font-bold text-slate-700 dark:text-white">{v.net_value != null ? `ETB ${fmt(v.net_value)}` : '—'}</span> },
+                { key: 'valid_from', label: 'Valid From', render: (v: Voucher) => <span className="text-[10px] font-mono text-slate-500">{v.valid_from}</span> },
+                { key: 'valid_to', label: 'Valid To', render: (v: Voucher) => <span className={`text-[10px] font-mono ${v.valid_to < today ? 'text-rose-500' : 'text-slate-500'}`}>{v.valid_to}</span> },
+                { key: 'status', label: 'Status', render: (v: Voucher) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                    v.status === 'issued'   ? 'bg-blue-50 text-blue-600' :
+                    v.status === 'redeemed' ? 'bg-emerald-50 text-emerald-600' :
+                    v.status === 'expired'  ? 'bg-slate-100 text-slate-400' :
+                                              'bg-rose-50 text-rose-600'
+                  }`}>{v.status}</span>
+                ) },
+              ] as Column<Voucher>[]}
+              data={vouchers}
+              rowKey={(v) => v.id}
+              sortable
+              filterable
+              filterPlaceholder="Search vouchers..."
+              filterKeys={['voucher_no', 'board_basis', 'status']}
+              containerClassName="rounded-[32px]"
+              emptyMessage="No vouchers issued yet"
+            />
           </div>
         </div>
       )}

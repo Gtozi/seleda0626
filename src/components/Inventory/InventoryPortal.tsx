@@ -23,6 +23,7 @@ import ReceivingModule from './ReceivingModule';
 import StockCountModule from './StockCountModule';
 import SupplierModule from './SupplierModule';
 import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
+import { StandardInventoryReports } from './StandardInventoryReports';
 
 const InventoryPortal: React.FC<{ activeTab?: string }> = ({ activeTab = 'dashboard' }) => {
 
@@ -36,6 +37,7 @@ const InventoryPortal: React.FC<{ activeTab?: string }> = ({ activeTab = 'dashbo
         {activeTab === 'receiving' && <ReceivingModule />}
         {activeTab === 'count' && <StockCountModule />}
         {activeTab === 'suppliers' && <SupplierModule />}
+        {activeTab === 'standard-reports' && <StandardInventoryReports />}
         {activeTab === 'reports' && <DepartmentReportsModule departmentName="Inventory" />}
       </div>
     </div>

@@ -17,6 +17,7 @@ import ReimbursementClaims from './ReimbursementClaims';
 import ExpenseBudgetControl from './ExpenseBudgetControl';
 
 import { useERP } from '../../../context/ERPContext';
+import { ModalSystem } from '../../Shared/ModalSystem';
 import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 
@@ -142,36 +143,15 @@ const ExpensePortal = () => {
         {activeSubModule === 'budget' && <ExpenseBudgetControl />}
       </div>
 
-      <AnimatePresence>
-        {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => setShowAddModal(false)}
-               className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-             />
-              <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative w-full max-w-xl bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl p-8 overflow-hidden"
-             >
-                <div className="flex items-center justify-between mb-6">
-                   <div className="flex items-center gap-3">
-                      <div className={`p-2.5 rounded-xl transition ${modalTab === 'grn' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600' : 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600'}`}>
-                         <FileText size={20} />
-                      </div>
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">
-                         {modalTab === 'grn' ? 'Register Goods Receipt Note (GRN)' : 'Create Expenditure Requisition'}
-                      </h3>
-                   </div>
-                   <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                      <X size={20} />
-                   </button>
-                </div>
-
+      <ModalSystem
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title={modalTab === 'grn' ? 'Register Goods Receipt Note (GRN)' : 'Create Expenditure Requisition'}
+        icon={<FileText size={20} className={modalTab === 'grn' ? 'text-emerald-600' : 'text-indigo-600'} />}
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
                 {/* Tab Switcher */}
                 <div className="flex bg-slate-50 dark:bg-slate-950 p-1.5 rounded-2xl mb-6 border border-slate-100 dark:border-slate-800">
                    <button
@@ -392,10 +372,7 @@ const ExpensePortal = () => {
                      </>
                    )}
                 </form>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </ModalSystem>
     </div>
   );
 };

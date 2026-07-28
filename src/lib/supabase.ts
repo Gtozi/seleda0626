@@ -27,7 +27,23 @@ if (!isKeyConfigured) {
 
 // Set up the Supabase Client. If config is missing, create a mock client structure to avoid crashing.
 export const supabase = isKeyConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+      },
+      db: {
+        schema: 'public',
+      },
+      global: {
+        headers: { 'x-connection-pool': 'true' },
+      },
+      realtime: {
+        params: {
+          eventsPerSecond: 5,
+        },
+      },
+    })
   : (new Proxy(
       {},
       {

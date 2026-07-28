@@ -25,6 +25,7 @@ import BudgetControl from './BudgetControl';
 import InvoiceManagement from './InvoiceManagement';
 import ApprovalCenter from './ApprovalCenter';
 import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
+import { StandardProcurementReports } from './StandardProcurementReports';
 
 const ProcurementPortal = ({ activeModule = 'dashboard' }: { activeModule?: string }) => {
 
@@ -42,6 +43,7 @@ const ProcurementPortal = ({ activeModule = 'dashboard' }: { activeModule?: stri
         {activeModule === 'invoices' && <InvoiceManagement />}
         {activeModule === 'approvals' && <ApprovalCenter />}
         {activeModule === 'reports' && <DepartmentReportsModule departmentName="Procurement" />}
+        {activeModule === 'standard-reports' && <StandardProcurementReports />}
       </div>
     </div>
   );

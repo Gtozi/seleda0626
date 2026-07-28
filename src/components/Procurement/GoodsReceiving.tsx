@@ -18,6 +18,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 const GoodsReceiving = () => {
   const [showModal, setShowModal] = useState(false);
@@ -257,37 +258,16 @@ const GoodsReceiving = () => {
         </table>
       </div>
 
-      <AnimatePresence>
-        {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowModal(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-xl p-8 shadow-2xl border border-slate-100 dark:border-slate-800 z-10"
-            >
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600">
-                    <PackageCheck size={20} />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Register Procurement Receipt</h3>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Physical Audit Protocol</p>
-                  </div>
-                </div>
-                <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                  <X size={20} />
-                </button>
-              </div>
-
+      <ModalSystem
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Register Procurement Receipt"
+        subtitle="Physical Audit Protocol"
+        icon={<PackageCheck size={20} className="text-indigo-600" />}
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
@@ -431,10 +411,7 @@ const GoodsReceiving = () => {
                   Register Validated Procurement Receipt
                 </button>
               </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </ModalSystem>
     </div>
   );
 };

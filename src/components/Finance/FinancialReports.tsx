@@ -1,13 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   FileSpreadsheet, 
   Download, 
   ArrowRight, 
-  FileText,
-  PieChart as PieIcon,
-  BarChart3,
-  Search,
-  Calendar,
   Layers,
   ChevronRight,
   ShieldCheck,
@@ -19,9 +14,10 @@ import {
 } from 'lucide-react';
 
 const FinancialReports = () => {
-  const [activeReport, setActiveReport] = React.useState<string | null>(null);
+  const [activeReport, setActiveReport] = useState<string | null>(null);
 
   const reports = [
+    { id: 'tb', title: 'Trial Balance', period: 'April 2024', status: 'Finalized', format: 'PDF/XLS', lastRun: '2 days ago' },
     { id: 'bs', title: 'Balance Sheet', period: 'April 2024', status: 'Finalized', format: 'PDF/XLS', lastRun: '2 days ago' },
     { id: 'pl', title: 'Profit & Loss Statement', period: 'Q1 2024', status: 'Audit Pending', format: 'PDF', lastRun: 'Last Week' },
     { id: 'cf', title: 'Cash Flow Analysis', period: 'M-TD May', status: 'Draft', format: 'Live', lastRun: 'Today, 08:30 AM' },
@@ -32,6 +28,8 @@ const FinancialReports = () => {
 
   const renderReportContent = () => {
     switch (activeReport) {
+      case 'tb':
+        return <TrialBalanceView onBack={() => setActiveReport(null)} />;
       case 'pl':
         return <ProfitAndLossView onBack={() => setActiveReport(null)} />;
       case 'bs':
@@ -55,20 +53,21 @@ const FinancialReports = () => {
        <div className="md:col-span-2 space-y-4">
           <div className="flex items-center justify-between mb-2 px-2">
              <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Standard Financial Statements</h3>
-             <button className="text-[10px] font-black text-indigo-600 uppercase">View Archive</button>
+             <button className="text-[10px] font-black text-indigo-600 uppercase hover:text-indigo-700 transition-colors">View Archive</button>
           </div>
           <div className="grid sm:grid-cols-2 gap-4">
              {reports.map((rpt, i) => (
                <div 
                 key={i} 
                 onClick={() => setActiveReport(rpt.id)}
-                className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs group cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-600 transition-all hover:shadow-lg active:scale-[0.98]"
+                className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-4 group cursor-pointer hover:border-indigo-200 dark:hover:border-indigo-600 active:scale-[0.98]"
+                style={{ animationDelay: `${i * 50}ms` }}
                >
                   <div className="flex justify-between items-start mb-4">
                      <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 group-hover:text-indigo-600 transition-colors">
                         <FileSpreadsheet size={20} />
                      </div>
-                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                     <div className="flex gap-1" onClick={(e: React.MouseEvent) => e.stopPropagation()}>
                         <button className="p-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white"><Download size={12} /></button>
                      </div>
                   </div>
@@ -90,16 +89,16 @@ const FinancialReports = () => {
 
        {/* report configurations & templates */}
        <div className="space-y-6">
-          <div className="bg-indigo-600 p-8 rounded-[40px] text-white">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 rounded-[40px] text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '400ms' }}>
              <h4 className="text-[10px] font-black uppercase tracking-widest mb-4 opacity-80 font-sans">Dynamic Report Builder</h4>
              <p className="text-[11px] text-indigo-100 font-medium mb-6 leading-relaxed">Customize financial layouts and export real-time ledger data for external audit.</p>
-             <button className="w-full py-3 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition group flex items-center justify-center gap-2">
+             <button className="w-full py-3 bg-white text-slate-950 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition group flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
                 Configure Custom Run
                 <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
              </button>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: '500ms' }}>
              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Audited Reports Log</h3>
              <div className="space-y-4">
                 {[
@@ -107,7 +106,7 @@ const FinancialReports = () => {
                   { label: 'Q1 VAT Submission', category: 'Taxation', icon: Layers, color: 'text-indigo-500' },
                   { label: 'Inventory Valuation', category: 'Internal', icon: TrendingUp, color: 'text-blue-500' },
                 ].map((auth, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer group">
+                  <div key={i} className="flex items-center justify-between p-3 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-all duration-300 cursor-pointer group hover:scale-[1.02]">
                      <div className="flex items-center gap-3">
                         <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-950 ${auth.color}`}>
                            <auth.icon size={16} />
@@ -127,15 +126,175 @@ const FinancialReports = () => {
   );
 
   return (
-    <div className="space-y-6 text-sans">
+    <div className="space-y-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen p-6 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-500 text-sans">
       {renderReportContent()}
     </div>
   );
 };
 
+const TrialBalanceView = ({ onBack }: { onBack: () => void }) => (
+  <div className="space-y-6 animate-fade-in">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
+      <div className="flex items-center gap-4">
+        <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+          <ArrowRight className="rotate-180" size={18} />
+        </button>
+        <div>
+          <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Trial Balance</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">As of April 30, 2024 • Period: April 2024</p>
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md">
+          <Download size={14} /> PDF
+        </button>
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:shadow-lg transition-all">
+          Sync GL
+        </button>
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+       <div className="md:col-span-2 space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+             <table className="w-full text-left border-collapse">
+                <thead>
+                   <tr className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/3">Account Code</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest w-1/3">Account Name</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Debit</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Credit</th>
+                   </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                   {/* Assets */}
+                   <tr className="bg-indigo-50/20 dark:bg-indigo-500/5">
+                      <td colSpan={4} className="px-6 py-3 text-[10px] font-black text-indigo-600 uppercase tracking-widest">Assets (1000-1999)</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">1000</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Cash and Equivalents</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$2,450,200.00</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">1100</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Accounts Receivable</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$185,500.00</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">1500</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Fixed Assets</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$12,850,000.00</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                   </tr>
+
+                   {/* Liabilities */}
+                   <tr className="bg-rose-50/20 dark:bg-rose-500/5">
+                      <td colSpan={4} className="px-6 py-3 text-[10px] font-black text-rose-600 uppercase tracking-widest">Liabilities (2000-2999)</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">2000</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Accounts Payable</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$315,200.00</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">2100</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Long-term Debt</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$4,500,000.00</td>
+                   </tr>
+
+                   {/* Equity */}
+                   <tr className="bg-emerald-50/20 dark:bg-emerald-500/5">
+                      <td colSpan={4} className="px-6 py-3 text-[10px] font-black text-emerald-600 uppercase tracking-widest">Equity (3000-3999)</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">3000</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Owner's Equity</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$10,670,500.00</td>
+                   </tr>
+
+                   {/* Revenue */}
+                   <tr className="bg-blue-50/20 dark:bg-blue-500/5">
+                      <td colSpan={4} className="px-6 py-3 text-[10px] font-black text-blue-600 uppercase tracking-widest">Revenue (4000-4999)</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">4000</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Room Revenue</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$610,500.00</td>
+                   </tr>
+
+                   {/* Expenses */}
+                   <tr className="bg-amber-50/20 dark:bg-amber-500/5">
+                      <td colSpan={4} className="px-6 py-3 text-[10px] font-black text-amber-600 uppercase tracking-widest">Expenses (5000-5999)</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">5000</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Staff Payroll</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$182,000.00</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                   </tr>
+                   <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/20 transition-colors">
+                      <td className="px-6 py-3 text-[10px] font-mono text-slate-500">5100</td>
+                      <td className="px-6 py-3 text-xs font-bold text-slate-700 dark:text-slate-300">Maintenance & Utilities</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right font-black">$45,200.00</td>
+                      <td className="px-6 py-3 text-xs font-mono text-right">-</td>
+                   </tr>
+
+                   {/* Totals */}
+                   <tr className="bg-slate-900 text-white font-black">
+                      <td colSpan={2} className="px-6 py-4 text-xs uppercase">Total Debits</td>
+                      <td className="px-6 py-4 text-sm text-right font-mono">$15,712,900.00</td>
+                      <td className="px-6 py-4 text-sm text-right">-</td>
+                   </tr>
+                   <tr className="bg-slate-900 text-white font-black">
+                      <td colSpan={2} className="px-6 py-4 text-xs uppercase">Total Credits</td>
+                      <td className="px-6 py-4 text-sm text-right">-</td>
+                      <td className="px-6 py-4 text-sm text-right font-mono">$15,712,900.00</td>
+                   </tr>
+                </tbody>
+             </table>
+          </div>
+       </div>
+
+       <div className="space-y-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 text-center space-y-4">
+             <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-600">
+                <ShieldCheck size={28} />
+             </div>
+             <div>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Balance Status</h4>
+                <p className="text-2xl font-black text-emerald-600">Balanced</p>
+                <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Debits = Credits</p>
+             </div>
+          </div>
+
+          <div className="bg-slate-900 p-6 rounded-3xl text-white space-y-4 shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
+             <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Controller's Review</h4>
+             <p className="text-xs font-medium leading-relaxed italic opacity-80">
+               "Trial balance validates successfully. All accounts reconciled. Ready for financial statement generation."
+             </p>
+             <div className="pt-4 border-t border-white/10 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center font-black text-[10px]">EW</div>
+                <div>
+                   <p className="text-[10px] font-black leading-none">Elena Wright</p>
+                   <p className="text-[8px] font-bold opacity-50 uppercase mt-1">Chief Financial Officer</p>
+                </div>
+             </div>
+          </div>
+       </div>
+    </div>
+  </div>
+);
+
 const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -146,10 +305,10 @@ const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md-all hover:shadow-md">
           <Download size={14} /> PDF
         </button>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20">
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:shadow-lg transition-all">
           Print Report
         </button>
       </div>
@@ -157,7 +316,7 @@ const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <table className="w-full text-left border-collapse">
                 <thead>
                    <tr className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
@@ -217,7 +376,7 @@ const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
        </div>
 
        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs text-center space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 text-center space-y-4">
              <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-500/10 rounded-full flex items-center justify-center mx-auto text-indigo-600">
                 <TrendingUp size={28} />
              </div>
@@ -228,7 +387,7 @@ const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
              </div>
           </div>
 
-          <div className="bg-slate-900 p-6 rounded-3xl text-white space-y-4">
+          <div className="bg-slate-900 p-6 rounded-3xl text-white space-y-4 shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Controller's Review</h4>
              <p className="text-xs font-medium leading-relaxed italic opacity-80">
                "Operating margins remain strong at 62%. Recommend increasing maintenance allocation for Q2 property facade project."
@@ -248,7 +407,7 @@ const ProfitAndLossView = ({ onBack }: { onBack: () => void }) => (
 
 const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -259,10 +418,10 @@ const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md">
           <Download size={14} /> PDF
         </button>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20">
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:shadow-lg transition-all">
           Sync GL
         </button>
       </div>
@@ -270,7 +429,7 @@ const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <table className="w-full text-left border-collapse">
                 <thead>
                    <tr className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
@@ -326,7 +485,7 @@ const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
        </div>
 
        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs text-center space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 text-center space-y-4">
              <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto text-emerald-600">
                 <ShieldCheck size={28} />
              </div>
@@ -337,7 +496,7 @@ const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
              </div>
           </div>
 
-          <div className="bg-indigo-900 p-6 rounded-3xl text-white space-y-4">
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-600 p-8 rounded-[40px] text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-60">Asset Management</h4>
              <p className="text-xs font-medium leading-relaxed italic opacity-80">
                "Strong asset-to-liability coverage. Equity position strengthened by Q1 retained earnings. Recommending property appreciation re-evaluation for next review."
@@ -350,7 +509,7 @@ const BalanceSheetView = ({ onBack }: { onBack: () => void }) => (
 
 const CashFlowView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -361,7 +520,7 @@ const CashFlowView = ({ onBack }: { onBack: () => void }) => (
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+        <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md">
           <Download size={14} /> XLSX
         </button>
         <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-emerald-600/20">
@@ -372,7 +531,7 @@ const CashFlowView = ({ onBack }: { onBack: () => void }) => (
 
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <table className="w-full text-left border-collapse">
                 <thead>
                    <tr className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
@@ -430,7 +589,7 @@ const CashFlowView = ({ onBack }: { onBack: () => void }) => (
        </div>
 
        <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 space-y-4">
              <div className="flex justify-between items-center px-1">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Cash Positions</h4>
                 <TrendingUp size={14} className="text-emerald-500" />
@@ -451,7 +610,7 @@ const CashFlowView = ({ onBack }: { onBack: () => void }) => (
              </div>
           </div>
 
-          <div className="bg-emerald-600 p-6 rounded-3xl text-white space-y-2">
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-600 p-6 rounded-3xl text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
              <h4 className="text-[10px] font-black uppercase tracking-widest opacity-80">Burn Rate Analysis</h4>
              <p className="text-xl font-black">42.2 Months</p>
              <p className="text-[10px] font-bold opacity-60 uppercase">Runway with current operating reserves</p>
@@ -463,7 +622,7 @@ const CashFlowView = ({ onBack }: { onBack: () => void }) => (
 
 const DailyRevenueSummaryView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -487,7 +646,7 @@ const DailyRevenueSummaryView = ({ onBack }: { onBack: () => void }) => (
          { label: 'ADR', value: '$349.25', sub: 'Avg Daily Rate', icon: TrendingUp, color: 'text-blue-500' },
          { label: 'RevPAR', value: '$308.73', sub: 'Revenue Per Available Room', icon: Activity, color: 'text-amber-500' },
        ].map((stat, i) => (
-         <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-3xs">
+         <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-start mb-4">
                <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-950 ${stat.color}`}>
                   <stat.icon size={18} />
@@ -500,7 +659,7 @@ const DailyRevenueSummaryView = ({ onBack }: { onBack: () => void }) => (
        ))}
     </div>
 
-    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
        <div className="p-4 bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
           <h4 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Departmental Revenue Split</h4>
        </div>
@@ -543,7 +702,7 @@ const DailyRevenueSummaryView = ({ onBack }: { onBack: () => void }) => (
 
 const ARAgeingView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -554,7 +713,7 @@ const ARAgeingView = ({ onBack }: { onBack: () => void }) => (
         </div>
       </div>
       <div className="flex gap-2">
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase">
+        <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:shadow-lg transition-all">
           Apply Filters
         </button>
       </div>
@@ -568,7 +727,7 @@ const ARAgeingView = ({ onBack }: { onBack: () => void }) => (
          { range: '90+ Days', amount: 8200, color: 'bg-amber-500' },
          { range: 'Total AR', amount: 227200, color: 'bg-slate-900 dark:bg-slate-800' },
        ].map((bucket, i) => (
-         <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-3xs relative overflow-hidden">
+         <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-4 relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-1 h-full ${bucket.color}`} />
             <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{bucket.range}</h4>
             <p className="text-lg font-black text-slate-900 dark:text-white mt-1">${bucket.amount.toLocaleString()}</p>
@@ -579,7 +738,7 @@ const ARAgeingView = ({ onBack }: { onBack: () => void }) => (
        ))}
     </div>
 
-    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
+    <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
        <table className="w-full text-left border-collapse">
           <thead>
              <tr className="bg-slate-50/50 dark:bg-slate-950/40 font-mono">
@@ -620,7 +779,7 @@ const ARAgeingView = ({ onBack }: { onBack: () => void }) => (
 
 const BankAuditView = ({ onBack }: { onBack: () => void }) => (
   <div className="space-y-6 animate-fade-in">
-    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+    <div className="flex justify-between items-center bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
       <div className="flex items-center gap-4">
         <button onClick={onBack} className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition">
           <ArrowRight className="rotate-180" size={18} />
@@ -631,17 +790,17 @@ const BankAuditView = ({ onBack }: { onBack: () => void }) => (
         </div>
       </div>
       <div className="flex gap-2">
-         <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+         <button className="flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md">
             <RefreshCw size={14} /> Refresh Feed
          </button>
-         <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase shadow-lg shadow-indigo-600/20">
+         <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl text-[10px] font-black uppercase shadow-md hover:shadow-lg transition-all">
             Finalize Reconciliation
          </button>
       </div>
     </div>
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-       <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-3xs space-y-6">
+       <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-8 rounded-[40px] shadow-sm hover:shadow-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 space-y-6">
           <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
              <ShieldCheck size={16} className="text-emerald-500" /> Active Settlement Status
           </h4>

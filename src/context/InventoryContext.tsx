@@ -20,6 +20,8 @@ export interface InventoryContextType {
   updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
   deleteInventoryItem: (id: string) => void;
   addInventoryStore: (store: Omit<Store, 'id'>) => void;
+  updateInventoryStore: (id: string, updates: Partial<Store>) => void;
+  deleteInventoryStore: (id: string) => void;
   addInventoryRequisition: (req: Omit<Requisition, 'id' | 'number'>) => void;
   updateInventoryRequisitionStatus: (id: string, status: RequisitionStatus, itemsWithIssuedQty?: { itemId: string, issuedQty: number }[]) => void;
   recordStockMovement: (movement: Omit<StockMovement, 'id'>) => void;
@@ -187,8 +189,37 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const addInventoryStore = useCallback((storeData: Omit<Store, 'id'>) => {
     const newStore = { ...storeData, id: `ST-${Date.now()}` };
-    setInventoryStores(prev => [...prev, newStore]);
+    setInventoryStores(prev => {
+      const updated = [...prev, newStore];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hotel_erp_inventory_stores_v1', JSON.stringify(updated));
+      }
+      return updated;
+    });
     if (supabaseService.isConfigured()) supabaseService.upsertInventoryStore(newStore).catch(console.error);
+  }, []);
+
+  const updateInventoryStore = useCallback((id: string, updates: Partial<Store>) => {
+    setInventoryStores(prev => {
+      const updated = prev.map(s => s.id === id ? { ...s, ...updates } : s);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hotel_erp_inventory_stores_v1', JSON.stringify(updated));
+      }
+      const target = updated.find(s => s.id === id);
+      if (target && supabaseService.isConfigured()) supabaseService.upsertInventoryStore(target).catch(console.error);
+      return updated;
+    });
+  }, []);
+
+  const deleteInventoryStore = useCallback((id: string) => {
+    setInventoryStores(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('hotel_erp_inventory_stores_v1', JSON.stringify(updated));
+      }
+      return updated;
+    });
+    if (supabaseService.isConfigured()) supabaseService.deleteInventoryStore(id).catch(console.error);
   }, []);
 
   const addSupplier = useCallback((supplierData: Omit<Supplier, 'id'>) => {
@@ -394,7 +425,7 @@ export const InventoryProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const value = {
     inventoryItems, inventoryStores, inventoryRequisitions, stockMovements, suppliers,
     addInventoryItem, updateInventoryItem, deleteInventoryItem,
-    addInventoryStore, addInventoryRequisition, updateInventoryRequisitionStatus,
+    addInventoryStore, updateInventoryStore, deleteInventoryStore, addInventoryRequisition, updateInventoryRequisitionStatus,
     recordStockMovement, addSupplier, updateSupplier, deleteSupplier,
     refreshData
   };

@@ -8,7 +8,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import type { User } from '../../types/erp';
-import { getRequestUser, userCan } from '../authHelpers';
+import { getRequestUser, userCan, PermissionContext, setAuditContext, clearAuditContext } from '../authHelpers';
 
 // Extend Express Request type to include user
 declare global {
@@ -27,12 +27,16 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
   try {
     const user = await getRequestUser(req);
     if (!user) {
+      await clearAuditContext();
       return res.status(401).json({ error: 'Not authenticated' });
     }
     req.user = user;
+    // Set audit context for DB triggers (Step 3.3)
+    await setAuditContext(user.id);
     next();
   } catch (error) {
     console.error('Authentication middleware error:', error);
+    await clearAuditContext();
     return res.status(401).json({ error: 'Not authenticated' });
   }
 };
@@ -41,15 +45,16 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
  * Permission-based authorization middleware
  * Use this for endpoints that require specific permissions
  * @param action - The permission action to check (e.g., 'reservation:check_in')
+ * @param context - Optional context for granular RBAC (module, department, record-owner, field)
  */
-export const requirePermission = (action: string) => {
+export const requirePermission = (action: string, context?: PermissionContext) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       if (!req.user) {
         return res.status(401).json({ error: 'Not authenticated' });
       }
 
-      const allowed = await userCan(req.user, action);
+      const allowed = await userCan(req.user, action, context);
       if (!allowed) {
         return res.status(403).json({ 
           error: 'Insufficient privileges',

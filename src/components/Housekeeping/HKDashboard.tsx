@@ -32,6 +32,7 @@ import {
   Legend, 
   CartesianGrid 
 } from 'recharts';
+import { DashboardTemplate, ChartCard, KpiGrid, type KpiTile } from '../Shared/DashboardTemplate';
 
 interface SuppliesRequest {
   id: string;
@@ -109,64 +110,33 @@ export default function HKDashboard() {
     return notifications.filter(n => n.department === 'Housekeeping');
   }, [notifications]);
 
-  return (
-    <div className="space-y-6 animate-fade-in" id="dashboard-tab">
-      {/* EXECUTIVE SUMMARY PANEL */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-        {[
-          { label: 'Total Rooms', value: hkStats.total, color: 'slate', icon: Layers },
-          { label: 'Occupied', value: hkStats.occupied, color: 'indigo', icon: User },
-          { label: 'Vacant', value: hkStats.vacant, color: 'emerald', icon: Sparkles },
-          { label: 'Dirty', value: hkStats.dirty, color: 'rose', icon: Clock },
-          { label: 'Clean', value: hkStats.clean, color: 'emerald', icon: CheckCheck },
-          { label: 'Inspected', value: hkStats.inspected, color: 'purple', icon: Activity },
-          { label: 'Out of Order', value: hkStats.ooo, color: 'slate', icon: Wrench },
-        ].map((item, i) => {
-          const Icon = item.icon;
-          return (
-            <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-3xl shadow-3xs flex flex-col justify-between group hover:border-indigo-400 transition-all">
-              <div className="flex justify-between items-center mb-2">
-                <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:text-indigo-500 transition-colors`}>
-                  <Icon size={14} />
-                </div>
-                <span className="text-xl font-black text-slate-900 dark:text-white leading-none">{item.value}</span>
-              </div>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{item.label}</span>
-            </div>
-          );
-        })}
-      </div>
+  const roomKpis: KpiTile[] = [
+    { label: 'Total Rooms', value: String(hkStats.total), icon: Layers, colorClass: 'text-slate-500', bgClass: 'bg-slate-50 dark:bg-slate-800' },
+    { label: 'Occupied', value: String(hkStats.occupied), icon: User, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Vacant', value: String(hkStats.vacant), icon: Sparkles, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Dirty', value: String(hkStats.dirty), icon: Clock, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
+    { label: 'Clean', value: String(hkStats.clean), icon: CheckCheck, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Inspected', value: String(hkStats.inspected), icon: Activity, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
+    { label: 'Out of Order', value: String(hkStats.ooo), icon: Wrench, colorClass: 'text-slate-500', bgClass: 'bg-slate-50 dark:bg-slate-800' },
+  ];
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          { label: 'Maintenance', value: hkStats.maintenance, sub: 'Under repair', color: 'bg-amber-500' },
-          { label: 'Laundry Process', value: hkStats.laundryInProgress, sub: 'Items in cycle', color: 'bg-blue-500' },
-          { label: 'Laundry Ready', value: hkStats.laundryReady, sub: 'Ready for issue', color: 'bg-emerald-500' },
-          { label: 'Linen Stock', value: `${hkStats.linenStockLevel}%`, sub: 'Average levels', color: 'bg-indigo-500' },
-          { label: 'Tasks Due', value: hkStats.tasksDue, sub: 'Scheduled today', color: 'bg-purple-500' },
-          { label: 'Lost & Found', value: hkStats.lostFoundPending, sub: 'Pending claim', color: 'bg-rose-500' },
-        ].map((item, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-4 rounded-3xl shadow-3xs flex flex-col gap-1">
-            <div className={`w-1.5 h-6 ${item.color} rounded-full mb-1`} />
-            <span className="text-lg font-black text-slate-900 dark:text-white leading-none">{item.value}</span>
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">{item.label}</span>
-            <p className="text-[8px] text-slate-500 font-medium italic">{item.sub}</p>
-          </div>
-        ))}
-      </div>
+  const operationalKpis: KpiTile[] = [
+    { label: 'Maintenance', value: String(hkStats.maintenance), sub: 'Under repair', icon: Wrench, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
+    { label: 'Laundry Process', value: String(hkStats.laundryInProgress), sub: 'Items in cycle', icon: Clock, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'Laundry Ready', value: String(hkStats.laundryReady), sub: 'Ready for issue', icon: CheckCheck, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Linen Stock', value: `${hkStats.linenStockLevel}%`, sub: 'Average levels', icon: ShoppingBag, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Tasks Due', value: String(hkStats.tasksDue), sub: 'Scheduled today', icon: Activity, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
+    { label: 'Lost & Found', value: String(hkStats.lostFoundPending), sub: 'Pending claim', icon: Info, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
+  ];
+
+  return (
+    <DashboardTemplate id="dashboard-tab">
+      <KpiGrid tiles={roomKpis} columns={7} />
+      <KpiGrid tiles={operationalKpis} columns={6} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Charts Section */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl space-y-4 shadow-3xs flex flex-col justify-between">
-          <div>
-            <span className="text-[10px] font-mono tracking-widest text-slate-400 font-extrabold uppercase">OPERATIONS METRICS GRAPH</span>
-            <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-0.5">
-              <TrendingUp size={14} className="text-indigo-650 dark:text-indigo-400" />
-              Cleaning Distribution & Occupancy Analytics
-            </h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Real-time room status ratios against live property floor distribution.</p>
-          </div>
-
+        <ChartCard title="Cleaning Distribution & Occupancy Analytics" subtitle="Operations Metrics Graph" className="lg:col-span-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1 items-center">
             {/* Pie Chart */}
             <div className="flex flex-col items-center justify-center border-r border-slate-100 dark:border-slate-800/80 pr-2 h-full">
@@ -221,7 +191,7 @@ export default function HKDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </ChartCard>
 
         {/* Priority Alerts Side Board */}
         <div className="lg:col-span-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl space-y-4 flex flex-col justify-between">
@@ -272,16 +242,7 @@ export default function HKDashboard() {
 
       {/* Linen Consumption Trends */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-2">
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl space-y-4">
-          <div>
-            <span className="text-[10px] font-mono tracking-widest text-slate-400 font-extrabold uppercase">LINEN LOGISTICS</span>
-            <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white flex items-center gap-1.5 mt-0.5">
-              <ShoppingBag size={14} className="text-indigo-650 dark:text-indigo-400" />
-              Linen Consumption & Laundry Turnaround Trends
-            </h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Comparative analytics of daily linen usage against laundry processing yields.</p>
-          </div>
-
+        <ChartCard title="Linen Consumption & Laundry Turnaround Trends" subtitle="Linen Logistics" className="lg:col-span-8">
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={linenConsumptionData}>
@@ -295,7 +256,7 @@ export default function HKDashboard() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ChartCard>
 
         <div className="lg:col-span-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl flex flex-col justify-between">
           <div className="space-y-4">
@@ -331,6 +292,6 @@ export default function HKDashboard() {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardTemplate>
   );
 }

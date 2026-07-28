@@ -3,23 +3,34 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState } from 'react';
-import { 
-  CalendarDays, 
-  Search, 
-  Plus, 
-  MapPin, 
-  Users, 
-  Clock, 
-  FileText, 
-  CheckCircle2, 
-  UtensilsCrossed, 
+import React, { useState, useEffect } from 'react';
+import {
+  CalendarDays,
+  Search,
+  Plus,
+  MapPin,
+  Users,
+  Clock,
+  FileText,
+  CheckCircle2,
+  UtensilsCrossed,
   CreditCard,
   History,
   X,
-  ChevronRight
+  ChevronRight,
+  ClipboardList,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
+import { BEOSheetModal, ForecastRequisitionModal } from './BanquetModals';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
+import {
+  fetchBanquetEvents,
+  createBanquetEvent,
+  updateBanquetEvent,
+  type BanquetEvent as ApiBanquetEvent
+} from '../../services/foodBeverageService';
 
 interface BanquetEvent {
   id: string;
@@ -37,58 +48,128 @@ interface BanquetEvent {
 
 export default function BanquetModule() {
   const { formatAmount, addNotification } = useERP();
-  
+
+  const [loading, setLoading] = useState(true);
+  const [apiEvents, setApiEvents] = useState<ApiBanquetEvent[]>([]);
+
   const [events, setEvents] = useState<BanquetEvent[]>([
-    { 
-      id: 'EV-3001', 
-      name: 'Regional Business Conference', 
-      type: 'Conference', 
-      date: '2026-06-15', 
-      time: '09:00 AM - 05:00 PM', 
-      venue: 'Grand Ball Room A', 
-      guests: 200, 
-      status: 'Confirmed', 
-      totalQuote: 12500, 
-      contactPerson: 'Event Planner', 
-      contactPhone: '+1 555-0000' 
+    {
+      id: 'EV-3001',
+      name: 'Regional Business Conference',
+      type: 'Conference',
+      date: '2026-06-15',
+      time: '09:00 AM - 05:00 PM',
+      venue: 'Grand Ball Room A',
+      guests: 200,
+      status: 'Confirmed',
+      totalQuote: 12500,
+      contactPerson: 'Event Planner',
+      contactPhone: '+1 555-0000'
     },
-    { 
-      id: 'EV-3002', 
-      name: 'Miller & Smith Wedding', 
-      type: 'Wedding', 
-      date: '2026-06-20', 
-      time: '04:00 PM - 11:30 PM', 
-      venue: 'Sky Garden Terrace', 
-      guests: 120, 
-      status: 'Draft', 
-      totalQuote: 8200, 
-      contactPerson: 'Sarah Miller', 
-      contactPhone: '+1 555-1234' 
+    {
+      id: 'EV-3002',
+      name: 'Miller & Smith Wedding',
+      type: 'Wedding',
+      date: '2026-06-20',
+      time: '04:00 PM - 11:30 PM',
+      venue: 'Sky Garden Terrace',
+      guests: 120,
+      status: 'Draft',
+      totalQuote: 8200,
+      contactPerson: 'Sarah Miller',
+      contactPhone: '+1 555-1234'
     },
   ]);
 
   const [searchEvent, setSearchEvent] = useState('');
   const [showEventForm, setShowEventForm] = useState(false);
   const [newEvent, setNewEvent] = useState({ name: '', type: 'Corporate' as BanquetEvent['type'], date: '', guests: 0 });
+  const [selectedEvent, setSelectedEvent] = useState<BanquetEvent | null>(null);
+  const [showBEOSheet, setShowBEOSheet] = useState(false);
+  const [showForecastRequisition, setShowForecastRequisition] = useState(false);
 
-  const handleCreateEvent = (e: React.FormEvent) => {
-    e.preventDefault();
-    const event: BanquetEvent = {
-      id: `EV-${Math.floor(Math.random() * 900) + 3000}`,
-      name: newEvent.name,
-      type: newEvent.type,
-      date: newEvent.date,
-      time: '09:00 AM - 05:00 PM',
-      venue: 'Grand Ball Room A',
-      guests: newEvent.guests,
-      status: 'Confirmed',
-      totalQuote: newEvent.guests * 65,
-      contactPerson: 'Guest User',
-      contactPhone: '+1 555-0000'
+  // Load banquet events from API
+  useEffect(() => {
+    const loadEvents = async () => {
+      setLoading(true);
+      try {
+        const data = await fetchBanquetEvents();
+        setApiEvents(data);
+
+        // Convert API events to local format
+        const convertedEvents: BanquetEvent[] = Array.isArray(data) ? data.map(event => ({
+          id: event.id,
+          name: event.event_name,
+          type: 'Corporate' as any, // Could be derived from event details
+          date: event.event_date,
+          time: '09:00 AM - 05:00 PM', // Default, could be stored separately
+          venue: 'Grand Ball Room A', // Default, could be stored separately
+          guests: event.guest_count,
+          status: event.status as any,
+          totalQuote: event.estimated_revenue,
+          contactPerson: event.client_name,
+          contactPhone: '' // Could be stored separately
+        })) : [];
+
+        if (convertedEvents.length > 0) {
+          setEvents(convertedEvents);
+        }
+      } catch (error) {
+        console.error('Failed to load banquet events:', error);
+        addNotification('Failed to load banquet events from server', 'error', 'Banquets');
+      } finally {
+        setLoading(false);
+      }
     };
-    setEvents([event, ...events]);
-    addNotification(`Event ${event.name} booked successfully.`, 'success', 'Banquets');
-    setShowEventForm(false);
+    loadEvents();
+  }, []);
+
+  const handleCreateEvent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const apiEvent: Omit<ApiBanquetEvent, 'id' | 'created_at' | 'updated_at'> = {
+        event_name: newEvent.name,
+        event_date: newEvent.date,
+        client_name: 'Guest User',
+        guest_count: newEvent.guests,
+        menu_package: 'Standard Package',
+        room_setup: 'Standard Setup',
+        payment_terms: 'To be determined',
+        status: 'Confirmed',
+        estimated_revenue: newEvent.guests * 65,
+        actual_revenue: 0,
+        notes: ''
+      };
+
+      const createdEvent = await createBanquetEvent(apiEvent);
+
+      // Reload events
+      const updatedEvents = await fetchBanquetEvents();
+      setApiEvents(updatedEvents);
+
+      // Convert and update local state
+      const convertedEvent: BanquetEvent = {
+        id: createdEvent.id,
+        name: createdEvent.event_name,
+        type: 'Corporate' as any,
+        date: createdEvent.event_date,
+        time: '09:00 AM - 05:00 PM',
+        venue: 'Grand Ball Room A',
+        guests: createdEvent.guest_count,
+        status: createdEvent.status as any,
+        totalQuote: createdEvent.estimated_revenue,
+        contactPerson: createdEvent.client_name,
+        contactPhone: ''
+      };
+
+      setEvents([convertedEvent, ...events]);
+      addNotification(`Event ${newEvent.name} booked successfully.`, 'success', 'Banquets');
+      setShowEventForm(false);
+      setNewEvent({ name: '', type: 'Corporate' as BanquetEvent['type'], date: '', guests: 0 });
+    } catch (error) {
+      console.error('Failed to create event:', error);
+      addNotification('Failed to create banquet event', 'error', 'Banquets');
+    }
   };
 
   const filteredEvents = events.filter(e => 
@@ -199,6 +280,26 @@ export default function BanquetModule() {
                       <FileText size={18} />
                    </button>
                    <button 
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setShowBEOSheet(true);
+                    }}
+                    className="p-2 bg-slate-50 dark:bg-slate-850 text-slate-400 hover:text-indigo-600 rounded-xl transition shadow-3xs" 
+                    title="BEO Function Sheet"
+                   >
+                      <ClipboardList size={18} />
+                   </button>
+                   <button 
+                    onClick={() => {
+                      setSelectedEvent(event);
+                      setShowForecastRequisition(true);
+                    }}
+                    className="p-2 bg-slate-50 dark:bg-slate-850 text-slate-400 hover:text-amber-600 rounded-xl transition shadow-3xs" 
+                    title="Forecasted Requisition"
+                   >
+                      <TrendingUp size={18} />
+                   </button>
+                   <button 
                     onClick={() => addNotification('Opening Menu Planner for ' + event.id, 'info', 'Banquets')}
                     className="p-2 bg-slate-50 dark:bg-slate-850 text-slate-400 hover:text-emerald-600 rounded-xl transition shadow-3xs" 
                     title="Menu Planner"
@@ -225,17 +326,16 @@ export default function BanquetModule() {
       </div>
       
       {/* Event Booking Form Modal */}
-      {showEventForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/40 backdrop-blur-sm animate-fade-in shadow-2xl">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-lg rounded-[40px] shadow-2xl p-8 space-y-6">
-            <div className="text-center space-y-2">
-               <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-indigo-100">
-                  <CalendarDays size={32} />
-               </div>
-               <h3 className="text-xl font-extrabold text-slate-900 dark:text-white">Banquet Booking</h3>
-               <p className="text-slate-400 text-xs">Event Intake Wizard for Banquets and Venue Rentals</p>
-            </div>
-            
+      <ModalSystem
+        isOpen={showEventForm}
+        onClose={() => setShowEventForm(false)}
+        title="Banquet Booking"
+        subtitle="Event Intake Wizard for Banquets and Venue Rentals"
+        icon={<CalendarDays size={20} className="text-indigo-600" />}
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
             <form onSubmit={handleCreateEvent} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-[10px] font-black font-mono text-slate-400 uppercase tracking-widest pl-1">Event Name</label>
@@ -303,9 +403,10 @@ export default function BanquetModule() {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
+
+      <BEOSheetModal isOpen={showBEOSheet} onClose={() => setShowBEOSheet(false)} event={selectedEvent} />
+      <ForecastRequisitionModal isOpen={showForecastRequisition} onClose={() => setShowForecastRequisition(false)} event={selectedEvent} />
     </div>
   );
 }

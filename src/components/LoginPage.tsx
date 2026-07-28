@@ -22,7 +22,7 @@ import { z } from 'zod';
 
 
 interface LoginPageProps {
-  onLoginSuccess: (user: User) => void;
+  onLoginSuccess: (user: User, forcePasswordChange?: boolean) => void;
 }
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
@@ -55,7 +55,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
 
     setSuccess(true);
     setTimeout(() => {
-      onLoginSuccess(result.user!);
+      onLoginSuccess(result.user!, result.forcePasswordChange);
     }, 500);
   };
 

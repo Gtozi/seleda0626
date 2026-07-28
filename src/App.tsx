@@ -4,11 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { ERPProvider, useERP } from './context/ERPContext';
-import { GuestProvider } from './context/GuestContext';
-import { GroupProvider } from './context/GroupContext';
-import { ModalReturnProvider } from './context/ModalReturnContext';
+import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
+import { useERP } from './context/ERPContext';
+import { AppProviders } from './context/AppProviders';
 import FrontDeskPortal from './components/FrontDesk/FrontDeskPortal';
 import BookingPage from './components/BookingPage';
 import LoginPage from './components/LoginPage';
@@ -16,83 +14,178 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import AccountSettingsModule from './components/Settings/AccountSettingsModule';
 import CheckInPrintModal from './components/FrontDesk/CheckInPrintModal';
 import GroupCheckInPrintModal from './components/FrontDesk/GroupCheckInPrintModal';
-import HousekeepingPortal from './components/Housekeeping/HousekeepingPortal';
+import HousekeepingPortal, { type HKTab } from './components/Housekeeping/HousekeepingPortal';
 import FoodBeveragePortal from './components/FoodBeverage/FoodBeveragePortal';
 import EngineeringPortal from './components/Engineering/EngineeringPortal';
 import InventoryPortal from './components/Inventory/InventoryPortal';
 import FinancePortal from './components/Finance/FinancePortal';
 import HumanResourcesPortal from './components/HumanResources/HumanResourcesPortal';
-import ExecutivePortal from './components/Executive/ExecutivePortal';
-import SystemAdminPortal from './components/Executive/SystemAdminPortal';
 import AdminPortal from './components/Admin/AdminPortal';
+import UnifiedPortal from './components/Admin/UnifiedPortal';
 import { CORE_ADMIN_MODULES } from './components/Admin/adminModules';
 import ProcurementPortal from './components/Procurement/ProcurementPortal';
+import SalesPortal from './components/Sales/SalesPortal';
+import GuestMobilePortal from './components/GuestMobilePortal';
+import POSPortal from './components/POS/POSPortal';
+import POSLoginPage from './components/POS/POSLoginPage';
+import KitchenDisplayModule from './components/FoodBeverage/KitchenDisplayModule';
+import KDSInstanceManagement from './components/FoodBeverage/KDSInstanceManagement';
 import { User } from './types/erp';
+import { supabase } from './lib/supabase';
 import { logout, verifySession } from './lib/auth';
 import { canAccessTab } from './lib/permissions';
 import {
-  Map,
-  Plus,
   Bell,
   LogOut,
   Users,
-  Menu,
   Calendar,
   Coins,
   Activity,
   X,
   Sparkles,
-  CheckCircle,
   ShieldAlert,
-  Shield,
   Lock,
   Settings,
-  VolumeX,
-  Play,
-  Volume2,
   Moon,
   Sun,
   Package,
-  ShoppingCart,
   LayoutDashboard,
   FileBarChart,
-  Receipt
+  AlertCircle,
+  TrendingUp
 } from 'lucide-react';
+import { changePassword } from './lib/auth';
 
-function LoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: User) => void }) {
+function POSLoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: any) => void }) {
+  return <POSLoginPage onLoginSuccess={onLoginSuccess} />;
+}
+
+function LoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: User, forcePasswordChange?: boolean) => void }) {
   return <LoginPage onLoginSuccess={onLoginSuccess} />;
+}
+
+function ForcedPasswordChangeScreen({ user, onSuccess }: { user: User; onSuccess: () => void }) {
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    if (!newPassword || newPassword.length < 8) {
+      setError('New password must be at least 8 characters');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    setIsLoading(true);
+    const result = await changePassword('', newPassword);
+    setIsLoading(false);
+
+    if (!result.success) {
+      setError(result.error || 'Failed to change password');
+      return;
+    }
+
+    onSuccess();
+  };
+
+  return (
+    <div className="flex-1 w-full flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 min-h-[calc(100vh-57px)]">
+      <div className="w-full max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl p-8">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white shadow-lg">
+            <Lock size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">Password Change Required</h2>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Welcome, {user.name}. You must set a new password before continuing.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {error && (
+            <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 rounded-xl flex items-center gap-2.5 text-sm">
+              <AlertCircle size={16} className="flex-shrink-0" />
+              {error}
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono uppercase text-slate-400 font-bold">New Password</label>
+            <input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="At least 8 characters with mixed case, digits, and special chars"
+              required
+              autoFocus
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-mono uppercase text-slate-400 font-bold">Confirm New Password</label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-type new password"
+              required
+              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl font-semibold text-sm hover:from-indigo-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {isLoading ? 'Changing...' : 'Set New Password'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 function MasterHotelERP() {
   const location = useLocation();
   const navigate = useNavigate();
   const { 
-    rooms,
-    setRoomStatus,
     notifications, 
     markNotificationRead, 
     clearNotification, 
     currentSystemDate, 
-    simulationActive, 
-    setSimulationActive,
-    triggerLiveSyncSimulation,
     stats,
-    guests,
     currency,
     setCurrency,
     formatAmount,
     theme,
     toggleTheme,
     globalHotelSettings,
-    refreshAllData
+    refreshAllData,
+    currentPropertyId,
+    setCurrentPropertyId,
+    properties
   } = useERP();
 
   // User Authentication state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sessionChecked, setSessionChecked] = useState(false);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+
+  // POS Authentication state
+  const [posUser, setPosUser] = useState<any>(null);
+  const [, setPosSessionChecked] = useState(false);
 
   // ERP Sidebar/Page department selector (First front office completes requested screens)
-  const [activeDept, setActiveDept] = useState<'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'settings'>('frontoffice');
+  const [activeDept, setActiveDept] = useState<'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'operations' | 'sales' | 'settings'>('frontoffice');
+
+  // Auto-hide top nav — hidden by default, revealed on mouse hover at top of screen
+  const [navVisible, setNavVisible] = useState(false);
 
   const { systemUsers, syncUserProfile } = useERP();
 
@@ -104,11 +197,18 @@ function MasterHotelERP() {
         setCurrentUser(user);
         // Sync userProfile with actual authentication data
         syncUserProfile({
+          id: user.id,
           name: user.name,
           email: user.email,
           role: user.role,
+          roleDescription: user.roleDescription,
           avatar: user.avatarInitials,
-          lastLogin: new Date().toISOString()
+          lastLogin: user.lastLogin || new Date().toISOString(),
+          department: user.department,
+          employeeId: user.employeeId,
+          mobileNumber: user.mobileNumber,
+          username: user.username,
+          status: user.status,
         });
         // Set initial department based on user's allowed access
         const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
@@ -131,8 +231,25 @@ function MasterHotelERP() {
           setCurrentUser(null);
           return;
         }
+        // Check if role-relevant fields changed — if so, re-enrich via verifySession
+        const roleChanged = liveUser.role !== currentUser.role ||
+          liveUser.customRoleId !== currentUser.customRoleId ||
+          liveUser.status !== currentUser.status;
+        if (roleChanged) {
+          // Re-verify session to get fresh enriched permissions
+          verifySession().then(enriched => {
+            if (enriched) setCurrentUser(enriched);
+          });
+          return;
+        }
+        // Otherwise, merge liveUser fields but preserve enriched fields
         if (JSON.stringify(liveUser) !== JSON.stringify(currentUser)) {
-          setCurrentUser(liveUser);
+          setCurrentUser({
+            ...liveUser,
+            allowedTabs: currentUser.allowedTabs,
+            allowedSettings: currentUser.allowedSettings,
+            moduleAccess: currentUser.moduleAccess,
+          });
         }
       }
     }
@@ -170,8 +287,28 @@ function MasterHotelERP() {
     };
   }, [currentUser, refreshAllData]);
 
-  const handleLoginSuccess = (user: User) => {
+  const handleLoginSuccess = (user: User, forcePasswordChange?: boolean) => {
     setCurrentUser(user);
+    syncUserProfile({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      roleDescription: user.roleDescription,
+      avatar: user.avatarInitials,
+      lastLogin: user.lastLogin || new Date().toISOString(),
+      department: user.department,
+      employeeId: user.employeeId,
+      mobileNumber: user.mobileNumber,
+      username: user.username,
+      status: user.status,
+    });
+
+    if (forcePasswordChange) {
+      setMustChangePassword(true);
+      navigate('/erp'); // Navigate to trigger the forced password screen
+      return;
+    }
     
     // Set initial department based on user's allowed access
     // Default to first allowed tab, or frontoffice if not specified
@@ -182,9 +319,15 @@ function MasterHotelERP() {
     
     // Navigate to ERP after successful login
     navigate('/erp');
+
+    // Re-fetch all ERP data now that the user is authenticated.
+    // Sub-contexts fired their initial refreshData() on mount while
+    // unauthenticated, so those calls returned 401 and left state empty.
+    refreshAllData();
   };
 
   const handleDeptChange = (dept: typeof activeDept) => {
+    // 'settings' is handled separately as a modal, not a department
     // Check if user has access to the requested department
     if (!canAccessTab(currentUser, dept)) {
       console.warn(`Access denied: User does not have permission to access ${dept}`);
@@ -198,17 +341,27 @@ function MasterHotelERP() {
     setCurrentUser(null);
   };
 
+  const handlePOSLoginSuccess = (user: any) => {
+    setPosUser(user);
+    setPosSessionChecked(true);
+  };
+
+  const handlePOSLogout = async () => {
+    await supabase.auth.signOut();
+    setPosUser(null);
+    navigate('/pos/login');
+  };
+
   // Department sub-screen toggles
-  const [hkDir, setHkDir] = useState('dashboard');
-  const [fbDir, setFbDir] = useState('dashboard');
+  const [hkDir, setHkDir] = useState<HKTab>('dashboard');
+  const [fbDir, setFbDir] = useState('executive-dashboard');
   const [engDir, setEngDir] = useState('dashboard');
   const [invDir, setInvDir] = useState('dashboard');
   const [finDir, setFinDir] = useState('dashboard');
   const [hrDir, setHrDir] = useState('dashboard');
-  const [execDir, setExecDir] = useState('dashboard');
   const [adminDir, setAdminDir] = useState('user_security');
   const [procDir, setProcDir] = useState('dashboard');
-  const [frontDir, setFrontDir] = useState<'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory'>('dashboard');
+  const [frontDir, setFrontDir] = useState<'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory' | 'standard-reports'>('dashboard');
 
   // Notification panel toggle on ERP
   const [showNotifications, setShowNotifications] = useState(false);
@@ -219,12 +372,50 @@ function MasterHotelERP() {
 
   const getUnreadNotifCount = () => notifications.filter(n => !n.read).length;
 
-  const fbOutlets = (globalHotelSettings.posOutlets || []).filter(o =>
-    !o.toLowerCase().includes('gift') &&
-    !o.toLowerCase().includes('boutique') &&
-    !o.toLowerCase().includes('spa') &&
-    !o.toLowerCase().includes('reception')
-  );
+  // Helper: check if current user has read access to a sub-module
+  const hasModuleAccess = (modId: string): boolean => {
+    if (!currentUser?.moduleAccess || Object.keys(currentUser.moduleAccess).length === 0) return true;
+    const access = currentUser.moduleAccess[modId];
+    if (access === undefined) return true;
+    return typeof access === 'boolean' ? access : access?.read === true;
+  };
+
+  // Sub-module ID mappings per department (subNavId → module_access key)
+  const deptSubModuleMap: Record<string, Record<string, string>> = {
+    frontoffice: { 'dashboard': 'fo_dashboard', 'reservations': 'fo_reservations', 'folio': 'fo_folio', 'crm': 'fo_crm', 'reports': 'fo_reports', 'inventory': 'fo_inventory', 'standard-reports': 'fo_standard_reports' },
+    housekeeping: { 'dashboard': 'hk_dashboard', 'rooms': 'hk_rooms', 'tasks': 'hk_tasks', 'laundry': 'hk_laundry', 'inventory': 'hk_inventory', 'amenities': 'hk_amenities', 'lostfound': 'hk_lostfound', 'staff': 'hk_staff', 'reports': 'hk_reports', 'standard-reports': 'hk_standard_reports' },
+    'f&b': { 'executive-dashboard': 'fb_executive_dashboard', 'outlet-management': 'fb_outlet_management', 'menu-catalog': 'fb_menu_catalog', 'recipe-production': 'fb_recipe_production', 'inventory-cost': 'fb_inventory_cost', 'beverage-management': 'fb_beverage_management', 'purchasing-suppliers': 'fb_purchasing_suppliers', 'banquet-catering': 'fb_banquet_catering', 'room-service': 'fb_room_service', 'guest-crm': 'fb_guest_crm', 'promotions-pricing': 'fb_promotions_pricing', 'financial-control': 'fb_financial_control', 'operations-compliance': 'fb_operations_compliance', 'reporting-bi': 'fb_reporting_bi', 'integrations': 'fb_integrations' },
+    maintenance: { 'dashboard': 'eng_dashboard', 'workorders': 'eng_workorders', 'pm': 'eng_pm', 'assets': 'eng_assets', 'rooms': 'eng_rooms', 'utilities': 'eng_utilities', 'inventory': 'eng_inventory', 'staff': 'eng_staff', 'compliance': 'eng_compliance', 'reports': 'eng_reports', 'standard-reports': 'eng_standard_reports' },
+    inventory: { 'dashboard': 'inv_dashboard', 'items': 'inv_items', 'stores': 'inv_stores', 'requisitions': 'inv_requisitions', 'receiving': 'inv_receiving', 'count': 'inv_count', 'suppliers': 'inv_suppliers', 'standard-reports': 'inv_standard_reports', 'reports': 'inv_reports' },
+    finance: { 'dashboard': 'fin_dashboard', 'gl': 'fin_gl', 'sales': 'fin_sales', 'ap': 'fin_ap', 'ar': 'fin_ar', 'bank_recon': 'fin_bank_recon', 'reports': 'fin_reports', 'trial_balance': 'fin_trial_balance', 'financial_statements': 'fin_statements', 'budget': 'fin_budget', 'tax_compliance': 'fin_tax', 'erca_vat': 'fin_erca_vat', 'standard-reports': 'fin_standard_reports', 'period_close': 'fin_period_close', 'assets': 'fin_assets' },
+    hr: { 'dashboard': 'hr_dashboard', 'employees': 'hr_employees', 'attendance': 'hr_attendance', 'payroll': 'hr_payroll', 'leave': 'hr_leave', 'performance': 'hr_performance', 'training': 'hr_training', 'recruitment': 'hr_recruitment', 'reports': 'hr_reports', 'standard-reports': 'hr_standard_reports' },
+    procurement: { 'dashboard': 'proc_dashboard', 'requisitions': 'proc_requisitions', 'orders': 'proc_orders', 'suppliers': 'proc_suppliers', 'rfq': 'proc_rfq', 'receiving': 'proc_receiving', 'contracts': 'proc_contracts', 'budget': 'proc_budget', 'invoices': 'proc_invoices', 'approvals': 'proc_approvals', 'reports': 'proc_reports', 'standard-reports': 'proc_standard_reports' },
+  };
+
+  // Reset sub-dir if current sub-tab is not accessible per moduleAccess
+  React.useEffect(() => {
+    if (!currentUser?.moduleAccess || Object.keys(currentUser.moduleAccess).length === 0) return;
+    const subMap = deptSubModuleMap[activeDept];
+    if (!subMap) return;
+    const dirSetters: Record<string, [string, (v: any) => void]> = {
+      frontoffice: [frontDir, setFrontDir],
+      housekeeping: [hkDir, setHkDir],
+      'f&b': [fbDir, setFbDir],
+      maintenance: [engDir, setEngDir],
+      inventory: [invDir, setInvDir],
+      finance: [finDir, setFinDir],
+      hr: [hrDir, setHrDir],
+      procurement: [procDir, setProcDir],
+    };
+    const entry = dirSetters[activeDept];
+    if (!entry) return;
+    const [currentDir, setter] = entry;
+    const modId = subMap[currentDir];
+    if (modId && !hasModuleAccess(modId)) {
+      const firstAccessible = Object.entries(subMap).find(([, mid]) => hasModuleAccess(mid));
+      if (firstAccessible) setter(firstAccessible[0] as any);
+    }
+  }, [currentUser, activeDept]);
 
   // Platform controls: a department portal can be disabled web-app-wide from
   // System Admin > Platform Controls. Admin and account settings are never gated.
@@ -251,7 +442,16 @@ function MasterHotelERP() {
       
       {/* GLOBAL MASTER HEADER (Allows switching between Platform Views dynamically!) - Hidden for public booking page */}
       {location.pathname !== '/booking' && (
-      <nav className="bg-white/95 backdrop-blur-xl border-b border-slate-200 text-slate-900 py-3 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-30 shadow-lg">
+      <>
+        {/* Hover zone — invisible strip at top of screen to reveal nav */}
+        <div
+          className="fixed top-0 left-0 right-0 h-3 z-40"
+          onMouseEnter={() => setNavVisible(true)}
+        />
+        <nav
+          onMouseEnter={() => setNavVisible(true)}
+          onMouseLeave={() => setNavVisible(false)}
+          className={`bg-white/95 backdrop-blur-xl border-b border-slate-200 text-slate-900 py-3 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 fixed top-0 left-0 right-0 z-30 shadow-lg transition-transform duration-300 ${navVisible ? 'translate-y-0' : '-translate-y-full'}`}>
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-extrabold font-sans shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300">S</div>
           <div>
@@ -291,6 +491,22 @@ function MasterHotelERP() {
             <div className="text-[11px] text-slate-500 font-mono">Occ: {stats.occupancyRate}% | Rev: <span className="text-emerald-600">{formatAmount(stats.totalRevenue)}</span></div>
           </div>
 
+          {/* Property Switcher */}
+          {properties.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden sm:block">Property</label>
+              <select
+                value={currentPropertyId || ''}
+                onChange={(e) => setCurrentPropertyId(e.target.value || null)}
+                className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-sans font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-400 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+              >
+                {properties.map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.property_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* User credentials & Logout */}
           {currentUser && (
             <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
@@ -323,6 +539,7 @@ function MasterHotelERP() {
           )}
         </div>
       </nav>
+      </>
       )}
 
       {/* RENDER CHOSEN COMPONENT PORTALS */}
@@ -338,6 +555,21 @@ function MasterHotelERP() {
           } 
         />
         <Route path="/booking" element={<BookingPage />} />
+        <Route path="/guest-portal" element={<GuestMobilePortal />} />
+        <Route 
+          path="/pos/login" 
+          element={<POSLoginRoute onLoginSuccess={handlePOSLoginSuccess} />}
+        />
+        <Route 
+          path="/pos" 
+          element={
+            !posUser ? (
+              <Navigate to="/pos/login" replace />
+            ) : (
+              <POSPortal user={posUser} onLogout={handlePOSLogout} />
+            )
+          }
+        />
         <Route 
           path="/erp/*" 
           element={
@@ -345,27 +577,39 @@ function MasterHotelERP() {
               <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
             ) : !currentUser ? (
               <Navigate to="/login" replace />
+            ) : mustChangePassword ? (
+              <ForcedPasswordChangeScreen 
+                user={currentUser} 
+                onSuccess={() => {
+                  setMustChangePassword(false);
+                  const initialDept = currentUser.allowedTabs && currentUser.allowedTabs.length > 0 
+                    ? currentUser.allowedTabs[0] 
+                    : 'frontoffice';
+                  setActiveDept(initialDept);
+                  navigate('/erp');
+                }}
+              />
             ) : (
               <div className="flex-1 flex flex-col overflow-hidden lg:h-[calc(100vh-57px)]">
-                {/* Top Department & Utility Bar (Horizontal replacement for sidebar) */}
-
                 {/* MAIN OFFICE INTERFACE SCROLLABLE GRID */}
                 <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50 dark:bg-slate-950 transition-colors duration-300 smooth-transition">
                 {/* Active Department Title Bar */}
                 <header className="bg-white/95 backdrop-blur-lg border-b border-slate-200 py-3.5 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs w-full transition-colors duration-300 smooth-transition">
                   <div>
                     <h2 className="text-base font-sans font-extrabold text-slate-900 dark:text-white leading-tight">
-                      {activeDept === 'frontoffice' && 'Front Office Operations Desk'}
-                      {activeDept === 'housekeeping' && 'Housekeeping Matrix Management'}
-                      {activeDept === 'f&b' && 'Food & Beverage Orders Sync'}
-                      {activeDept === 'maintenance' && 'Maintenance & Engineering Repair Lines'}
-                      {activeDept === 'executive' && 'Executive Business Office'}
-                      {activeDept === 'admin' && 'System Administration & Governance'}
-                      {activeDept === 'inventory' && 'Inventory Control & Supply Chain'}
-                      {activeDept === 'finance' && 'Enterprise Financial Audit & Ledger Sync'}
-                      {activeDept === 'hr' && 'Human Capital Management & Workforce Flow'}
-                      {activeDept === 'procurement' && 'Strategic Sourcing & Procurement Control'}
-                      {activeDept === 'settings' && 'Administrator Global Account Settings'}
+                      {activeDept === 'frontoffice' && 'Front Office'}
+                      {activeDept === 'housekeeping' && 'Housekeeping'}
+                      {activeDept === 'f&b' && 'Food & Beverage'}
+                      {activeDept === 'maintenance' && 'Engineering'}
+                      {activeDept === 'sales' && 'Sales'}
+                      {activeDept === 'executive' && 'Executive & Operations'}
+                      {activeDept === 'admin' && 'Admin'}
+                      {activeDept === 'inventory' && 'Inventory'}
+                      {activeDept === 'finance' && 'Finance'}
+                      {activeDept === 'hr' && 'Human Resources'}
+                      {activeDept === 'procurement' && 'Procurement'}
+                      {activeDept === 'operations' && 'Operations & Executive'}
+                      {activeDept === 'settings' && 'Account Settings'}
                     </h2>
                     <div className="text-slate-500 text-[10px] flex items-center gap-1 font-mono uppercase tracking-wider">
                       <span>Gheralta</span> / <span className="text-indigo-600 font-bold">{activeDept}</span>
@@ -375,15 +619,15 @@ function MasterHotelERP() {
                   {/* Front Office sub-navigation triggers */}
                   {activeDept === 'frontoffice' && (
                     <div className="flex flex-wrap bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 rounded-xl self-center text-xs font-sans font-medium select-none gap-1 transition-colors duration-300 card-shadow" id="front-sub-menu">
-                      {[
-                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                        { id: 'reservations', label: 'Reservations', icon: Calendar },
-                        { id: 'folio', label: 'Folio', icon: Coins },
-                        { id: 'crm', label: 'CRM Board', icon: Users },
-                        { id: 'reports', label: 'Reports & Audit', icon: FileBarChart },
-                        { id: 'giftshop', label: 'Gift Shop', icon: ShoppingCart },
-                        { id: 'inventory', label: 'Office Inventory', icon: Package },
-                      ].map((tab) => {
+                      {([
+                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, modId: 'fo_dashboard' },
+                        { id: 'reservations', label: 'Reservations', icon: Calendar, modId: 'fo_reservations' },
+                        { id: 'folio', label: 'Folio', icon: Coins, modId: 'fo_folio' },
+                        { id: 'crm', label: 'CRM Board', icon: Users, modId: 'fo_crm' },
+                        { id: 'reports', label: 'Reports & Audit', icon: FileBarChart, modId: 'fo_reports' },
+                        { id: 'inventory', label: 'Office Inventory', icon: Package, modId: 'fo_inventory' },
+                        { id: 'standard-reports', label: 'Standard Reports', icon: FileBarChart, modId: 'fo_standard_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => {
                         const Icon = tab.icon;
                         return (
                           <button
@@ -406,145 +650,130 @@ function MasterHotelERP() {
                   {/* Housekeeping sub-navigation triggers */}
                   {activeDept === 'housekeeping' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="hk-sub-menu">
-                      <button onClick={() => setHkDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Command Center</button>
-                      <button onClick={() => setHkDir('rooms')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'rooms' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Room Board</button>
-                      <button onClick={() => setHkDir('tasks')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'tasks' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Task Management</button>
-                      <button onClick={() => setHkDir('laundry')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'laundry' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Laundry & Valet</button>
-                      <button onClick={() => setHkDir('inventory')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'inventory' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Supplies & Linen</button>
-                      <button onClick={() => setHkDir('amenities')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'amenities' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Guest Amenities</button>
-                      <button onClick={() => setHkDir('lostfound')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'lostfound' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Lost & Found</button>
-                      <button onClick={() => setHkDir('staff')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'staff' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Team</button>
-                      <button onClick={() => setHkDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Intelligence</button>
+                      {([
+                        { id: 'dashboard', label: 'Command Center', modId: 'hk_dashboard' },
+                        { id: 'rooms', label: 'Room Board', modId: 'hk_rooms' },
+                        { id: 'tasks', label: 'Task Management', modId: 'hk_tasks' },
+                        { id: 'laundry', label: 'Laundry & Valet', modId: 'hk_laundry' },
+                        { id: 'inventory', label: 'Supplies & Linen', modId: 'hk_inventory' },
+                        { id: 'amenities', label: 'Guest Amenities', modId: 'hk_amenities' },
+                        { id: 'lostfound', label: 'Lost & Found', modId: 'hk_lostfound' },
+                        { id: 'staff', label: 'Team', modId: 'hk_staff' },
+                        { id: 'reports', label: 'Intelligence', modId: 'hk_reports' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'hk_standard_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setHkDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
                   {/* F&B sub-navigation triggers */}
                   {activeDept === 'f&b' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="fb-sub-menu">
-                      <button onClick={() => setFbDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Dashboard</button>
-                      {fbOutlets.map(outlet => (
-                        <button key={`pos_${outlet}`} onClick={() => setFbDir(`pos_${outlet}`)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === `pos_${outlet}` ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{outlet}</button>
+                      {([
+                        { id: 'executive-dashboard', label: 'Executive Dashboard', modId: 'fb_executive_dashboard' },
+                        { id: 'outlet-management', label: 'Outlets', modId: 'fb_outlet_management' },
+                        { id: 'menu-catalog', label: 'Menu & Catalog', modId: 'fb_menu_catalog' },
+                        { id: 'recipe-production', label: 'Recipe & Production', modId: 'fb_recipe_production' },
+                        { id: 'inventory-cost', label: 'Inventory & Cost', modId: 'fb_inventory_cost' },
+                        { id: 'beverage-management', label: 'Beverage', modId: 'fb_beverage_management' },
+                        { id: 'purchasing-suppliers', label: 'Purchasing', modId: 'fb_purchasing_suppliers' },
+                        { id: 'banquet-catering', label: 'Banquets', modId: 'fb_banquet_catering' },
+                        { id: 'room-service', label: 'Room Service', modId: 'fb_room_service' },
+                        { id: 'guest-crm', label: 'Guest CRM', modId: 'fb_guest_crm' },
+                        { id: 'promotions-pricing', label: 'Promotions', modId: 'fb_promotions_pricing' },
+                        { id: 'financial-control', label: 'Financial Control', modId: 'fb_financial_control' },
+                        { id: 'operations-compliance', label: 'Operations', modId: 'fb_operations_compliance' },
+                        { id: 'reporting-bi', label: 'Reporting & BI', modId: 'fb_reporting_bi' },
+                        { id: 'integrations', label: 'Integrations', modId: 'fb_integrations' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setFbDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
                       ))}
-                      <button onClick={() => setFbDir('bar_store')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'bar_store' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Bar Store</button>
-                      <button onClick={() => setFbDir('inventory')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'inventory' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Restaurant Store</button>
-                      <button onClick={() => setFbDir('meals')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'meals' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>In-House Meals</button>
-                      <button onClick={() => setFbDir('kds')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'kds' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Kitchen/KDS</button>
-                      <button onClick={() => setFbDir('menu')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'menu' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Menu Mgmt</button>
-                      <button onClick={() => setFbDir('banquets')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'banquets' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Banquets</button>
-                      <button onClick={() => setFbDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Reports</button>
                     </div>
                   )}
 
                   {/* Engineering sub-navigation triggers */}
                   {activeDept === 'maintenance' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="eng-sub-menu">
-                      <button onClick={() => setEngDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Dashboard</button>
-                      <button onClick={() => setEngDir('workorders')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'workorders' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Work Orders</button>
-                      <button onClick={() => setEngDir('pm')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'pm' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Preventive Main.</button>
-                      <button onClick={() => setEngDir('assets')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'assets' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Asset Register</button>
-                      <button onClick={() => setEngDir('rooms')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'rooms' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Guest Rooms</button>
-                      <button onClick={() => setEngDir('utilities')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'utilities' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Utilities & Plant</button>
-                      <button onClick={() => setEngDir('inventory')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'inventory' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Spare Parts & Tools</button>
-                      <button onClick={() => setEngDir('staff')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'staff' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Technicians</button>
-                      <button onClick={() => setEngDir('compliance')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'compliance' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Safety & Compliance</button>
-                      <button onClick={() => setEngDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Reports</button>
+                      {([
+                        { id: 'dashboard', label: 'Dashboard', modId: 'eng_dashboard' },
+                        { id: 'workorders', label: 'Work Orders', modId: 'eng_workorders' },
+                        { id: 'pm', label: 'Preventive Main.', modId: 'eng_pm' },
+                        { id: 'assets', label: 'Asset Register', modId: 'eng_assets' },
+                        { id: 'rooms', label: 'Guest Rooms', modId: 'eng_rooms' },
+                        { id: 'utilities', label: 'Utilities & Plant', modId: 'eng_utilities' },
+                        { id: 'inventory', label: 'Spare Parts & Tools', modId: 'eng_inventory' },
+                        { id: 'staff', label: 'Technicians', modId: 'eng_staff' },
+                        { id: 'compliance', label: 'Safety & Compliance', modId: 'eng_compliance' },
+                        { id: 'reports', label: 'Reports', modId: 'eng_reports' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'eng_standard_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setEngDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
                   {/* Inventory sub-navigation triggers */}
                   {activeDept === 'inventory' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="inv-sub-menu">
-                      <button onClick={() => setInvDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Dashboard</button>
-                      <button onClick={() => setInvDir('items')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'items' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Item Master</button>
-                      <button onClick={() => setInvDir('stores')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'stores' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Stores & Transfers</button>
-                      <button onClick={() => setInvDir('requisitions')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'requisitions' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Requisitions</button>
-                      <button onClick={() => setInvDir('receiving')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'receiving' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Goods Receiving</button>
-                      <button onClick={() => setInvDir('count')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'count' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Stock Counting</button>
-                      <button onClick={() => setInvDir('suppliers')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'suppliers' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Suppliers</button>
-                      <button onClick={() => setInvDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Reports</button>
+                      {([
+                        { id: 'dashboard', label: 'Dashboard', modId: 'inv_dashboard' },
+                        { id: 'items', label: 'Item Master', modId: 'inv_items' },
+                        { id: 'stores', label: 'Stores & Transfers', modId: 'inv_stores' },
+                        { id: 'requisitions', label: 'Requisitions', modId: 'inv_requisitions' },
+                        { id: 'receiving', label: 'Goods Receiving', modId: 'inv_receiving' },
+                        { id: 'count', label: 'Stock Counting', modId: 'inv_count' },
+                        { id: 'suppliers', label: 'Suppliers', modId: 'inv_suppliers' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'inv_standard_reports' },
+                        { id: 'reports', label: 'Reports', modId: 'inv_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setInvDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
                   {/* Finance sub-navigation triggers */}
                   {activeDept === 'finance' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="fin-sub-menu">
-                      <button onClick={() => setFinDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Executive Dashboard</button>
-                      <button onClick={() => setFinDir('sales')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'sales' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Sales & Receipts</button>
-                      <button onClick={() => setFinDir('gl')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'gl' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>General Ledger</button>
-                      <button onClick={() => setFinDir('expenses')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'expenses' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Expense Management</button>
-                      <button onClick={() => setFinDir('ap')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'ap' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Accounts Payable</button>
-                      <button onClick={() => setFinDir('ar')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'ar' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Accounts Receivable</button>
-                      <button onClick={() => setFinDir('cash')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'cash' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Cash & Bank</button>
-                      <button onClick={() => setFinDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Financial Reports</button>
-                      <button onClick={() => setFinDir('budget')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'budget' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Budgeting & Analysis</button>
-                      <button onClick={() => setFinDir('assets')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === 'assets' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Fixed Assets</button>
+                      {([
+                        { id: 'dashboard', label: 'Dashboard', modId: 'fin_dashboard' },
+                        { id: 'gl', label: 'General Ledger', modId: 'fin_gl' },
+                        { id: 'sales', label: 'Sales Detail', modId: 'fin_sales' },
+                        { id: 'ap', label: 'Accounts Payable', modId: 'fin_ap' },
+                        { id: 'ar', label: 'Accounts Receivable', modId: 'fin_ar' },
+                        { id: 'bank_recon', label: 'Bank Reconciliation', modId: 'fin_bank_recon' },
+                        { id: 'reports', label: 'Financial Reports', modId: 'fin_reports' },
+                        { id: 'trial_balance', label: 'Trial Balance', modId: 'fin_trial_balance' },
+                        { id: 'financial_statements', label: 'Financial Statements', modId: 'fin_statements' },
+                        { id: 'budget', label: 'Budget vs Actual', modId: 'fin_budget' },
+                        { id: 'tax_compliance', label: 'Tax Compliance', modId: 'fin_tax' },
+                        { id: 'erca_vat', label: 'ERCA VAT Export', modId: 'fin_erca_vat' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'fin_standard_reports' },
+                        { id: 'period_close', label: 'Period Close', modId: 'fin_period_close' },
+                        { id: 'assets', label: 'Fixed Assets', modId: 'fin_assets' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setFinDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
                   {/* HR sub-navigation triggers */}
                   {activeDept === 'hr' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="hr-sub-menu">
-                      <button onClick={() => setHrDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>HR Analytics</button>
-                      <button onClick={() => setHrDir('employees')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'employees' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Employee Master</button>
-                      <button onClick={() => setHrDir('attendance')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'attendance' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Attendance & Roster</button>
-                      <button onClick={() => setHrDir('payroll')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'payroll' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Payroll Management</button>
-                      <button onClick={() => setHrDir('leave')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'leave' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Leave & Absences</button>
-                      <button onClick={() => setHrDir('performance')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'performance' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Performance (KPIs)</button>
-                      <button onClick={() => setHrDir('training')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'training' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Learning & Dev</button>
-                      <button onClick={() => setHrDir('recruitment')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'recruitment' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Recruitment Flow</button>
-                      <button onClick={() => setHrDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Reports</button>
-                    </div>
-                  )}
-
-                  {/* Executive sub-navigation triggers - grouped */}
-                  {activeDept === 'executive' && (
-                    <div className="flex flex-col items-center gap-2">
-                      <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="exec-sub-menu">
-                        <button onClick={() => setExecDir('dashboard')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Overview</button>
-                        <button onClick={() => setExecDir('operations')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['operations', 'approvals'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Operations</button>
-                        <button onClick={() => setExecDir('finance')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['finance', 'planning'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Financial</button>
-                        <button onClick={() => setExecDir('business_admin')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'business_admin' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Business Admin</button>
-                        <button onClick={() => setExecDir('property_config')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'property_config' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Room Inventory</button>
-                        <button onClick={() => setExecDir('pricing_revenue')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'pricing_revenue' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Pricing & Revenue</button>
-                        <button onClick={() => setExecDir('analytics')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['analytics', 'outlet_performance'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Analytics</button>
-                        <button onClick={() => setExecDir('risk')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${['risk', 'owner'].includes(execDir) ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Strategic</button>
-                        <button onClick={() => setExecDir('governance')} className={`px-4 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === 'governance' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Governance</button>
-                      </div>
-                      {(() => {
-                        const execSubTabs: Record<string, { id: string; label: string }[]> = {
-                          operations: [
-                            { id: 'operations', label: 'Operations' },
-                            { id: 'approvals', label: 'Approvals' },
-                          ],
-                          financial: [
-                            { id: 'finance', label: 'Finance' },
-                            { id: 'planning', label: 'Planning' },
-                          ],
-                          analytics: [
-                            { id: 'analytics', label: 'Analytics' },
-                            { id: 'outlet_performance', label: 'Outlet Performance' },
-                          ],
-                          strategic: [
-                            { id: 'risk', label: 'Risk' },
-                            { id: 'owner', label: 'Owner' },
-                          ],
-                        };
-                        const activeGroup = Object.keys(execSubTabs).find(g => execSubTabs[g].some(t => t.id === execDir));
-                        if (!activeGroup) return null;
-                        return (
-                          <div className="flex bg-white p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="exec-sub-tabs">
-                            {execSubTabs[activeGroup].map(tab => (
-                              <button
-                                key={tab.id}
-                                onClick={() => setExecDir(tab.id)}
-                                className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition whitespace-nowrap ${execDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-slate-50 text-[11px]'}`}
-                              >
-                                {tab.label}
-                              </button>
-                            ))}
-                          </div>
-                        );
-                      })()}
+                      {([
+                        { id: 'dashboard', label: 'HR Analytics', modId: 'hr_dashboard' },
+                        { id: 'employees', label: 'Employee Master', modId: 'hr_employees' },
+                        { id: 'attendance', label: 'Attendance & Roster', modId: 'hr_attendance' },
+                        { id: 'payroll', label: 'Payroll Management', modId: 'hr_payroll' },
+                        { id: 'leave', label: 'Leave & Absences', modId: 'hr_leave' },
+                        { id: 'performance', label: 'Performance (KPIs)', modId: 'hr_performance' },
+                        { id: 'training', label: 'Learning & Dev', modId: 'hr_training' },
+                        { id: 'recruitment', label: 'Recruitment Flow', modId: 'hr_recruitment' },
+                        { id: 'reports', label: 'Reports', modId: 'hr_reports' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'hr_standard_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setHrDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
@@ -566,17 +795,22 @@ function MasterHotelERP() {
                   {/* Procurement sub-navigation triggers */}
                   {activeDept === 'procurement' && (
                     <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="proc-sub-menu">
-                      <button onClick={() => setProcDir('dashboard')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'dashboard' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Procurement Dashboard</button>
-                      <button onClick={() => setProcDir('requisitions')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'requisitions' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Requisitions</button>
-                      <button onClick={() => setProcDir('orders')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'orders' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Purchase Orders</button>
-                      <button onClick={() => setProcDir('suppliers')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'suppliers' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Suppliers</button>
-                      <button onClick={() => setProcDir('rfq')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'rfq' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>RFQ Management</button>
-                      <button onClick={() => setProcDir('receiving')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'receiving' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Goods Receiving</button>
-                      <button onClick={() => setProcDir('contracts')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'contracts' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Contracts</button>
-                      <button onClick={() => setProcDir('budget')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'budget' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Budget Control</button>
-                      <button onClick={() => setProcDir('invoices')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'invoices' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Supplier Invoices</button>
-                      <button onClick={() => setProcDir('approvals')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'approvals' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Approval Center</button>
-                      <button onClick={() => setProcDir('reports')} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === 'reports' ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>Reports</button>
+                      {([
+                        { id: 'dashboard', label: 'Procurement Dashboard', modId: 'proc_dashboard' },
+                        { id: 'requisitions', label: 'Requisitions', modId: 'proc_requisitions' },
+                        { id: 'orders', label: 'Purchase Orders', modId: 'proc_orders' },
+                        { id: 'suppliers', label: 'Suppliers', modId: 'proc_suppliers' },
+                        { id: 'rfq', label: 'RFQ Management', modId: 'proc_rfq' },
+                        { id: 'receiving', label: 'Goods Receiving', modId: 'proc_receiving' },
+                        { id: 'contracts', label: 'Contracts', modId: 'proc_contracts' },
+                        { id: 'budget', label: 'Budget Control', modId: 'proc_budget' },
+                        { id: 'invoices', label: 'Supplier Invoices', modId: 'proc_invoices' },
+                        { id: 'approvals', label: 'Approval Center', modId: 'proc_approvals' },
+                        { id: 'reports', label: 'Reports', modId: 'proc_reports' },
+                        { id: 'standard-reports', label: 'Standard Reports', modId: 'proc_standard_reports' },
+                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
+                        <button key={tab.id} onClick={() => setProcDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
+                      ))}
                     </div>
                   )}
 
@@ -705,6 +939,11 @@ function MasterHotelERP() {
                     <EngineeringPortal activeTab={engDir} />
                   )}
 
+                  {/* SALES & EVENTS PORTAL */}
+                  {activeDept === 'sales' && (
+                    <SalesPortal activeTab={'pipeline'} />
+                  )}
+
                   {/* INVENTORY & WAREHOUSE PORTAL */}
                   {activeDept === 'inventory' && (
                     <InventoryPortal activeTab={invDir} />
@@ -720,11 +959,9 @@ function MasterHotelERP() {
                     <HumanResourcesPortal activeModule={hrDir} />
                   )}
 
-                  {/* EXECUTIVE BUSINESS PERFORMANCE ANALYTICS */}
+                  {/* UNIFIED EXECUTIVE & OPERATIONS PORTAL */}
                   {activeDept === 'executive' && (
-                    <>
-                      {(currentUser?.role === 'general_manager' || currentUser?.role === 'executive' || currentUser?.role === 'gm' || currentUser?.role === 'owner') && <ExecutivePortal activeModule={execDir} />}
-                    </>
+                    <UnifiedPortal initialMode="executive" />
                   )}
 
                   {/* SYSTEM ADMINISTRATION & GOVERNANCE PORTAL */}
@@ -735,6 +972,11 @@ function MasterHotelERP() {
                   {/* PROCUREMENT & STRATEGIC SOURCING PORTAL */}
                   {activeDept === 'procurement' && (
                     <ProcurementPortal activeModule={procDir} />
+                  )}
+
+                  {/* OPERATIONS — now merged into Unified Portal */}
+                  {activeDept === 'operations' && (
+                    <UnifiedPortal initialMode="operations" />
                   )}
 
                   {/* ACCOUNT SETTINGS */}
@@ -751,6 +993,36 @@ function MasterHotelERP() {
           }
         />
         <Route path="/" element={<Navigate to="/booking" replace />} />
+        {/* Standalone KDS Display — accessible at /kds */}
+        <Route
+          path="/kds"
+          element={
+            !sessionChecked ? (
+              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
+            ) : !currentUser ? (
+              <Navigate to="/login?redirect=/kds" replace />
+            ) : (
+              <div className="min-h-screen bg-slate-950">
+                <KitchenDisplayModule />
+              </div>
+            )
+          }
+        />
+        {/* KDS Management — accessible at /kds-management */}
+        <Route
+          path="/kds-management"
+          element={
+            !sessionChecked ? (
+              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
+            ) : !currentUser ? (
+              <Navigate to="/login?redirect=/kds-management" replace />
+            ) : (
+              <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+                <KDSInstanceManagement />
+              </div>
+            )
+          }
+        />
       </Routes>
 
       {printGuestForm && (
@@ -767,15 +1039,9 @@ function MasterHotelERP() {
 export default function App() {
   return (
     <ErrorBoundary onError={(error, errorInfo) => console.error('App Error:', error, errorInfo)}>
-      <ERPProvider>
-        <GuestProvider>
-          <GroupProvider>
-            <ModalReturnProvider>
-              <MasterHotelERP />
-            </ModalReturnProvider>
-          </GroupProvider>
-        </GuestProvider>
-      </ERPProvider>
+      <AppProviders>
+        <MasterHotelERP />
+      </AppProviders>
     </ErrorBoundary>
   );
 }

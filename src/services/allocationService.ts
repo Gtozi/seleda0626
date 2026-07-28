@@ -131,8 +131,11 @@ export const calculateProposedAllocations = (
   arrivals.forEach(res => {
     if (res.roomNumber) return; // Already assigned
 
+    // Prefer roomTypeId matching (canonical after Step 2.4), fallback to type name
     const candidates = rooms.filter(r => 
-      r.type === res.roomType && 
+      (res.roomTypeId && r.roomTypeId === res.roomTypeId) ||
+      (!res.roomTypeId && r.type === res.roomType) ||
+      (r.type === res.roomType) &&
       !occupiedRoomNumbers.has(r.number) && 
       !assignedRoomNumbersInThisTurn.has(r.number)
     );
@@ -192,6 +195,7 @@ export const getTypeAvailability = (
   reservations: Reservation[],
   excludeReservationId?: string
 ): TypeAvailability => {
+  // Use type name matching (canonical via room_type_id join in dataMapper)
   const capacity = rooms.filter(r => r.type === roomType).length;
   const booked = reservations.filter(res =>
     res.id !== excludeReservationId &&

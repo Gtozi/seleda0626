@@ -126,7 +126,12 @@ export default function LaundryModule() {
     if (jobToUpdate && nextStatus === 'Delivered and Charged' && !jobToUpdate.isBilled) {
       addFolioCharge(jobToUpdate.reservationId, {
         amount: jobToUpdate.totalCharged,
-        description: `Laundry Service: ${jobToUpdate.serviceType} - ${jobToUpdate.piecesCount} pcs (Job ${jobToUpdate.id})`
+        description: `Laundry Service: ${jobToUpdate.serviceType} - ${jobToUpdate.piecesCount} pcs (Job ${jobToUpdate.id})`,
+        // USALI tracking
+        usaliCode: '8500',
+        usaliRevenueCode: '8500',
+        usaliCostCode: '8500',
+        department: 'Housekeeping'
       });
       addNotification(`Folio charged ${formatAmount(jobToUpdate.totalCharged)} for Room ${jobToUpdate.roomNumber} delivery.`, 'success', 'Housekeeping');
     }

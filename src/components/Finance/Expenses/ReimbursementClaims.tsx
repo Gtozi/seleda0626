@@ -14,6 +14,7 @@ import {
   ExternalLink,
   ChevronRight
 } from 'lucide-react';
+import { DataTable, Column } from '../../Shared/DataTable';
 
 const ReimbursementClaims = () => {
   const claims = [
@@ -48,91 +49,87 @@ const ReimbursementClaims = () => {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs">
-         <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div>
+         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-4">
             <div>
                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Staff Reimbursement Workflow</h3>
                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Employee expense claims & verification state</p>
             </div>
-            <div className="flex gap-2">
-               <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                  <input 
-                    type="text" 
-                    placeholder="Search by staff name..." 
-                    className="pl-9 pr-4 py-2.5 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-bold focus:ring-2 focus:ring-indigo-500 w-64"
-                  />
-               </div>
-               <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
-                  Submit Claim
-               </button>
-            </div>
+            <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
+               Submit Claim
+            </button>
          </div>
-
-         <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-               <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee Profile</th>
-                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Reference</th>
-                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Amount</th>
-                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                     <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Verification</th>
-                  </tr>
-               </thead>
-               <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                  {claims.map((claim, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer">
-                       <td className="px-8 py-6">
-                          <div className="flex items-center gap-4">
-                             <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                                {claim.staff.split(' ').map(n => n[0]).join('')}
-                             </div>
-                             <div>
-                                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{claim.staff}</h4>
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{claim.role}</span>
-                             </div>
-                          </div>
-                       </td>
-                       <td className="px-8 py-6 text-center">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{claim.id}</span>
-                            <span className="text-[9px] font-bold text-slate-400 uppercase">{claim.date}</span>
-                          </div>
-                       </td>
-                       <td className="px-8 py-6 text-center">
-                          <div className="flex flex-col items-center">
-                             <span className="text-xs font-black text-slate-900 dark:text-white font-mono">${claim.amount.toFixed(2)}</span>
-                             <span className="text-[9px] font-black text-slate-400 uppercase mt-0.5">{claim.category}</span>
-                          </div>
-                       </td>
-                       <td className="px-8 py-6 text-center">
-                          <div className="flex flex-col items-center gap-1.5">
-                             {claim.status === 'Pending' && <Clock size={16} className="text-amber-500" />}
-                             {claim.status === 'Verified' && <CheckCircle size={16} className="text-blue-500" />}
-                             {claim.status === 'Paid' && <CheckCircle size={16} className="text-emerald-500" />}
-                             {claim.status === 'Rejected' && <AlertCircle size={16} className="text-rose-500" />}
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{claim.status}</span>
-                          </div>
-                       </td>
-                       <td className="px-8 py-6 text-right">
-                          <div className="flex items-center justify-end gap-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                             {claim.receipts > 0 && (
-                               <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-500">
-                                  <Paperclip size={12} />
-                                  <span className="text-[10px] font-bold">{claim.receipts}</span>
-                               </div>
-                             )}
-                             <button className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-xl transition">
-                                <ChevronRight size={16} />
-                             </button>
-                          </div>
-                       </td>
-                    </tr>
-                  ))}
-               </tbody>
-            </table>
-         </div>
+         <DataTable
+           columns={[
+             {
+               key: 'staff', label: 'Employee Profile',
+               render: (claim: any) => (
+                 <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                     {claim.staff.split(' ').map((n: string) => n[0]).join('')}
+                   </div>
+                   <div>
+                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{claim.staff}</h4>
+                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tight">{claim.role}</span>
+                   </div>
+                 </div>
+               ),
+             },
+             {
+               key: 'id', label: 'Reference', align: 'center' as const,
+               render: (claim: any) => (
+                 <div className="flex flex-col items-center">
+                   <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{claim.id}</span>
+                   <span className="text-[9px] font-bold text-slate-400 uppercase">{claim.date}</span>
+                 </div>
+               ),
+             },
+             {
+               key: 'amount', label: 'Amount', align: 'center' as const,
+               render: (claim: any) => (
+                 <div className="flex flex-col items-center">
+                   <span className="text-xs font-black text-slate-900 dark:text-white font-mono">${claim.amount.toFixed(2)}</span>
+                   <span className="text-[9px] font-black text-slate-400 uppercase mt-0.5">{claim.category}</span>
+                 </div>
+               ),
+             },
+             {
+               key: 'status', label: 'Status', align: 'center' as const,
+               render: (claim: any) => (
+                 <div className="flex flex-col items-center gap-1.5">
+                   {claim.status === 'Pending' && <Clock size={16} className="text-amber-500" />}
+                   {claim.status === 'Verified' && <CheckCircle size={16} className="text-blue-500" />}
+                   {claim.status === 'Paid' && <CheckCircle size={16} className="text-emerald-500" />}
+                   {claim.status === 'Rejected' && <AlertCircle size={16} className="text-rose-500" />}
+                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider">{claim.status}</span>
+                 </div>
+               ),
+             },
+             {
+               key: 'actions', label: 'Verification', align: 'right' as const, sortable: false,
+               render: (claim: any) => (
+                 <div className="flex items-center justify-end gap-4">
+                   {claim.receipts > 0 && (
+                     <div className="flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-slate-500">
+                       <Paperclip size={12} />
+                       <span className="text-[10px] font-bold">{claim.receipts}</span>
+                     </div>
+                   )}
+                   <button className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-xl transition">
+                     <ChevronRight size={16} />
+                   </button>
+                 </div>
+               ),
+             },
+           ] as Column<any>[]}
+           data={claims}
+           rowKey={(claim) => claim.id}
+           sortable
+           filterable
+           filterPlaceholder="Search by staff name..."
+           filterKeys={['id', 'staff', 'role', 'category', 'status']}
+           containerClassName="rounded-[32px]"
+         />
       </div>
     </div>
   );

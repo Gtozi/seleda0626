@@ -22,6 +22,7 @@ import {
 import { InventoryItem, InventoryCategory, InventorySubCategory } from '../../types/inventory';
 
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 const ItemMasterModule: React.FC = () => {
   const { 
@@ -245,13 +246,14 @@ const ItemMasterModule: React.FC = () => {
       </div>
 
       {/* Create Item Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Create New Inventory Item</h3>
-              <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create New Inventory Item"
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
             <form onSubmit={handleCreate} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -315,18 +317,17 @@ const ItemMasterModule: React.FC = () => {
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition">Create Item</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Edit Item Modal */}
-      {showEditModal && editingItem && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Edit Inventory Item</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showEditModal && !!editingItem}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Inventory Item"
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
             <form onSubmit={handleEdit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -390,18 +391,17 @@ const ItemMasterModule: React.FC = () => {
                 <button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition">Save Changes</button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Print Labels Modal */}
-      {showPrintModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Print SKU Labels</h3>
-              <button onClick={() => setShowPrintModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showPrintModal}
+        onClose={() => setShowPrintModal(false)}
+        title="Print SKU Labels"
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {filteredItems.map((item) => (
                 <div key={item.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-950 flex flex-col items-center gap-2">
@@ -422,18 +422,17 @@ const ItemMasterModule: React.FC = () => {
               <button onClick={() => setShowPrintModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
               <button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center gap-2"><Printer size={14} /> Print All</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Item Detail Modal */}
-      {showDetailModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Item Ledger</h3>
-              <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showDetailModal && !!selectedItem}
+        onClose={() => setShowDetailModal(false)}
+        title="Item Ledger"
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-xl text-emerald-500 shadow-3xs">
                 <Package size={20} />
@@ -480,9 +479,7 @@ const ItemMasterModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowDetailModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

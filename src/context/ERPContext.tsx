@@ -3,25 +3,27 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useMemo } from 'react';
 import {
   Room, Guest, Reservation, GroupBooking, CorporateAccount,
-  Promotion, MarketingCampaign, Notification, ERPStats, GuestCommunication, AirportShuttleRequest,
+  Promotion, MarketingCampaign, Notification, ERPStats,
   RatePlan, Season, Package, User, DispatchedEmail, GlobalHotelSettings,
   RoomStatus, ReservationStatus, RoomTypeMetadata, YieldPolicy, PendingAdminChange, AdminChangeType, RiskCompliance, RoomTypeDetail, GuestService
 } from '../types/erp';
+import type { GuestCommunication, AirportShuttleRequest } from '../types/erp';
 import { 
   JournalEntry, GlobalSaleTransaction, ChartOfAccount, ExpenseRequest 
 } from '../types/finance';
 import { InventoryItem, Store, Requisition, StockMovement, Supplier } from '../types/inventory';
-import { SystemProvider, useSystem } from './SystemContext';
+import { SystemProvider, useSystem, PropertyInfo, OrganizationInfo } from './SystemContext';
 import { GuestProvider, useGuest } from './GuestContext';
 import { toISODate } from '../utils/date';
 import { ReservationProvider, useReservation } from './ReservationContext';
 import { InventoryProvider, useInventory } from './InventoryContext';
 import { FinanceProvider, useFinance } from './FinanceContext';
+import { PricingProvider, usePricing, type PricingContextType } from './PricingContext';
+import { OperationsProvider, useOperations, type OperationsContextType } from './OperationsContext';
 import { rangesOverlap } from '../services/allocationService';
-import { supabase, hasSupabaseConfig } from '../lib/supabase';
 
 export interface ERPContextType {
   platformView: 'erp' | 'direct' | 'mobile';
@@ -75,6 +77,8 @@ export interface ERPContextType {
   checkInReservation: (id: string, roomNumber?: string) => Promise<void>;
   checkInGroupBooking: (groupId: string) => Promise<void>;
   checkOutReservation: (id: string) => void;
+  cancelReservation: (id: string, reason?: string) => Promise<void>;
+  markNoShow: (id: string) => Promise<void>;
   requestEarlyCheckOut: (id: string) => void;
   requestLateCheckOut: (id: string) => void;
   addFolioCharge: (reservationId: string, charge: Omit<import('../types/erp').FolioCharge, 'id' | 'date'>) => Promise<void>;
@@ -84,6 +88,9 @@ export interface ERPContextType {
   addFolioPayment: (reservationId: string, payment: Omit<import('../types/erp').FolioPayment, 'id' | 'date'> | Array<Omit<import('../types/erp').FolioPayment, 'id' | 'date'>>) => Promise<any>;
   voidFolioPayment: (reservationId: string, paymentId: string) => Promise<void>;
   addJournalEntry: (entry: Omit<JournalEntry, 'id'>) => string;
+  createJournalEntry: (entry: Omit<JournalEntry, 'id'>) => Promise<JournalEntry>;
+  postJournalEntry: (id: string) => Promise<void>;
+  reverseJournalEntry: (id: string) => Promise<JournalEntry>;
   addAccount: (account: ChartOfAccount) => void;
   deleteAccount: (code: string) => void;
   postAutoJournal: (params: {
@@ -152,16 +159,23 @@ export interface ERPContextType {
   theme: 'light' | 'dark';
   toggleTheme: () => void;
   userProfile: {
+    id: string;
     name: string;
     email: string;
     role: string;
+    roleDescription?: string;
     avatar?: string;
     lastLogin: string;
+    department?: string;
+    employeeId?: string;
+    mobileNumber?: string;
+    username?: string;
+    status?: string;
   };
-  setUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
-  updateProfile: (data: Partial<{ name: string; email: string; avatar: string }>) => void;
+  setUserProfile: (profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => void;
+  updateProfile: (data: Partial<{ name: string; email: string; avatar: string; mobileNumber: string; username: string }>) => void;
   updatePassword: (old: string, newP: string) => Promise<boolean>;
-  syncUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
+  syncUserProfile: (profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => void;
   globalHotelSettings: GlobalHotelSettings;
   updateGlobalHotelSettings: (settings: Partial<GlobalHotelSettings>) => void;
   roomTypeMetadata: RoomTypeMetadata[];
@@ -187,6 +201,8 @@ export interface ERPContextType {
   updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
   deleteInventoryItem: (id: string) => void;
   addInventoryStore: (store: Omit<Store, 'id'>) => void;
+  updateInventoryStore: (id: string, updates: Partial<Store>) => void;
+  deleteInventoryStore: (id: string) => void;
   addInventoryRequisition: (req: Omit<Requisition, 'id' | 'number'>) => void;
   updateInventoryRequisitionStatus: (id: string, status: Requisition['status'], itemsWithIssuedQty?: { itemId: string, issuedQty: number }[]) => void;
   recordStockMovement: (movement: Omit<StockMovement, 'id'>) => void;
@@ -201,6 +217,10 @@ export interface ERPContextType {
   declineAdminChange: (id: string) => void;
   submitGlobalSettingsChange: (title: string, description: string, changeType: AdminChangeType, settings: Partial<GlobalHotelSettings>) => void;
   refreshAllData: () => Promise<void>;
+  currentPropertyId: string | null;
+  setCurrentPropertyId: (id: string | null) => void;
+  properties: PropertyInfo[];
+  organizations: OrganizationInfo[];
 }
 
 const ERPContext = createContext<ERPContextType | undefined>(undefined);
@@ -211,427 +231,11 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
   const reservation = useReservation();
   const inventory = useInventory();
   const finance = useFinance();
-
-  // Yield policies state
-  const [yieldPolicies, setYieldPolicies] = useState<YieldPolicy[]>([]);
-
-  // Campaigns and Promotions state
-  const [campaigns, setCampaigns] = useState<MarketingCampaign[]>([]);
-  const [promotions, setPromotions] = useState<Promotion[]>([]);
-
-  // Guest Services state
-  const [guestServices, setGuestServices] = useState<GuestService[]>([]);
-
-  const refreshPricingData = useCallback(async () => {
-    if (!hasSupabaseConfig) return;
-    try {
-      const { data: yieldData } = await supabase.from('yield_policies').select('*');
-      if (yieldData) {
-        setYieldPolicies(yieldData.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          multiplier: row.multiplier,
-          isDefault: row.is_default
-        })));
-      }
-
-      const { data: guestServicesData } = await supabase.from('guest_services').select('*');
-      if (guestServicesData) {
-        setGuestServices(guestServicesData.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          category: row.category,
-          price: row.price,
-          available: row.available
-        })));
-      }
-
-      const { data: roomTypesData } = await supabase.from('room_types').select('*').order('display_order');
-      if (roomTypesData && roomTypesData.length > 0) {
-        setRoomTypes(roomTypesData.map((row: any) => ({
-          id: row.id,
-          name: row.name,
-          description: row.description,
-          basePrice: row.base_price,
-          maxOccupancy: row.max_occupancy,
-          bedConfiguration: row.bed_configuration,
-          roomSizeSqm: row.room_size_sqm,
-          amenities: row.amenities || [],
-          imageUrl1: row.image_url_1,
-          imageUrl2: row.image_url_2,
-          imageUrl3: row.image_url_3,
-          isActive: row.is_active,
-          displayOrder: row.display_order,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching pricing data:', error);
-    }
-  }, []);
-
-  // Fetch pricing data from database on mount
-  useEffect(() => {
-    refreshPricingData();
-  }, [refreshPricingData]);
-
-  const refreshAirportShuttleRequests = useCallback(async () => {
-    if (!hasSupabaseConfig) return;
-    try {
-      const { data, error } = await supabase
-        .from('airport_shuttle_requests')
-        .select('*')
-        .order('scheduled_date', { ascending: true })
-        .order('scheduled_time', { ascending: true });
-
-      if (error) {
-        console.error('Error fetching airport shuttle requests:', error);
-        return;
-      }
-
-      if (data) {
-        setAirportShuttleRequests(data.map((row: any) => ({
-          id: row.id,
-          guestId: row.guest_id,
-          reservationId: row.reservation_id,
-          roomNumber: row.room_number,
-          scheduledDate: row.scheduled_date,
-          scheduledTime: row.scheduled_time,
-          shuttleType: row.shuttle_type,
-          flightNumber: row.flight_number,
-          flightTime: row.flight_time,
-          status: row.status,
-          notes: row.notes,
-          quantity: row.quantity ?? 1,
-          createdAt: row.created_at,
-          updatedAt: row.updated_at
-        })));
-      }
-    } catch (error) {
-      console.error('Error fetching airport shuttle requests:', error);
-    }
-  }, []);
-
-  // Fetch airport shuttle requests from Supabase on mount
-  useEffect(() => {
-    refreshAirportShuttleRequests();
-  }, [refreshAirportShuttleRequests]);
+  const pricing = usePricing();
+  const operations = useOperations();
 
   // Risk & Compliance state
   const [riskCompliance, setRiskCompliance] = useState<RiskCompliance[]>([]);
-
-  // Room Types state
-  const [roomTypes, setRoomTypes] = useState<RoomTypeDetail[]>([
-    {
-      id: 'rt_single',
-      name: 'Single Room',
-      description: 'Comfortable single room perfect for business travelers. Features a cozy workspace and modern amenities.',
-      basePrice: 89.00,
-      maxOccupancy: 1,
-      bedConfiguration: '1 Queen Bed',
-      roomSizeSqm: 26,
-      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping'],
-      imageUrl1: 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&h=600&fit=crop',
-      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
-      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
-      isActive: true,
-      displayOrder: 1,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'rt_double',
-      name: 'Double Room',
-      description: 'Spacious double room ideal for couples or friends. Offers comfortable bedding and city views.',
-      basePrice: 129.00,
-      maxOccupancy: 2,
-      bedConfiguration: '1 King Bed or 2 Queen Beds',
-      roomSizeSqm: 33,
-      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'City View'],
-      imageUrl1: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?w=800&h=600&fit=crop',
-      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
-      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
-      isActive: true,
-      displayOrder: 2,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'rt_suite',
-      name: 'Suite',
-      description: 'Luxurious suite with separate living area. Perfect for extended stays and special occasions.',
-      basePrice: 199.00,
-      maxOccupancy: 3,
-      bedConfiguration: '1 King Bed + Sofa Bed',
-      roomSizeSqm: 51,
-      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'City View', 'Living Room', 'Dining Table', 'Bathtub', 'Robes'],
-      imageUrl1: 'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=800&h=600&fit=crop',
-      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
-      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
-      isActive: true,
-      displayOrder: 3,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'rt_deluxe',
-      name: 'Deluxe Room',
-      description: 'Premium deluxe room with enhanced amenities and stunning views. Features premium bedding and upgraded bath products.',
-      basePrice: 159.00,
-      maxOccupancy: 2,
-      bedConfiguration: '1 King Bed',
-      roomSizeSqm: 39,
-      amenities: ['Free WiFi', 'Smart TV', 'Work Desk', 'Air Conditioning', 'Mini Bar', 'Coffee Maker', 'Safe', 'Daily Housekeeping', 'Ocean View', 'Premium Bath Products', 'Turndown Service'],
-      imageUrl1: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?w=800&h=600&fit=crop',
-      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
-      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
-      isActive: true,
-      displayOrder: 4,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'rt_penthouse',
-      name: 'Penthouse',
-      description: 'Exclusive penthouse suite with panoramic views, private terrace, and full luxury amenities. The ultimate accommodation experience.',
-      basePrice: 499.00,
-      maxOccupancy: 4,
-      bedConfiguration: '1 King Bed + 2 Queen Beds',
-      roomSizeSqm: 111,
-      amenities: ['Free WiFi', 'Multiple Smart TVs', 'Work Desk', 'Air Conditioning', 'Fully Stocked Mini Bar', 'Premium Coffee Maker', 'Safe', 'Daily Housekeeping', 'Panoramic View', 'Living Room', 'Dining Room', 'Private Terrace', 'Jacuzzi', 'Steam Room', 'Butler Service', 'Private Check-in', 'Airport Transfer'],
-      imageUrl1: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&h=600&fit=crop',
-      imageUrl2: 'https://images.unsplash.com/photo-1590490360182-c33d57733427?w=800&h=600&fit=crop',
-      imageUrl3: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=800&h=600&fit=crop',
-      isActive: true,
-      displayOrder: 5,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-  ]);
-
-  const addRoomType = useCallback(async (roomType: Omit<RoomTypeDetail, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newId = `rt_${Date.now()}`;
-    const now = new Date().toISOString();
-    const newRoomType = { ...roomType, id: newId, createdAt: now, updatedAt: now };
-    
-    setRoomTypes(prev => [...prev, newRoomType]);
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('room_types').insert({
-          id: newId,
-          name: roomType.name,
-          description: roomType.description,
-          base_price: roomType.basePrice,
-          max_occupancy: roomType.maxOccupancy,
-          bed_configuration: roomType.bedConfiguration,
-          room_size_sqm: roomType.roomSizeSqm,
-          amenities: roomType.amenities,
-          image_url_1: roomType.imageUrl1,
-          image_url_2: roomType.imageUrl2,
-          image_url_3: roomType.imageUrl3,
-          is_active: roomType.isActive,
-          display_order: roomType.displayOrder
-        });
-      } catch (error) {
-        console.error('Error adding room type:', error);
-      }
-    }
-  }, []);
-
-  const updateRoomType = useCallback(async (id: string, updates: Partial<RoomTypeDetail>) => {
-    setRoomTypes(prev => prev.map(rt => {
-      if (rt.id === id) {
-        return { ...rt, ...updates, updatedAt: new Date().toISOString() };
-      }
-      return rt;
-    }));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('room_types').update({
-          name: updates.name,
-          description: updates.description,
-          base_price: updates.basePrice,
-          max_occupancy: updates.maxOccupancy,
-          bed_configuration: updates.bedConfiguration,
-          room_size_sqm: updates.roomSizeSqm,
-          amenities: updates.amenities,
-          image_url_1: updates.imageUrl1,
-          image_url_2: updates.imageUrl2,
-          image_url_3: updates.imageUrl3,
-          is_active: updates.isActive,
-          display_order: updates.displayOrder,
-          updated_at: new Date().toISOString()
-        }).eq('id', id);
-      } catch (error) {
-        console.error('Error updating room type:', error);
-      }
-    }
-  }, []);
-
-  const deleteRoomType = useCallback(async (id: string) => {
-    setRoomTypes(prev => prev.filter(rt => rt.id !== id));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('room_types').delete().eq('id', id);
-      } catch (error) {
-        console.error('Error deleting room type:', error);
-      }
-    }
-  }, []);
-
-  const addYieldPolicy = useCallback(async (policy: Omit<YieldPolicy, 'id'>) => {
-    const newId = `policy_${Date.now()}`;
-    const newPolicy = { ...policy, id: newId };
-    
-    setYieldPolicies(prev => [...prev, newPolicy]);
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('yield_policies').insert({
-          id: newId,
-          name: policy.name,
-          description: policy.description,
-          multiplier: policy.multiplier,
-          is_default: policy.isDefault
-        });
-      } catch (error) {
-        console.error('Error adding yield policy:', error);
-      }
-    }
-  }, []);
-
-  const updateYieldPolicy = useCallback(async (id: string, updates: Partial<YieldPolicy>) => {
-    setYieldPolicies(prev => prev.map(policy => {
-      if (policy.id === id) {
-        return { ...policy, ...updates };
-      }
-      return policy;
-    }));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('yield_policies').update({
-          name: updates.name,
-          description: updates.description,
-          multiplier: updates.multiplier,
-          is_default: updates.isDefault
-        }).eq('id', id);
-      } catch (error) {
-        console.error('Error updating yield policy:', error);
-      }
-    }
-  }, []);
-
-  const deleteYieldPolicy = useCallback(async (id: string) => {
-    setYieldPolicies(prev => prev.filter(policy => policy.id !== id));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('yield_policies').delete().eq('id', id);
-      } catch (error) {
-        console.error('Error deleting yield policy:', error);
-      }
-    }
-  }, []);
-
-  const addCampaign = useCallback((campaign: Omit<MarketingCampaign, 'id'>) => {
-    const newId = `camp_${Date.now()}`;
-    setCampaigns(prev => [...prev, { ...campaign, id: newId }]);
-  }, []);
-
-  const updateCampaign = useCallback((id: string, updates: Partial<MarketingCampaign>) => {
-    setCampaigns(prev => prev.map(camp => {
-      if (camp.id === id) {
-        return { ...camp, ...updates };
-      }
-      return camp;
-    }));
-  }, []);
-
-  const deleteCampaign = useCallback((id: string) => {
-    setCampaigns(prev => prev.filter(camp => camp.id !== id));
-  }, []);
-
-  const addGuestService = useCallback(async (service: Omit<GuestService, 'id'>) => {
-    const newId = `gs_${Date.now()}`;
-    const newService = { ...service, id: newId };
-    
-    setGuestServices(prev => [...prev, newService]);
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('guest_services').insert({
-          id: newId,
-          name: service.name,
-          description: service.description,
-          category: service.category,
-          price: service.price,
-          available: service.available
-        });
-      } catch (error) {
-        console.error('Error adding guest service:', error);
-      }
-    }
-  }, []);
-
-  const updateGuestService = useCallback(async (id: string, updates: Partial<GuestService>) => {
-    setGuestServices(prev => prev.map(service => {
-      if (service.id === id) {
-        return { ...service, ...updates };
-      }
-      return service;
-    }));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('guest_services').update({
-          name: updates.name,
-          description: updates.description,
-          category: updates.category,
-          price: updates.price,
-          available: updates.available
-        }).eq('id', id);
-      } catch (error) {
-        console.error('Error updating guest service:', error);
-      }
-    }
-  }, []);
-
-  const deleteGuestService = useCallback(async (id: string) => {
-    setGuestServices(prev => prev.filter(service => service.id !== id));
-    
-    if (hasSupabaseConfig) {
-      try {
-        await supabase.from('guest_services').delete().eq('id', id);
-      } catch (error) {
-        console.error('Error deleting guest service:', error);
-      }
-    }
-  }, []);
-
-  const addPromotion = useCallback((promo: Omit<Promotion, 'id'>) => {
-    const newId = `promo_${Date.now()}`;
-    setPromotions(prev => [...prev, { ...promo, id: newId }]);
-  }, []);
-
-  const updatePromotion = useCallback((id: string, updates: Partial<Promotion>) => {
-    setPromotions(prev => prev.map(promo => {
-      if (promo.id === id) {
-        return { ...promo, ...updates };
-      }
-      return promo;
-    }));
-  }, []);
-
-  const deletePromotion = useCallback((id: string) => {
-    setPromotions(prev => prev.filter(promo => promo.id !== id));
-  }, []);
 
   const runNightAudit = useCallback(() => {
     const revenuePosted = finance.stats.totalRevenue;
@@ -682,173 +286,317 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     return best ? best.number : null;
   };
 
-  // Guest Communications state
-  const [guestCommunications, setGuestCommunications] = useState<GuestCommunication[]>([]);
-
-  const addGuestCommunication = useCallback((comm: Omit<GuestCommunication, 'id' | 'createdAt'>) => {
-    const newId = `comm_${Date.now()}`;
-    const newComm: GuestCommunication = {
-      ...comm,
-      id: newId,
-      createdAt: new Date().toISOString()
-    };
-    setGuestCommunications(prev => [...prev, newComm]);
-    return newId;
-  }, []);
-
-  const updateGuestCommunication = useCallback((id: string, updates: Partial<GuestCommunication>) => {
-    setGuestCommunications(prev => prev.map(comm => {
-      if (comm.id === id) {
-        return { ...comm, ...updates };
-      }
-      return comm;
-    }));
-  }, []);
-
-  const deleteGuestCommunication = useCallback((id: string) => {
-    setGuestCommunications(prev => prev.filter(comm => comm.id !== id));
-  }, []);
-
-  // Airport Shuttle Requests state
-  const [airportShuttleRequests, setAirportShuttleRequests] = useState<AirportShuttleRequest[]>([]);
-
-  const addAirportShuttleRequest = useCallback((request: Omit<AirportShuttleRequest, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newId = `shuttle_${Date.now()}`;
-    const now = new Date().toISOString();
-    const newRequest: AirportShuttleRequest = {
-      ...request,
-      id: newId,
-      createdAt: now,
-      updatedAt: now
-    };
-    setAirportShuttleRequests(prev => [...prev, newRequest]);
-
-    if (hasSupabaseConfig) {
-      try {
-        supabase.from('airport_shuttle_requests').insert({
-          id: newId,
-          guest_id: request.guestId,
-          reservation_id: request.reservationId,
-          room_number: request.roomNumber,
-          scheduled_date: request.scheduledDate,
-          scheduled_time: request.scheduledTime,
-          shuttle_type: request.shuttleType,
-          flight_number: request.flightNumber,
-          flight_time: request.flightTime,
-          status: request.status,
-          notes: request.notes,
-          quantity: request.quantity ?? 1,
-          created_at: now,
-          updated_at: now
-        }).then(({ error }) => {
-          if (error) console.error('Error adding airport shuttle request:', error);
-        });
-      } catch (error) {
-        console.error('Error adding airport shuttle request:', error);
-      }
-    }
-
-    return newId;
-  }, []);
-
-  const updateAirportShuttleRequest = useCallback((id: string, updates: Partial<AirportShuttleRequest>) => {
-    const now = new Date().toISOString();
-    setAirportShuttleRequests(prev => prev.map(req => {
-      if (req.id === id) {
-        return { ...req, ...updates, updatedAt: now };
-      }
-      return req;
-    }));
-
-    if (hasSupabaseConfig) {
-      try {
-        const mappedUpdates: any = { updated_at: now };
-        if (updates.guestId !== undefined) mappedUpdates.guest_id = updates.guestId;
-        if (updates.reservationId !== undefined) mappedUpdates.reservation_id = updates.reservationId;
-        if (updates.roomNumber !== undefined) mappedUpdates.room_number = updates.roomNumber;
-        if (updates.scheduledDate !== undefined) mappedUpdates.scheduled_date = updates.scheduledDate;
-        if (updates.scheduledTime !== undefined) mappedUpdates.scheduled_time = updates.scheduledTime;
-        if (updates.shuttleType !== undefined) mappedUpdates.shuttle_type = updates.shuttleType;
-        if (updates.flightNumber !== undefined) mappedUpdates.flight_number = updates.flightNumber;
-        if (updates.flightTime !== undefined) mappedUpdates.flight_time = updates.flightTime;
-        if (updates.status !== undefined) mappedUpdates.status = updates.status;
-        if (updates.notes !== undefined) mappedUpdates.notes = updates.notes;
-        if (updates.quantity !== undefined) mappedUpdates.quantity = updates.quantity;
-
-        supabase.from('airport_shuttle_requests').update(mappedUpdates).eq('id', id).then(({ error }) => {
-          if (error) console.error('Error updating airport shuttle request:', error);
-        });
-      } catch (error) {
-        console.error('Error updating airport shuttle request:', error);
-      }
-    }
-  }, []);
-
-  const deleteAirportShuttleRequest = useCallback((id: string) => {
-    setAirportShuttleRequests(prev => prev.filter(req => req.id !== id));
-
-    if (hasSupabaseConfig) {
-      try {
-        supabase.from('airport_shuttle_requests').delete().eq('id', id).then(({ error }) => {
-          if (error) console.error('Error deleting airport shuttle request:', error);
-        });
-      } catch (error) {
-        console.error('Error deleting airport shuttle request:', error);
-      }
-    }
-  }, []);
-
-  const contextsRef = useRef({ system, guest, reservation, inventory, finance });
-  contextsRef.current = { system, guest, reservation, inventory, finance };
+  const contextsRef = useRef({ system, guest, reservation, inventory, finance, pricing, operations });
+  contextsRef.current = { system, guest, reservation, inventory, finance, pricing, operations };
 
   const refreshAllData = useCallback(async () => {
-    const { system: sys, guest: gst, reservation: res, inventory: inv, finance: fin } = contextsRef.current;
+    const { system: sys, guest: gst, reservation: res, inventory: inv, finance: fin, pricing: prc, operations: ops } = contextsRef.current;
     await Promise.all([
       sys.refreshData(),
       gst.refreshData(),
       res.refreshData(),
       inv.refreshData(),
       fin.refreshData(),
-      refreshPricingData(),
-      refreshAirportShuttleRequests()
+      prc.refreshData(),
+      ops.refreshData()
     ]);
     sys.logAudit('ERP auto-refreshed after 30 seconds of inactivity.');
-  }, [refreshPricingData, refreshAirportShuttleRequests]);
+  }, [pricing.refreshData, operations.refreshData]);
 
-  const value: ERPContextType = {
+  // ── Memoized cross-context helpers ──────────────────────────────────────────
+
+  const approveAdminChangeCb = useCallback((id: string) => {
+    const change = system.pendingAdminChanges.find(c => c.id === id);
+    if (change && change.status === 'Pending') {
+      const { operation, args } = change.payload as any;
+      if (operation === 'deleteRoom') {
+        reservation.deleteRoom(args[0]);
+      }
+    }
+    system.approveAdminChange(id);
+  }, [system, reservation]);
+
+  const formatAmountCb = useCallback((amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: system.currency,
+    }).format(system.currency === 'ETB' ? amount * system.globalHotelSettings.exchangeRate : amount);
+  }, [system.currency, system.globalHotelSettings.exchangeRate]);
+
+  const formatTaxesAndFeesCb = useCallback((baseAmount: number) => {
+    const fees = system.globalHotelSettings.feeComponents || [];
+    const enabledFees = fees.filter(f => f.isEnabled);
+
+    let serviceChargeAmount = 0;
+    let addonTotal = 0;
+    const addonDetails: { name: string; amount: number }[] = [];
+
+    for (const fee of enabledFees) {
+      if (fee.name.toLowerCase().includes('vat') || fee.name.toLowerCase().includes('tax')) continue;
+      const amount = fee.feeType === 'percentage'
+        ? baseAmount * (fee.value / 100)
+        : fee.value;
+      if (fee.name.toLowerCase().includes('service charge')) {
+        serviceChargeAmount += amount;
+      } else {
+        addonTotal += amount;
+        addonDetails.push({ name: fee.name, amount });
+      }
+    }
+
+    const subtotalBeforeVat = baseAmount + serviceChargeAmount + addonTotal;
+    let taxAmount = 0;
+    const vatFee = enabledFees.find(f =>
+      f.name.toLowerCase().includes('vat') || f.name.toLowerCase().includes('tax')
+    );
+    if (vatFee) {
+      taxAmount = vatFee.feeType === 'percentage'
+        ? subtotalBeforeVat * (vatFee.value / 100)
+        : vatFee.value;
+    }
+
+    return {
+      baseAmount,
+      taxAmount,
+      serviceChargeAmount,
+      addonTotal,
+      addonDetails,
+      totalWithTaxes: subtotalBeforeVat + taxAmount
+    };
+  }, [system.globalHotelSettings.feeComponents]);
+
+  const checkInReservationCb = useCallback(async (id: string, roomNumber?: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    if (!res) {
+      system.logAudit(`Check-in failed: reservation ${id} not found`);
+      return;
+    }
+    if (!roomNumber) {
+      roomNumber = autoAssignRoom(id);
+      if (!roomNumber) {
+        system.logAudit(`Check-in failed for reservation ${id}: no available room of type ${res.roomType}`);
+        return;
+      }
+    }
+    try {
+      const response = await fetch(`/api/reservations/${id}/check-in`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ roomNumber }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        system.logAudit(`Check-in failed for reservation ${id}: ${data.error || response.statusText}`);
+        return;
+      }
+      reservation.updateReservationStatus(id, 'CheckedIn');
+      reservation.updateReservation(id, { roomNumber });
+      reservation.setRoomStatus(roomNumber, 'Occupied Clean');
+    } catch (error) {
+      system.logAudit(`Check-in network error for reservation ${id}: ${String(error)}`);
+    }
+  }, [system, reservation]);
+
+  const checkInGroupBookingCb = useCallback(async (groupId: string) => {
+    const group = reservation.groupBookings.find(g => g.id === groupId);
+    if (!group) return;
+    reservation.updateGroupBookingStatus(groupId, 'CheckedIn');
+    const groupReservations = reservation.reservations.filter(r => r.groupBookingId === groupId);
+    const assignedInThisBatch = new Set<string>();
+    for (const res of groupReservations) {
+      if (res.status === 'CheckedIn' || res.status === 'CheckedOut') continue;
+      let roomNumber = res.roomNumber;
+      if (!roomNumber) {
+        roomNumber = autoAssignRoom(res.id, assignedInThisBatch);
+        if (roomNumber) assignedInThisBatch.add(roomNumber);
+      }
+      if (roomNumber) {
+        const room = reservation.rooms.find(r => r.number === roomNumber);
+        if (room && room.status === 'Out of Order') {
+          system.logAudit(`Group check-in skipped for reservation ${res.id}: room ${roomNumber} is Out of Order.`);
+          continue;
+        }
+        const alreadyOccupied = reservation.reservations.some(
+          r => r.id !== res.id && r.status === 'CheckedIn' && r.roomNumber === roomNumber
+        );
+        if (alreadyOccupied) {
+          system.logAudit(`Group check-in skipped for reservation ${res.id}: room ${roomNumber} already occupied.`);
+          continue;
+        }
+      }
+      try {
+        const response = await fetch(`/api/reservations/${res.id}/check-in`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ roomNumber }),
+        });
+        if (!response.ok) {
+          const data = await response.json();
+          system.logAudit(`Group check-in failed for reservation ${res.id}: ${data.error || response.statusText}`);
+          continue;
+        }
+        reservation.updateReservationStatus(res.id, 'CheckedIn');
+        reservation.updateReservation(res.id, { roomNumber });
+        reservation.setRoomStatus(roomNumber, 'Occupied Clean');
+      } catch (error) {
+        system.logAudit(`Group check-in network error for reservation ${res.id}: ${String(error)}`);
+      }
+    }
+    system.logAudit(`Group booking ${groupId} (${group.groupName}) checked in. ${assignedInThisBatch.size} room(s) auto-assigned.`);
+  }, [system, reservation]);
+
+  const checkOutReservationCb = useCallback(async (id: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    try {
+      const token = localStorage.getItem('auth_token');
+      const foliosResponse = await fetch(`/api/folios?reservation_id=${id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (foliosResponse.ok) {
+        const foliosData = await foliosResponse.json();
+        const folios = foliosData.folios || [];
+        for (const folio of folios) {
+          if (folio.status !== 'Closed') {
+            await fetch(`/api/folios/${folio.id}/close-with-invoice`, {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error closing folios with invoice generation:', error);
+    }
+    reservation.updateReservationStatus(id, 'CheckedOut');
+    if (res?.roomNumber) {
+      reservation.setRoomStatus(res.roomNumber, 'Vacant Dirty');
+    }
+
+    // ── Automatic loyalty points accrual ──
+    if (res?.guestId) {
+      try {
+        const pointsPerDollar = system.globalHotelSettings?.loyaltyPointsPerDollar || 1;
+        const spend = res.totalAmount || (res.rate || 0) * Math.max(1, Math.ceil((new Date(res.checkOutDate).getTime() - new Date(res.checkInDate).getTime()) / 86400000));
+        const pointsToAccrue = Math.floor(spend * pointsPerDollar);
+        if (pointsToAccrue > 0) {
+          const accrueRes = await fetch('/api/loyalty/accrue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              guest_id: res.guestId,
+              points: pointsToAccrue,
+              reservation_id: id,
+              description: `Loyalty accrual for reservation ${id} (${res.guestName})`,
+              reference_type: 'checkout',
+              reference_id: id,
+            }),
+          });
+          if (accrueRes.ok) {
+            const data = await accrueRes.json();
+            // Update local guest state
+            guest.updateGuestData(res.guestId, {
+              loyaltyPoints: data.newBalance,
+              totalSpend: (guest.guests.find(g => g.id === res.guestId)?.totalSpend || 0) + spend,
+            });
+            system.logAudit(`Loyalty: ${pointsToAccrue} points accrued for guest ${res.guestName} (reservation ${id}). New balance: ${data.newBalance}`);
+          }
+        }
+      } catch (loyaltyErr) {
+        console.error('Loyalty accrual failed (non-blocking):', loyaltyErr);
+      }
+    }
+  }, [reservation, system, guest]);
+
+  const cancelReservationCb = useCallback(async (id: string, reason?: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    if (!res) {
+      system.logAudit(`Cancel failed: reservation ${id} not found`);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/reservations/${id}/cancel`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ reason: reason || 'Cancelled by front desk' }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        system.logAudit(`Cancel failed for reservation ${id}: ${data.error || response.statusText}`);
+        return;
+      }
+      const data = await response.json();
+      reservation.updateReservationStatus(id, 'Cancelled');
+      if (res.roomNumber) {
+        reservation.setRoomStatus(res.roomNumber, 'Vacant Clean');
+      }
+      if (data.penaltyAmount > 0) {
+        system.logAudit(`Reservation ${id} (${res.guestName}) cancelled with penalty charge of ${data.penaltyAmount}. Outside grace period.`);
+      } else {
+        system.logAudit(`Reservation ${id} (${res.guestName}) cancelled. Within grace period - no penalty.`);
+      }
+    } catch (error) {
+      system.logAudit(`Cancel network error for reservation ${id}: ${String(error)}`);
+    }
+  }, [system, reservation]);
+
+  const markNoShowCb = useCallback(async (id: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    if (!res) {
+      system.logAudit(`No-show failed: reservation ${id} not found`);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/reservations/${id}/no-show`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        system.logAudit(`No-show failed for reservation ${id}: ${data.error || response.statusText}`);
+        return;
+      }
+      const data = await response.json();
+      reservation.updateReservationStatus(id, 'NoShow');
+      if (res.roomNumber) {
+        reservation.setRoomStatus(res.roomNumber, 'Vacant Clean');
+      }
+      if (data.penaltyAmount > 0) {
+        system.logAudit(`Reservation ${id} (${res.guestName}) marked as No-Show with penalty charge of ${data.penaltyAmount}.`);
+      } else {
+        system.logAudit(`Reservation ${id} (${res.guestName}) marked as No-Show. No penalty configured.`);
+      }
+    } catch (error) {
+      system.logAudit(`No-show network error for reservation ${id}: ${String(error)}`);
+    }
+  }, [system, reservation]);
+
+  const requestEarlyCheckOutCb = useCallback((id: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    if (!res || res.status !== 'CheckedIn') return;
+    reservation.updateReservation(id, { earlyCheckOutRequested: true });
+    system.logAudit(`Early checkout requested for reservation ${id} (${res.guestName}).`);
+  }, [system, reservation]);
+
+  const requestLateCheckOutCb = useCallback((id: string) => {
+    const res = reservation.reservations.find(r => r.id === id);
+    if (!res || res.status !== 'CheckedIn') return;
+    reservation.updateReservation(id, { lateCheckOutRequested: true });
+    system.logAudit(`Late checkout requested for reservation ${id} (${res.guestName}).`);
+  }, [system, reservation]);
+
+  const value = useMemo<ERPContextType>(() => ({
     ...system,
     ...guest,
     ...reservation,
     ...inventory,
     ...finance,
-    guestCommunications,
-    addGuestCommunication,
-    updateGuestCommunication,
-    deleteGuestCommunication,
-    airportShuttleRequests,
-    addAirportShuttleRequest,
-    updateAirportShuttleRequest,
-    deleteAirportShuttleRequest,
-    campaigns,
-    addCampaign,
-    updateCampaign,
-    deleteCampaign,
-    promotions,
-    addPromotion,
-    updatePromotion,
-    deletePromotion,
-    roomTypes,
-    addRoomType,
-    updateRoomType,
-    deleteRoomType,
-    yieldPolicies,
-    addYieldPolicy,
-    updateYieldPolicy,
-    deleteYieldPolicy,
-    guestServices,
-    addGuestService,
-    updateGuestService,
-    deleteGuestService,
+    ...pricing,
+    ...operations,
     riskCompliance,
     runNightAudit,
     triggerLiveSyncSimulation: () => {},
@@ -856,187 +604,24 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     setSimulationActive: () => {},
     refreshAllData,
     toggleTheme: system.toggleTheme,
-    approveAdminChange: (id: string) => {
-      const change = system.pendingAdminChanges.find(c => c.id === id);
-      if (change && change.status === 'Pending') {
-        const { operation, args } = change.payload as any;
-        if (operation === 'deleteRoom') {
-          reservation.deleteRoom(args[0]);
-        }
-      }
-      system.approveAdminChange(id);
-    },
-    formatAmount: (amount: number) => {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: system.currency,
-      }).format(system.currency === 'ETB' ? amount * system.globalHotelSettings.exchangeRate : amount);
-    },
-    formatTaxesAndFees: (baseAmount: number) => {
-      const fees = system.globalHotelSettings.feeComponents || [];
-      const enabledFees = fees.filter(f => f.isEnabled);
-
-      // Phase 1: Calculate non-VAT fees on base amount
-      let serviceChargeAmount = 0;
-      let addonTotal = 0;
-      const addonDetails: { name: string; amount: number }[] = [];
-
-      for (const fee of enabledFees) {
-        if (fee.name.toLowerCase().includes('vat') || fee.name.toLowerCase().includes('tax')) continue;
-
-        const amount = fee.feeType === 'percentage'
-          ? baseAmount * (fee.value / 100)
-          : fee.value;
-
-        if (fee.name.toLowerCase().includes('service charge')) {
-          serviceChargeAmount += amount;
-        } else {
-          addonTotal += amount;
-          addonDetails.push({ name: fee.name, amount });
-        }
-      }
-
-      const subtotalBeforeVat = baseAmount + serviceChargeAmount + addonTotal;
-
-      // Phase 2: Calculate VAT on subtotal (VAT is always last)
-      let taxAmount = 0;
-      const vatFee = enabledFees.find(f =>
-        f.name.toLowerCase().includes('vat') || f.name.toLowerCase().includes('tax')
-      );
-      if (vatFee) {
-        taxAmount = vatFee.feeType === 'percentage'
-          ? subtotalBeforeVat * (vatFee.value / 100)
-          : vatFee.value;
-      }
-
-      return {
-        baseAmount,
-        taxAmount,
-        serviceChargeAmount,
-        addonTotal,
-        addonDetails,
-        totalWithTaxes: subtotalBeforeVat + taxAmount
-      };
-    },
+    approveAdminChange: approveAdminChangeCb,
+    formatAmount: formatAmountCb,
+    formatTaxesAndFees: formatTaxesAndFeesCb,
     autoAssignRoom,
-    checkInReservation: async (id, roomNumber) => {
-      const res = reservation.reservations.find(r => r.id === id);
-      if (!res) {
-        system.logAudit(`Check-in failed: reservation ${id} not found`);
-        return;
-      }
-
-      // Auto-assign room if not provided
-      if (!roomNumber) {
-        roomNumber = autoAssignRoom(id);
-        if (!roomNumber) {
-          system.logAudit(`Check-in failed for reservation ${id}: no available room of type ${res.roomType}`);
-          return;
-        }
-      }
-
-      try {
-        const response = await fetch(`/api/reservations/${id}/check-in`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ roomNumber }),
-        });
-
-        if (!response.ok) {
-          const data = await response.json();
-          system.logAudit(`Check-in failed for reservation ${id}: ${data.error || response.statusText}`);
-          return;
-        }
-
-        reservation.updateReservationStatus(id, 'CheckedIn');
-        reservation.updateReservation(id, { roomNumber });
-        reservation.setRoomStatus(roomNumber, 'Occupied Clean');
-      } catch (error) {
-        system.logAudit(`Check-in network error for reservation ${id}: ${String(error)}`);
-      }
-    },
-    checkInGroupBooking: async (groupId) => {
-      const group = reservation.groupBookings.find(g => g.id === groupId);
-      if (!group) return;
-
-      reservation.updateGroupBookingStatus(groupId, 'CheckedIn');
-
-      const groupReservations = reservation.reservations.filter(r => r.groupBookingId === groupId);
-      const assignedInThisBatch = new Set<string>();
-
-      for (const res of groupReservations) {
-        if (res.status === 'CheckedIn' || res.status === 'CheckedOut') continue;
-
-        let roomNumber = res.roomNumber;
-
-        if (!roomNumber) {
-          roomNumber = autoAssignRoom(res.id, assignedInThisBatch);
-          if (roomNumber) {
-            assignedInThisBatch.add(roomNumber);
-          }
-        }
-
-        if (roomNumber) {
-          const room = reservation.rooms.find(r => r.number === roomNumber);
-          if (room && room.status === 'Out of Order') {
-            system.logAudit(`Group check-in skipped for reservation ${res.id}: room ${roomNumber} is Out of Order.`);
-            continue;
-          }
-          const alreadyOccupied = reservation.reservations.some(
-            r => r.id !== res.id && r.status === 'CheckedIn' && r.roomNumber === roomNumber
-          );
-          if (alreadyOccupied) {
-            system.logAudit(`Group check-in skipped for reservation ${res.id}: room ${roomNumber} already occupied.`);
-            continue;
-          }
-        }
-
-        // Call the API for each reservation
-        try {
-          const response = await fetch(`/api/reservations/${res.id}/check-in`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ roomNumber }),
-          });
-
-          if (!response.ok) {
-            const data = await response.json();
-            system.logAudit(`Group check-in failed for reservation ${res.id}: ${data.error || response.statusText}`);
-            continue;
-          }
-
-          reservation.updateReservationStatus(res.id, 'CheckedIn');
-          reservation.updateReservation(res.id, { roomNumber });
-          reservation.setRoomStatus(roomNumber, 'Occupied Clean');
-        } catch (error) {
-          system.logAudit(`Group check-in network error for reservation ${res.id}: ${String(error)}`);
-        }
-      }
-
-      system.logAudit(`Group booking ${groupId} (${group.groupName}) checked in. ${assignedInThisBatch.size} room(s) auto-assigned.`);
-    },
-    checkOutReservation: (id) => {
-      const res = reservation.reservations.find(r => r.id === id);
-      reservation.updateReservationStatus(id, 'CheckedOut');
-      if (res?.roomNumber) {
-        reservation.setRoomStatus(res.roomNumber, 'Vacant Dirty');
-      }
-    },
-    requestEarlyCheckOut: (id) => {
-      const res = reservation.reservations.find(r => r.id === id);
-      if (!res || res.status !== 'CheckedIn') return;
-      reservation.updateReservation(id, { earlyCheckOutRequested: true });
-      system.logAudit(`Early checkout requested for reservation ${id} (${res.guestName}).`);
-    },
-    requestLateCheckOut: (id) => {
-      const res = reservation.reservations.find(r => r.id === id);
-      if (!res || res.status !== 'CheckedIn') return;
-      reservation.updateReservation(id, { lateCheckOutRequested: true });
-      system.logAudit(`Late checkout requested for reservation ${id} (${res.guestName}).`);
-    },
-  };
+    checkInReservation: checkInReservationCb,
+    checkInGroupBooking: checkInGroupBookingCb,
+    checkOutReservation: checkOutReservationCb,
+    cancelReservation: cancelReservationCb,
+    markNoShow: markNoShowCb,
+    requestEarlyCheckOut: requestEarlyCheckOutCb,
+    requestLateCheckOut: requestLateCheckOutCb,
+  }), [
+    system, guest, reservation, inventory, finance, pricing, operations,
+    riskCompliance, runNightAudit, refreshAllData,
+    approveAdminChangeCb, formatAmountCb, formatTaxesAndFeesCb,
+    autoAssignRoom, checkInReservationCb, checkInGroupBookingCb,
+    checkOutReservationCb, cancelReservationCb, markNoShowCb, requestEarlyCheckOutCb, requestLateCheckOutCb,
+  ]);
 
   return (
     <ERPContext.Provider value={value}>
@@ -1052,9 +637,13 @@ export const ERPProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         <ReservationProvider>
           <InventoryProvider>
             <FinanceProvider>
-              <ERPContextWrapper>
-                {children}
-              </ERPContextWrapper>
+              <PricingProvider>
+                <OperationsProvider>
+                  <ERPContextWrapper>
+                    {children}
+                  </ERPContextWrapper>
+                </OperationsProvider>
+              </PricingProvider>
             </FinanceProvider>
           </InventoryProvider>
         </ReservationProvider>

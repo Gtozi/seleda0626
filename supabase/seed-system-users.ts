@@ -27,6 +27,7 @@ const users = [
   { id: 'U-108', name: 'Inventory Manager', email: 'inventory@erp.com', role: 'inventory', role_description: 'Stores Manager', avatar_initials: 'IM', status: 'Active', allowed_tabs: ['inventory', 'settings'], allowed_settings: {} },
   { id: 'U-109', name: 'Procurement Lead', email: 'procurement@erp.com', role: 'procurement', role_description: 'Procurement Lead', avatar_initials: 'PL', status: 'Active', allowed_tabs: ['procurement', 'settings'], allowed_settings: { viewRoomOutlook: true } },
   { id: 'U-110', name: 'System Administrator', email: 'admin@erp.com', role: 'system_admin', role_description: 'System Administrator', avatar_initials: 'SA', status: 'Active', allowed_tabs: ['admin', 'settings'], allowed_settings: {} },
+  { id: 'U-111', name: 'Operations Manager', email: 'operations@erp.com', role: 'operations', role_description: 'Operations Manager', avatar_initials: 'OM', status: 'Active', allowed_tabs: ['operations', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'settings'], allowed_settings: { viewRoomOutlook: true, viewRatePlans: true, viewSalesCampaigns: true } },
 ];
 
 // bcrypt hash for 'admin123' (10 rounds)

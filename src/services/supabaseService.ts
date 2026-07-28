@@ -1,276 +1,36 @@
 import { supabase, hasSupabaseConfig, hasUserCustomKeys } from '../lib/supabase';
 import { Room, Guest, Reservation, RatePlan, Season, Package, GroupBooking, CorporateAccount, User, CustomRole, SystemAuditLog, GlobalHotelSettings } from '../types/erp';
 import { InventoryItem, Store, Requisition, StockMovement, Supplier, GRN } from '../types/inventory';
+import {
+  mapRoomFromDb as mapRoomFromDbCanonical,
+  mapRoomToDb as mapRoomToDbCanonical,
+  mapGuestFromDb as mapGuestFromDbCanonical,
+  mapGuestToDb as mapGuestToDbCanonical,
+  mapReservationFromDb as mapReservationFromDbCanonical,
+  mapReservationToDb as mapReservationToDbCanonical,
+  mapRatePlanFromDb as mapRatePlanFromDbCanonical,
+  mapRatePlanToDb as mapRatePlanToDbCanonical,
+  mapSeasonFromDb as mapSeasonFromDbCanonical,
+  mapSeasonToDb as mapSeasonToDbCanonical,
+  mapPackageFromDb as mapPackageFromDbCanonical,
+  mapPackageToDb as mapPackageToDbCanonical,
+  mapGroupBookingFromDb as mapGroupBookingFromDbCanonical,
+} from './dataMapper';
 
-// Map Room
-const mapRoomFromDb = (db: any): Room => ({
-  id: db.id,
-  number: db.number,
-  type: db.type,
-  floor: db.floor,
-  status: db.status,
-  rate: Number(db.rate),
-  features: db.features || []
-});
-
-const mapRoomToDb = (room: Room) => ({
-  id: room.id,
-  number: room.number,
-  type: room.type,
-  floor: room.floor,
-  status: room.status,
-  rate: room.rate,
-  features: room.features
-});
-
-// Map Guest
-const mapGuestFromDb = (db: any): Guest => ({
-  id: db.id,
-  name: db.name,
-  email: db.email,
-  phone: db.phone || '',
-  status: db.status || 'Regular',
-  loyaltyPoints: db.loyalty_points || 0,
-  specialRequests: db.special_requests || '',
-  notes: db.notes || '',
-  totalSpend: Number(db.total_spend || 0),
-  nationality: db.nationality || undefined,
-  tin: db.tin || undefined,
-  vatNo: db.vat_no || undefined,
-  vatDate: db.vat_date || undefined,
-  preferences: db.preferences || {},
-  identificationDoc: db.identification_doc || {},
-  history: [], // Calculated or nested from stays relation
-  parentGroupId: db.parent_group_id || undefined,
-  parentCorporateId: db.parent_corporate_id || undefined,
-  isPrimaryContact: db.is_primary_contact || false,
-  billingRoutingProfileId: db.billing_routing_profile_id || undefined
-});
-
-const mapGuestToDb = (guest: Guest) => ({
-  id: guest.id,
-  name: guest.name,
-  email: guest.email,
-  phone: guest.phone,
-  status: guest.status,
-  loyalty_points: guest.loyaltyPoints,
-  special_requests: guest.specialRequests,
-  notes: guest.notes,
-  total_spend: guest.totalSpend,
-  nationality: guest.nationality,
-  tin: guest.tin,
-  vat_no: guest.vatNo,
-  vat_date: guest.vatDate,
-  preferences: guest.preferences || {},
-  identification_doc: guest.identificationDoc || {},
-  parent_group_id: guest.parentGroupId || null,
-  parent_corporate_id: guest.parentCorporateId || null,
-  is_primary_contact: guest.isPrimaryContact || false,
-  billing_routing_profile_id: guest.billingRoutingProfileId || null
-});
-
-// Map Reservation
-const mapReservationFromDb = (db: any): Reservation => ({
-  id: db.id,
-  guestName: db.guest_name,
-  guestEmail: db.guest_email,
-  guestPhone: db.guest_phone || '',
-  guestStatus: db.guest_status || 'Regular',
-  roomType: db.room_type,
-  roomNumber: db.room_number || undefined,
-  roomNights: db.room_nights || undefined,
-  checkInDate: db.check_in_date,
-  checkOutDate: db.check_out_date,
-  adults: db.adults || 1,
-  children: db.children || 0,
-  status: db.status,
-  rate: Number(db.rate),
-  totalAmount: Number(db.total_amount),
-  channel: db.channel,
-  paymentStatus: db.payment_status || 'Unpaid',
-  notes: db.notes || '',
-  charges: db.charges || [],
-  payments: db.payments || [],
-  earlyCheckOutRequested: db.early_check_out_requested || false,
-  lateCheckOutRequested: db.late_check_out_requested || false,
-  groupBookingId: db.group_booking_id || undefined,
-  isGroup: db.is_group || false,
-  depositAmount: Number(db.deposit_amount || 0),
-  isDepositPaid: db.is_deposit_paid || false,
-  ratePlanId: db.rate_plan_id || undefined,
-  packageIds: db.package_ids || [],
-  guestServiceIds: db.guest_service_ids || [],
-  additionalGuestIds: db.additional_guest_ids || [],
-  discountPercent: Number(db.discount_percent || 0),
-  taxPercent: Number(db.tax_percent || 0),
-  serviceChargePercent: Number(db.service_charge_percent || 0),
-  customHotelName: db.custom_hotel_name || undefined,
-  customHotelAddress: db.custom_hotel_address || undefined,
-  hotelTin: db.hotel_tin || undefined,
-  hotelVatNo: db.hotel_vat_no || undefined,
-  hotelVatDate: db.hotel_vat_date || undefined,
-  guestTin: db.guest_tin || undefined,
-  guestVatNo: db.guest_vat_no || undefined,
-  guestVatDate: db.guest_vat_date || undefined,
-  routingProfileId: db.routing_profile_id || undefined,
-  corporateAccountId: db.corporate_account_id || undefined,
-  bookingGroupId: db.booking_group_id || undefined,
-  groupId: db.group_id || undefined,
-  guestId: db.guest_id || undefined,
-  operator_id: db.tour_operator_id || undefined
-});
-
-const mapReservationToDb = (res: Reservation) => ({
-  id: res.id,
-  guest_name: res.guestName,
-  guest_email: res.guestEmail,
-  guest_phone: res.guestPhone,
-  guest_status: res.guestStatus,
-  room_type: res.roomType,
-  room_number: res.roomNumber || null,
-  room_nights: res.roomNights || null,
-  check_in_date: res.checkInDate,
-  check_out_date: res.checkOutDate,
-  adults: res.adults,
-  children: res.children,
-  status: res.status,
-  rate: res.rate,
-  total_amount: res.totalAmount,
-  channel: res.channel,
-  payment_status: res.paymentStatus,
-  notes: res.notes || '',
-  charges: res.charges || [],
-  payments: res.payments || [],
-  early_check_out_requested: res.earlyCheckOutRequested,
-  late_check_out_requested: res.lateCheckOutRequested,
-  group_booking_id: res.groupBookingId || null,
-  is_group: res.isGroup,
-  deposit_amount: res.depositAmount || 0,
-  is_deposit_paid: res.isDepositPaid,
-  rate_plan_id: res.ratePlanId || null,
-  package_ids: res.packageIds || [],
-  guest_service_ids: res.guestServiceIds || [],
-  additional_guest_ids: res.additionalGuestIds || [],
-  discount_percent: res.discountPercent || 0,
-  tax_percent: res.taxPercent || 0,
-  service_charge_percent: res.serviceChargePercent || 0,
-  custom_hotel_name: res.customHotelName || null,
-  custom_hotel_address: res.customHotelAddress || null,
-  hotel_tin: res.hotelTin || null,
-  hotel_vat_no: res.hotelVatNo || null,
-  hotel_vat_date: res.hotelVatDate || null,
-  guest_tin: res.guestTin || null,
-  guest_vat_no: res.guestVatNo || null,
-  guest_vat_date: res.guestVatDate || null,
-  routing_profile_id: res.routingProfileId || null,
-  corporate_account_id: res.corporateAccountId || null,
-  booking_group_id: res.bookingGroupId || null,
-  group_id: res.groupId || null,
-  guest_id: res.guestId || null,
-  tour_operator_id: res.operator_id || null
-});
-
-const mapRatePlanFromDb = (db: any): RatePlan => ({
-  id: db.id,
-  name: db.name,
-  description: db.description || '',
-  baseModifier: Number(db.base_modifier || 1),
-  active: Boolean(db.active)
-});
-
-const mapRatePlanToDb = (plan: RatePlan) => ({
-  id: plan.id,
-  name: plan.name,
-  description: plan.description,
-  base_modifier: plan.baseModifier,
-  active: plan.active
-});
-
-const mapSeasonFromDb = (db: any): Season => ({
-  id: db.id,
-  name: db.name,
-  startMonth: Number(db.start_month),
-  startDay: Number(db.start_day),
-  endMonth: Number(db.end_month),
-  endDay: Number(db.end_day),
-  multiplier: Number(db.multiplier)
-});
-
-const mapSeasonToDb = (season: Season) => ({
-  id: season.id,
-  name: season.name,
-  start_month: season.startMonth,
-  start_day: season.startDay,
-  end_month: season.endMonth,
-  end_day: season.endDay,
-  multiplier: season.multiplier
-});
-
-const mapPackageFromDb = (db: any): Package => ({
-  id: db.id,
-  name: db.name,
-  description: db.description || '',
-  price: Number(db.price),
-  chargeFrequency: db.charge_frequency || 'once'
-});
-
-const mapPackageToDb = (pkg: Package) => ({
-  id: pkg.id,
-  name: pkg.name,
-  description: pkg.description,
-  price: pkg.price,
-  charge_frequency: pkg.chargeFrequency
-});
-
-const mapGroupBookingFromDb = (db: any): GroupBooking => ({
-  id: db.id,
-  groupName: db.group_name,
-  contactName: db.contact_name,
-  contactEmail: db.contact_email,
-  contactPhone: db.contact_phone || '',
-  roomTypeNeeded: db.room_type_needed,
-  roomCount: Number(db.room_count),
-  checkInDate: db.check_in_date,
-  checkOutDate: db.check_out_date,
-  discountPercent: Number(db.discount_percent || 0),
-  status: db.status || 'Pending'
-});
-
-const mapGroupBookingToDb = (group: GroupBooking) => ({
-  id: group.id,
-  group_name: group.groupName,
-  contact_name: group.contactName,
-  contact_email: group.contactEmail,
-  contact_phone: group.contactPhone,
-  room_type_needed: group.roomTypeNeeded,
-  room_count: group.roomCount,
-  check_in_date: group.checkInDate,
-  check_out_date: group.checkOutDate,
-  discount_percent: group.discountPercent,
-  status: group.status
-});
-
-const mapCorporateAccountFromDb = (db: any): CorporateAccount => ({
-  id: db.id,
-  companyName: db.company_name,
-  contactPerson: db.contact_person,
-  contactEmail: db.contact_email,
-  contactPhone: db.contact_phone || '',
-  discountPercent: Number(db.discount_percent || 0),
-  activeBookings: Number(db.active_bookings || 0),
-  unpaidBalance: Number(db.unpaid_balance || 0)
-});
-
-const mapCorporateAccountToDb = (account: CorporateAccount) => ({
-  id: account.id,
-  company_name: account.companyName,
-  contact_person: account.contactPerson,
-  contact_email: account.contactEmail,
-  contact_phone: account.contactPhone,
-  discount_percent: account.discountPercent,
-  active_bookings: account.activeBookings,
-  unpaid_balance: account.unpaidBalance
-});
+// Canonical mappers — delegate to dataMapper.ts (single source of truth)
+const mapRoomFromDb = (db: any): Room => mapRoomFromDbCanonical(db) as unknown as Room;
+const mapRoomToDb = (room: Room) => mapRoomToDbCanonical(room);
+const mapGuestFromDb = (db: any): Guest => mapGuestFromDbCanonical(db) as unknown as Guest;
+const mapGuestToDb = (guest: Guest) => mapGuestToDbCanonical(guest);
+const mapReservationFromDb = (db: any): Reservation => mapReservationFromDbCanonical(db) as unknown as Reservation;
+const mapReservationToDb = (res: Reservation) => mapReservationToDbCanonical(res as any);
+const mapRatePlanFromDb = (db: any): RatePlan => mapRatePlanFromDbCanonical(db) as unknown as RatePlan;
+const mapRatePlanToDb = (plan: RatePlan) => mapRatePlanToDbCanonical(plan);
+const mapSeasonFromDb = (db: any): Season => mapSeasonFromDbCanonical(db) as unknown as Season;
+const mapSeasonToDb = (season: Season) => mapSeasonToDbCanonical(season);
+const mapPackageFromDb = (db: any): Package => mapPackageFromDbCanonical(db) as unknown as Package;
+const mapPackageToDb = (pkg: Package) => mapPackageToDbCanonical(pkg);
+const mapGroupBookingFromDb = (db: any): GroupBooking => mapGroupBookingFromDbCanonical(db) as unknown as GroupBooking;
 
 const mapStoreFromDb = (db: any): Store => ({
   id: db.id,
@@ -441,19 +201,21 @@ const mapSystemUserFromDb = (db: any): User => ({
   name: db.name,
   email: db.email,
   role: db.role,
-  roleDescription: db.role_description || db.role,
-  avatarInitials: db.avatar_initials || db.name?.slice(0, 2).toUpperCase() || 'U',
+  roleDescription: db.role_description || db.roleDescription || db.role,
+  avatarInitials: db.avatar_initials || db.avatarInitials || db.name?.slice(0, 2).toUpperCase() || 'U',
   status: db.status || 'Active',
-  lastLogin: db.last_login || undefined,
-  employeeId: db.employee_id || undefined,
+  lastLogin: db.last_login || db.lastLogin || undefined,
+  authUserId: db.auth_user_id || db.authUserId || undefined,
+  employeeId: db.employee_id || db.employeeId || undefined,
   username: db.username || undefined,
-  mobileNumber: db.mobile_number || undefined,
+  mobileNumber: db.mobile_number || db.mobileNumber || undefined,
   department: db.department || undefined,
-  customRoleId: db.custom_role_id || undefined,
-  securitySettings: db.security_settings || undefined,
-  dataRestrictions: db.data_restrictions || undefined,
-  allowedTabs: db.allowed_tabs || undefined,
-  allowedSettings: db.allowed_settings || undefined,
+  customRoleId: db.custom_role_id || db.customRoleId || undefined,
+  moduleAccess: db.module_access || db.moduleAccess || undefined,
+  securitySettings: db.security_settings || db.securitySettings || undefined,
+  dataRestrictions: db.data_restrictions || db.dataRestrictions || undefined,
+  allowedTabs: db.allowed_tabs || db.allowedTabs || undefined,
+  allowedSettings: db.allowed_settings || db.allowedSettings || undefined,
 });
 
 const mapCustomRoleFromDb = (db: any): CustomRole => ({
@@ -466,19 +228,6 @@ const mapCustomRoleFromDb = (db: any): CustomRole => ({
   buttonPermissions: db.button_permissions || {},
   fieldPermissions: db.field_permissions || {},
   isSystem: db.is_system || false
-});
-
-const mapAuditEventFromDb = (db: any): SystemAuditLog => ({
-  id: db.id,
-  timestamp: db.timestamp,
-  userId: db.user_id || '',
-  userName: db.user_name || 'Unknown',
-  device: db.user_agent || '',
-  ipAddress: db.ip_address || '',
-  module: db.module || '',
-  recordId: db.entity_id || undefined,
-  action: db.action,
-  details: typeof db.details === 'string' ? db.details : (db.details?.text || JSON.stringify(db.details))
 });
 
 // CORE SUPABASE API SERVICES
@@ -538,35 +287,6 @@ const fetchTable = async <T>(tableName: string, mapper: (db: any) => T, orderCol
   }
 };
 
-const upsertTable = async <T>(tableName: string, value: T, mapper: (item: T) => any): Promise<void> => {
-  try {
-    const { error } = await supabase.from(tableName).upsert(mapper(value), { onConflict: 'id' });
-    if (error) {
-      if (isTableMissingError(error)) {
-        logMissingTableWarning(tableName, error);
-        return;
-      }
-      throw new Error(`Upsert ${tableName} failed: ${error.message}`);
-    }
-  } catch (e) {
-    if (!isTableMissingError(e)) throw e;
-  }
-};
-
-const deleteFromTable = async (tableName: string, id: string): Promise<void> => {
-  try {
-    const { error } = await supabase.from(tableName).delete().eq('id', id);
-    if (error) {
-      if (isTableMissingError(error)) {
-        logMissingTableWarning(tableName, error);
-        return;
-      }
-      throw new Error(`Delete from ${tableName} failed: ${error.message}`);
-    }
-  } catch (e) {
-    if (!isTableMissingError(e)) throw e;
-  }
-};
 export const supabaseService = {
   isConfigured: () => hasSupabaseConfig,
   isUserConfigured: () => hasUserCustomKeys,
@@ -580,7 +300,7 @@ export const supabaseService = {
       };
     }
     try {
-      const { data, error } = await supabase.from('rooms').select('count', { count: 'exact', head: true });
+      const { error } = await supabase.from('rooms').select('count', { count: 'exact', head: true });
       if (error) {
         if (isTableMissingError(error)) {
           return {
@@ -608,9 +328,11 @@ export const supabaseService = {
   },
 
   // Rooms Api
-  fetchRooms: async (): Promise<Room[]> => {
+  fetchRooms: async (propertyId?: string | null): Promise<Room[]> => {
     try {
-      const { data, error } = await supabase.from('rooms').select('*').order('number');
+      let query = supabase.from('rooms').select('*');
+      if (propertyId) query = query.eq('property_id', propertyId);
+      const { data, error } = await query.order('number');
       if (error) {
         if (isTableMissingError(error)) {
           logMissingTableWarning('rooms', error);
@@ -629,48 +351,40 @@ export const supabaseService = {
   },
 
   upsertRooms: async (rooms: Room[]): Promise<void> => {
-    try {
-      const payload = rooms.map(mapRoomToDb);
-      const { error } = await supabase.from('rooms').upsert(payload, { onConflict: 'id' });
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('rooms', error);
-          return;
-        }
-        throw new Error(`Upsert rooms failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const payload = rooms.map(mapRoomToDb);
+    const response = await fetch('/api/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert rooms failed: ${response.status}`);
     }
   },
 
   updateRoomStatus: async (roomNumber: string, status: Room['status']): Promise<void> => {
-    try {
-      const { error } = await supabase.from('rooms').update({ status }).eq('number', roomNumber);
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('rooms', error);
-          return;
-        }
-        throw new Error(`Update room status failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const response = await fetch(`/api/rooms/${encodeURIComponent(roomNumber)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Update room status failed: ${response.status}`);
     }
   },
 
   deleteRoom: async (id: string): Promise<void> => {
-    try {
-      const { error } = await supabase.from('rooms').delete().eq('id', id);
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('rooms', error);
-          return;
-        }
-        throw new Error(`Delete room failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const response = await fetch(`/api/rooms/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete room failed: ${response.status}`);
     }
   },
 
@@ -696,25 +410,25 @@ export const supabaseService = {
   },
 
   upsertGuest: async (guest: Guest): Promise<void> => {
-    try {
-      const payload = mapGuestToDb(guest);
-      const { error } = await supabase.from('guests').upsert(payload, { onConflict: 'id' });
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('guests', error);
-          return;
-        }
-        throw new Error(`Upsert guest failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const payload = mapGuestToDb(guest);
+    const response = await fetch('/api/guests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert guest failed: ${response.status}`);
     }
   },
 
   // Reservations Api
-  fetchReservations: async (): Promise<Reservation[]> => {
+  fetchReservations: async (propertyId?: string | null): Promise<Reservation[]> => {
     try {
-      const { data, error } = await supabase.from('reservations').select('*').order('check_in_date', { ascending: false });
+      let query = supabase.from('reservations').select('*');
+      if (propertyId) query = query.eq('property_id', propertyId);
+      const { data, error } = await query.order('check_in_date', { ascending: false });
       if (error) {
         if (isTableMissingError(error)) {
           logMissingTableWarning('reservations', error);
@@ -733,47 +447,95 @@ export const supabaseService = {
   },
 
   upsertReservation: async (res: Reservation): Promise<void> => {
+    const payload = mapReservationToDb(res);
     try {
-      const payload = mapReservationToDb(res);
-      const { error } = await supabase.from('reservations').upsert(payload, { onConflict: 'id' });
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('reservations', error);
-          return;
-        }
-        // Log network/configuration errors but don't throw to avoid breaking the app
-        console.warn(`Supabase upsert reservation warning: ${error.message}`);
+      const response = await fetch(`/api/reservations/${encodeURIComponent(res.id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        console.warn(`Upsert reservation warning: ${data.error || response.status}`);
         return;
       }
     } catch (e) {
-      // Handle network errors (Failed to fetch) gracefully
       if (e instanceof TypeError && e.message === 'Failed to fetch') {
-        console.warn('Supabase network error - reservation not synced to database (continuing with local state)');
+        console.warn('Network error - reservation not synced to database (continuing with local state)');
         return;
       }
-      if (!isTableMissingError(e)) {
-        console.warn(`Supabase upsert reservation error: ${e instanceof Error ? e.message : String(e)}`);
-        return;
-      }
+      console.warn(`Upsert reservation error: ${e instanceof Error ? e.message : String(e)}`);
     }
   },
 
   fetchRatePlans: async (): Promise<RatePlan[]> => fetchTable('rate_plans', mapRatePlanFromDb, 'name'),
-  upsertRatePlan: async (plan: RatePlan): Promise<void> => upsertTable('rate_plans', plan, mapRatePlanToDb),
-  deleteRatePlan: async (id: string): Promise<void> => deleteFromTable('rate_plans', id),
+  upsertRatePlan: async (plan: RatePlan): Promise<void> => {
+    const response = await fetch('/api/rate-plans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapRatePlanToDb(plan)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert rate_plan failed: ${response.status}`);
+    }
+  },
+  deleteRatePlan: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/rate-plans/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete rate_plan failed: ${response.status}`);
+    }
+  },
 
   fetchSeasons: async (): Promise<Season[]> => fetchTable('seasons', mapSeasonFromDb, 'name'),
-  upsertSeason: async (season: Season): Promise<void> => upsertTable('seasons', season, mapSeasonToDb),
-  deleteSeason: async (id: string): Promise<void> => deleteFromTable('seasons', id),
+  upsertSeason: async (season: Season): Promise<void> => {
+    const response = await fetch('/api/seasons', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapSeasonToDb(season)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert season failed: ${response.status}`);
+    }
+  },
+  deleteSeason: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/seasons/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete season failed: ${response.status}`);
+    }
+  },
 
   fetchPackages: async (): Promise<Package[]> => fetchTable('packages', mapPackageFromDb, 'name'),
-  upsertPackage: async (pkg: Package): Promise<void> => upsertTable('packages', pkg, mapPackageToDb),
-  deletePackage: async (id: string): Promise<void> => deleteFromTable('packages', id),
+  upsertPackage: async (pkg: Package): Promise<void> => {
+    const response = await fetch('/api/packages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapPackageToDb(pkg)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert package failed: ${response.status}`);
+    }
+  },
+  deletePackage: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/packages/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete package failed: ${response.status}`);
+    }
+  },
 
   fetchGroupBookings: async (): Promise<GroupBooking[]> => {
     return fetchTable('group_bookings', mapGroupBookingFromDb, 'id');
   },
-  upsertGroupBooking: async (group: GroupBooking): Promise<void> => {
+  upsertGroupBooking: async (_group: GroupBooking): Promise<void> => {
     // Legacy table - migrated to group_profiles, no-op
   },
 
@@ -781,31 +543,128 @@ export const supabaseService = {
     // Legacy table - migrated to group_profiles, return empty array
     return [];
   },
-  upsertCorporateAccount: async (account: CorporateAccount): Promise<void> => {
+  upsertCorporateAccount: async (_account: CorporateAccount): Promise<void> => {
     // Legacy table - migrated to group_profiles, no-op
   },
 
   fetchInventoryStores: async (): Promise<Store[]> => fetchTable('inventory_stores', mapStoreFromDb, 'name'),
-  upsertInventoryStore: async (store: Store): Promise<void> => upsertTable('inventory_stores', store, mapStoreToDb),
+  upsertInventoryStore: async (store: Store): Promise<void> => {
+    const response = await fetch('/api/inventory/stores', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapStoreToDb(store)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert inventory_store failed: ${response.status}`);
+    }
+  },
+  deleteInventoryStore: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/inventory/stores/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete inventory_store failed: ${response.status}`);
+    }
+  },
 
   fetchInventoryItems: async (): Promise<InventoryItem[]> => fetchTable('inventory_items', mapInventoryItemFromDb, 'name'),
-  upsertInventoryItem: async (item: InventoryItem): Promise<void> => upsertTable('inventory_items', item, mapInventoryItemToDb),
-  deleteInventoryItem: async (id: string): Promise<void> => deleteFromTable('inventory_items', id),
+  upsertInventoryItem: async (item: InventoryItem): Promise<void> => {
+    const response = await fetch('/api/inventory/items', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapInventoryItemToDb(item)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert inventory_item failed: ${response.status}`);
+    }
+  },
+  deleteInventoryItem: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/inventory/items/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete inventory_item failed: ${response.status}`);
+    }
+  },
 
   fetchInventorySuppliers: async (): Promise<Supplier[]> => fetchTable('inventory_suppliers', mapSupplierFromDb, 'name'),
-  upsertInventorySupplier: async (supplier: Supplier): Promise<void> => upsertTable('inventory_suppliers', supplier, mapSupplierToDb),
-  deleteInventorySupplier: async (id: string): Promise<void> => deleteFromTable('inventory_suppliers', id),
+  upsertInventorySupplier: async (supplier: Supplier): Promise<void> => {
+    const response = await fetch('/api/inventory/suppliers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapSupplierToDb(supplier)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert inventory_supplier failed: ${response.status}`);
+    }
+  },
+  deleteInventorySupplier: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/inventory/suppliers/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete inventory_supplier failed: ${response.status}`);
+    }
+  },
 
   fetchInventoryRequisitions: async (): Promise<Requisition[]> => fetchTable('inventory_requisitions', mapRequisitionFromDb, 'request_date'),
-  upsertInventoryRequisition: async (req: Requisition): Promise<void> => upsertTable('inventory_requisitions', req, mapRequisitionToDb),
-  deleteInventoryRequisition: async (id: string): Promise<void> => deleteFromTable('inventory_requisitions', id),
+  upsertInventoryRequisition: async (req: Requisition): Promise<void> => {
+    const response = await fetch('/api/inventory/requisitions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapRequisitionToDb(req)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert requisition failed: ${response.status}`);
+    }
+  },
+  deleteInventoryRequisition: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/inventory/requisitions/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete requisition failed: ${response.status}`);
+    }
+  },
 
   fetchStockMovements: async (): Promise<StockMovement[]> => fetchTable('inventory_stock_movements', mapStockMovementFromDb, 'movement_date'),
-  upsertStockMovement: async (movement: StockMovement): Promise<void> => upsertTable('inventory_stock_movements', movement, mapStockMovementToDb),
+  upsertStockMovement: async (movement: StockMovement): Promise<void> => {
+    const response = await fetch('/api/inventory/stock-movements', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapStockMovementToDb(movement)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert stock_movement failed: ${response.status}`);
+    }
+  },
 
   fetchInventoryGRNs: async (): Promise<GRN[]> => fetchTable('inventory_grns', mapGRNFromDb, 'received_date'),
-  upsertInventoryGRN: async (grn: GRN): Promise<void> => upsertTable('inventory_grns', grn, mapGRNToDb),
-  deleteInventoryGRN: async (id: string): Promise<void> => deleteFromTable('inventory_grns', id),
+  upsertInventoryGRN: async (grn: GRN): Promise<void> => {
+    const response = await fetch('/api/inventory/grns', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(mapGRNToDb(grn)),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Upsert GRN failed: ${response.status}`);
+    }
+  },
+  deleteInventoryGRN: async (id: string): Promise<void> => {
+    const response = await fetch(`/api/inventory/grns/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete GRN failed: ${response.status}`);
+    }
+  },
   // Batch initial synchronizer utility
   pushInitialStateToSupabase: async (
     localRooms: Room[],
@@ -818,53 +677,50 @@ export const supabaseService = {
 
     try {
       if (localRooms.length > 0) {
-        const { error } = await supabase.from('rooms').upsert(localRooms.map(mapRoomToDb), { onConflict: 'id' });
-        if (error) errors.push(`Rooms push failed: ${error.message}`);
+        const resp = await fetch('/api/rooms', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(localRooms.map(mapRoomToDb)),
+        });
+        if (!resp.ok) errors.push(`Rooms push failed: ${resp.status}`);
         else roomsCount = localRooms.length;
       }
 
       if (localRatePlans.length > 0) {
-        const { error } = await supabase.from('rate_plans').upsert(
-          localRatePlans.map(r => ({
-            id: r.id,
-            name: r.name,
-            description: r.description,
-            base_modifier: r.baseModifier,
-            active: r.active
-          })),
-          { onConflict: 'id' }
-        );
-        if (error) errors.push(`Rate plans push failed: ${error.message}`);
+        for (const r of localRatePlans) {
+          const resp = await fetch('/api/rate-plans', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id: r.id, name: r.name, description: r.description, base_modifier: r.baseModifier, active: r.active }),
+          });
+          if (!resp.ok) errors.push(`Rate plan push failed: ${r.id}`);
+        }
       }
 
       if (localSeasons.length > 0) {
-        const { error } = await supabase.from('seasons').upsert(
-          localSeasons.map(s => ({
-            id: s.id,
-            name: s.name,
-            start_month: s.startMonth,
-            start_day: s.startDay,
-            end_month: s.endMonth,
-            end_day: s.endDay,
-            multiplier: s.multiplier
-          })),
-          { onConflict: 'id' }
-        );
-        if (error) errors.push(`Seasons push failed: ${error.message}`);
+        for (const s of localSeasons) {
+          const resp = await fetch('/api/seasons', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id: s.id, name: s.name, start_month: s.startMonth, start_day: s.startDay, end_month: s.endMonth, end_day: s.endDay, multiplier: s.multiplier }),
+          });
+          if (!resp.ok) errors.push(`Season push failed: ${s.id}`);
+        }
       }
 
       if (localPackages.length > 0) {
-        const { error } = await supabase.from('packages').upsert(
-          localPackages.map(p => ({
-            id: p.id,
-            name: p.name,
-            description: p.description,
-            price: p.price,
-            charge_frequency: p.chargeFrequency
-          })),
-          { onConflict: 'id' }
-        );
-        if (error) errors.push(`Packages push failed: ${error.message}`);
+        for (const p of localPackages) {
+          const resp = await fetch('/api/packages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ id: p.id, name: p.name, description: p.description, price: p.price, charge_frequency: p.chargeFrequency }),
+          });
+          if (!resp.ok) errors.push(`Package push failed: ${p.id}`);
+        }
       }
 
       return {
@@ -882,10 +738,11 @@ export const supabaseService = {
   },
 
   async fetchGlobalSettings(): Promise<Partial<GlobalHotelSettings> | null> {
-    if (!hasSupabaseConfig) return null;
     try {
-      const { data, error } = await supabase.from('global_settings').select('*').eq('id', 'main').maybeSingle();
-      if (error) { logMissingTableWarning('global_settings', error); return null; }
+      const response = await fetch('/api/settings', { credentials: 'include' });
+      if (!response.ok) { console.error('Error fetching global settings:', response.status); return null; }
+      const result = await response.json();
+      const data = result.settings;
       if (!data) return null;
       return {
         customHotelName: data.custom_hotel_name,
@@ -974,9 +831,9 @@ export const supabaseService = {
   fetchGiftShopSales: async (fromDate?: string, toDate?: string): Promise<any[]> => {
     if (!hasSupabaseConfig) return [];
     try {
-      let query = supabase.from('gift_shop_sales').select('*').order('date', { ascending: false });
-      if (fromDate) query = query.gte('date', fromDate);
-      if (toDate) query = query.lte('date', toDate);
+      let query = supabase.from('gift_shop_sales').select('*').order('sale_date', { ascending: false });
+      if (fromDate) query = query.gte('sale_date', fromDate);
+      if (toDate) query = query.lte('sale_date', toDate);
       const { data, error } = await query;
       if (error) {
         if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_sales', error); return []; }
@@ -990,30 +847,35 @@ export const supabaseService = {
   },
 
   insertGiftShopSale: async (sale: any): Promise<string | null> => {
-    if (!hasSupabaseConfig) return null;
     try {
-      const { data, error } = await supabase.from('gift_shop_sales').insert(sale).select('id').single();
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_sales', error); return null; }
-        throw new Error(`Insert gift_shop_sales failed: ${error.message}`);
+      const response = await fetch('/api/gift-shop/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(sale),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Insert gift_shop_sale failed: ${response.status}`);
       }
+      const data = await response.json();
       return data?.id || null;
     } catch (e) {
-      if (!isTableMissingError(e)) throw e;
-      return null;
+      if (e instanceof TypeError && e.message === 'Failed to fetch') return null;
+      throw e;
     }
   },
 
   updateGiftShopSaleStatus: async (id: string, status: 'Completed' | 'Voided'): Promise<void> => {
-    if (!hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('gift_shop_sales').update({ status }).eq('id', id);
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_sales', error); return; }
-        throw new Error(`Update gift_shop_sales status failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const response = await fetch(`/api/gift-shop/sales/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ status }),
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Update gift_shop_sale status failed: ${response.status}`);
     }
   },
 
@@ -1021,7 +883,7 @@ export const supabaseService = {
   fetchGiftShopIssues: async (): Promise<any[]> => {
     if (!hasSupabaseConfig) return [];
     try {
-      const { data, error } = await supabase.from('gift_shop_issues').select('*').order('date', { ascending: false });
+      const { data, error } = await supabase.from('gift_shop_issues').select('*').order('created_at', { ascending: false });
       if (error) {
         if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_issues', error); return []; }
         throw new Error(`Fetch gift_shop_issues failed: ${error.message}`);
@@ -1034,46 +896,43 @@ export const supabaseService = {
   },
 
   insertGiftShopIssue: async (issue: any): Promise<string | null> => {
-    if (!hasSupabaseConfig) return null;
     try {
-      const { data, error } = await supabase.from('gift_shop_issues').insert(issue).select('id').single();
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_issues', error); return null; }
-        throw new Error(`Insert gift_shop_issues failed: ${error.message}`);
+      const response = await fetch('/api/gift-shop/issues', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(issue),
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Insert gift_shop_issue failed: ${response.status}`);
       }
+      const data = await response.json();
       return data?.id || null;
     } catch (e) {
-      if (!isTableMissingError(e)) throw e;
-      return null;
+      if (e instanceof TypeError && e.message === 'Failed to fetch') return null;
+      throw e;
     }
   },
 
   deleteGiftShopIssue: async (id: string): Promise<void> => {
-    if (!hasSupabaseConfig) return;
-    try {
-      const { error } = await supabase.from('gift_shop_issues').delete().eq('id', id);
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('gift_shop_issues', error); return; }
-        throw new Error(`Delete gift_shop_issues failed: ${error.message}`);
-      }
-    } catch (e) {
-      if (!isTableMissingError(e)) throw e;
+    const response = await fetch(`/api/gift-shop/issues/${encodeURIComponent(id)}`, { method: 'DELETE', credentials: 'include' });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || `Delete gift_shop_issue failed: ${response.status}`);
     }
   },
 
   // System Users API
   fetchSystemUsers: async (): Promise<User[]> => {
-    if (!hasSupabaseConfig) return [];
     try {
-      const { data, error } = await supabase.from('system_users').select('*').order('name');
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('system_users', error); return []; }
-        throw new Error(`Fetch system_users failed: ${error.message}`);
-      }
-      return (data || []).map(mapSystemUserFromDb);
+      const response = await fetch('/api/admin/users', { credentials: 'include' });
+      if (!response.ok) return [];
+      const data = await response.json();
+      const users = Array.isArray(data) ? data : (data.users ?? []);
+      return users.map(mapSystemUserFromDb);
     } catch (e: any) {
-      if (isTableMissingError(e)) { logMissingTableWarning('system_users', e); return []; }
-      throw e;
+      return [];
     }
   },
 
@@ -1116,17 +975,14 @@ export const supabaseService = {
 
   // Custom Roles API
   fetchCustomRoles: async (): Promise<CustomRole[]> => {
-    if (!hasSupabaseConfig) return [];
     try {
-      const { data, error } = await supabase.from('custom_roles').select('*').order('name');
-      if (error) {
-        if (isTableMissingError(error)) { logMissingTableWarning('custom_roles', error); return []; }
-        throw new Error(`Fetch custom_roles failed: ${error.message}`);
-      }
-      return (data || []).map(mapCustomRoleFromDb);
+      const response = await fetch('/api/admin/roles', { credentials: 'include' });
+      if (!response.ok) return [];
+      const data = await response.json();
+      if (!Array.isArray(data)) return [];
+      return data.map(mapCustomRoleFromDb);
     } catch (e: any) {
-      if (isTableMissingError(e)) { logMissingTableWarning('custom_roles', e); return []; }
-      throw e;
+      return [];
     }
   },
 

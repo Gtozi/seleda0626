@@ -19,6 +19,7 @@ import {
   Tag
 } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 const StoreManagement: React.FC = () => {
   const { inventoryStores: stores, addInventoryStore, inventoryItems: items, updateInventoryItem, recordStockMovement } = useERP();
@@ -152,13 +153,15 @@ const StoreManagement: React.FC = () => {
         </div>
       </div>
 
-      {showAddModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-           <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4">
-              <div>
-                 <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Register Warehouse Node</h3>
-                 <p className="text-xs text-slate-400">Add a physical, departmental or virtual storage terminal.</p>
-              </div>
+      <ModalSystem
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Register Warehouse Node"
+        subtitle="Add a physical, departmental or virtual storage terminal."
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
               <form onSubmit={handleCreateStore} className="space-y-4">
                  <div className="space-y-1">
                     <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block">Store Unique Name</label>
@@ -208,9 +211,7 @@ const StoreManagement: React.FC = () => {
                     </button>
                  </div>
               </form>
-           </div>
-        </div>
-      )}
+      </ModalSystem>
 
       <div className="flex bg-white dark:bg-slate-900 p-1.5 border border-slate-200 dark:border-slate-800 rounded-2xl no-scrollbar gap-1.5">
         {[
@@ -407,13 +408,14 @@ const StoreManagement: React.FC = () => {
       )}
 
       {/* Store Detail Modal */}
-      {showStoreDetail && selectedStore && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Store Inventory</h3>
-              <button onClick={() => setShowStoreDetail(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showStoreDetail && !!selectedStore}
+        onClose={() => setShowStoreDetail(false)}
+        title="Store Inventory"
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-3">
               <div className="p-3 bg-white dark:bg-slate-800 rounded-xl text-emerald-500 shadow-3xs"><Store size={20} /></div>
               <div>
@@ -438,18 +440,17 @@ const StoreManagement: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowStoreDetail(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Transfer Detail Modal */}
-      {showTransferDetail && selectedTransfer && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Transfer Manifest</h3>
-              <button onClick={() => setShowTransferDetail(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showTransferDetail && !!selectedTransfer}
+        onClose={() => setShowTransferDetail(false)}
+        title="Transfer Manifest"
+        variant="info"
+        size="md"
+        showFooter={false}
+      >
             <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Transfer ID</span>
@@ -486,9 +487,7 @@ const StoreManagement: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowTransferDetail(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

@@ -399,12 +399,12 @@ begin
 
   -- Rebuild payments array from all folio_payments for this reservation
   for v_payment in
-    select
+    select distinct
       fp.id, fp.payment_date, fp.amount, fp.payment_method, fp.reference_number, fp.is_voided, fp.created_at
     from folio_payments fp
     join folios f on f.id = fp.folio_id
     where f.reservation_id = v_reservation_id
-    order by f.id, fp.payment_date
+    order by fp.payment_date
   loop
     v_payments := v_payments || jsonb_build_object(
       'id', v_payment.id,

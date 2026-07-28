@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { toISODate } from '../../utils/date';
 import { 
   Receipt,
@@ -533,9 +534,15 @@ export default function SalesRegistry() {
       </div>
 
       {/* Detail Modal - Enhanced Invoice View */}
-      {selectedTx && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedTx(null)}>
-          <div className="bg-white dark:bg-slate-900 max-w-2xl w-full rounded-[40px] shadow-2xl overflow-hidden animate-scale-up" onClick={e => e.stopPropagation()}>
+      <ModalSystem
+        isOpen={!!selectedTx}
+        onClose={() => setSelectedTx(null)}
+        title="Invoice Details"
+        icon={<Receipt size={20} className="text-indigo-600" />}
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             {/* Header */}
             <div className="p-8 pb-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -546,7 +553,7 @@ export default function SalesRegistry() {
                   <h4 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">Invoice Details</h4>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black uppercase tracking-widest rounded">Settled</span>
-                    <span className="text-[10px] font-mono text-slate-400">#{selectedTx.id}</span>
+                    <span className="text-[10px] font-mono text-slate-400">#{selectedTx?.id}</span>
                   </div>
                 </div>
               </div>
@@ -685,9 +692,7 @@ export default function SalesRegistry() {
                  <Receipt size={14} /> Adjust Settlement
                </button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
         </>
       )}
 

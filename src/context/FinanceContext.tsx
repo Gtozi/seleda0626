@@ -9,6 +9,14 @@ import { JournalEntry, GlobalSaleTransaction, ChartOfAccount, ExpenseRequest } f
 import { initialSalesTransactions, initialExpenseRequests } from './initialState';
 import { useSystem } from './SystemContext';
 import { useReservation } from './ReservationContext';
+import { hasSupabaseConfig } from '../lib/supabase';
+import {
+  fetchChartOfAccounts,
+  fetchJournalEntries,
+  createJournalEntry as createJournalEntryApi,
+  postJournalEntry as postJournalEntryApi,
+  reverseJournalEntry as reverseJournalEntryApi,
+} from '../services/financeService';
 
 export interface FinanceContextType {
   journals: JournalEntry[];
@@ -32,6 +40,9 @@ export interface FinanceContextType {
   }) => void;
   addExpenseRequest: (request: Omit<ExpenseRequest, 'id'>) => string;
   updateExpenseRequestStatus: (id: string, status: ExpenseRequest['status']) => void;
+  createJournalEntry: (entry: Omit<JournalEntry, 'id'>) => Promise<JournalEntry>;
+  postJournalEntry: (id: string) => Promise<void>;
+  reverseJournalEntry: (id: string) => Promise<JournalEntry>;
   refreshData: () => Promise<void>;
 }
 
@@ -96,6 +107,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const refreshData = useCallback(async () => {
     calculateStats();
+    if (!hasSupabaseConfig) return;
+    try {
+      const [coa, jes] = await Promise.all([
+        fetchChartOfAccounts(),
+        fetchJournalEntries(),
+      ]);
+      setChartOfAccounts(coa);
+      setJournals(jes);
+    } catch (error) {
+      console.error('Error refreshing finance data:', error);
+    }
   }, [calculateStats]);
 
   const addJournalEntry = useCallback((entry: Omit<JournalEntry, 'id'>): string => {
@@ -115,6 +137,39 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
     return id;
   }, []);
+
+  const createJournalEntry = useCallback(async (entry: Omit<JournalEntry, 'id'>) => {
+    let newEntry: JournalEntry;
+    if (hasSupabaseConfig) {
+      newEntry = await createJournalEntryApi(entry);
+    } else {
+      const id = `JV-${Date.now()}`;
+      newEntry = { ...entry, id };
+    }
+    setJournals(prev => [newEntry, ...prev]);
+    return newEntry;
+  }, []);
+
+  const postJournalEntry = useCallback(async (id: string) => {
+    if (hasSupabaseConfig) {
+      await postJournalEntryApi(id);
+      await refreshData();
+    } else {
+      setJournals(prev => prev.map(j => j.id === id ? { ...j, status: 'Posted' as const } : j));
+    }
+  }, [refreshData]);
+
+  const reverseJournalEntry = useCallback(async (id: string) => {
+    let reversed: JournalEntry;
+    if (hasSupabaseConfig) {
+      reversed = await reverseJournalEntryApi(id);
+    } else {
+      const fallback = journals.find(j => j.id === id);
+      reversed = { ...(fallback || {} as JournalEntry), id: `JV-${Date.now()}`, description: `Reversal: ${fallback?.description || ''}` };
+    }
+    setJournals(prev => [reversed, ...prev]);
+    return reversed;
+  }, [journals]);
 
   const addAccount = useCallback((account: ChartOfAccount) => {
     setChartOfAccounts(prev => [...prev, account]);
@@ -177,6 +232,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const value = {
     journals, salesTransactions, chartOfAccounts, expenseRequests, stats,
     addSaleTransaction, updateSaleTransactionStatus, addJournalEntry,
+    createJournalEntry, postJournalEntry, reverseJournalEntry,
     addAccount, deleteAccount, postAutoJournal, addExpenseRequest, updateExpenseRequestStatus,
     refreshData
   };

@@ -13,6 +13,7 @@ import {
   Edit3, Plus, X, Search, Star, Link2, Unlink, BadgeDollarSign, FileText,
   Settings, ShieldCheck, CreditCard, MapPin, Phone, Mail, Globe, AlertTriangle
 } from 'lucide-react';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 interface GroupProfileModuleProps {
   initialGroupId?: string;
@@ -540,16 +541,14 @@ export default function GroupProfileModule({ initialGroupId, onClose }: GroupPro
       </div>
 
       {/* Create Group Modal */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-semibold text-sm text-slate-800">Create Group Profile</h3>
-              <button onClick={() => setShowCreateModal(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 rounded-lg">
-                <X size={18} />
-              </button>
-            </div>
-            
+      <ModalSystem
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="Create Group Profile"
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -658,36 +657,17 @@ export default function GroupProfileModule({ initialGroupId, onClose }: GroupPro
                 </div>
               </div>
             </div>
-            
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setShowCreateModal(false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateGroup}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
-              >
-                Create Group
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Edit Group Modal */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-              <h3 className="font-semibold text-sm text-slate-800">Edit Group Profile</h3>
-              <button onClick={() => setShowEditModal(false)} className="p-1.5 hover:bg-slate-100 text-slate-400 rounded-lg">
-                <X size={18} />
-              </button>
-            </div>
-            
+      <ModalSystem
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="Edit Group Profile"
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
             <div className="space-y-3 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -748,24 +728,7 @@ export default function GroupProfileModule({ initialGroupId, onClose }: GroupPro
                 </div>
               </div>
             </div>
-            
-            <div className="flex gap-2 pt-2">
-              <button
-                onClick={() => setShowEditModal(false)}
-                className="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateGroup}
-                className="flex-1 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold"
-              >
-                Save Changes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 }

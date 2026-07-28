@@ -61,6 +61,8 @@ import {
   calculateProposedAllocations, 
   calculateOverbookingRisk
 } from '../../services/allocationService';
+import { DashboardTemplate } from '../Shared/DashboardTemplate';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 export default function DashboardModule({
   onNavigateToCRM,
@@ -371,8 +373,7 @@ export default function DashboardModule({
   });
 
   return (
-    <div className="space-y-6" id="dashboard-module-container">
-      
+    <DashboardTemplate id="dashboard-module-container">
 
       {auditResult && (
         <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex items-center gap-3 animate-bounce">
@@ -1334,43 +1335,48 @@ export default function DashboardModule({
       </div>
 
       {/* DETAILED ROOM CONSOLE MODAL CELL CLICK */}
-      {selectedRoom && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 transition-colors duration-300">
-          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-105 dark:border-slate-800 max-w-sm w-full p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h3 className="font-sans font-bold text-sm text-slate-850 dark:text-slate-200">Room {selectedRoom.number} Operational Console</h3>
-              <button 
-                onClick={() => setSelectedRoom(null)} 
-                className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-500 cursor-pointer"
-              >
-                <X size={16} />
-              </button>
+      <ModalSystem
+        isOpen={!!selectedRoom}
+        onClose={() => setSelectedRoom(null)}
+        title={`Room ${selectedRoom?.number ?? ''} Operational Console`}
+        variant="form"
+        size="sm"
+        showFooter={true}
+        footer={
+          <div className="flex justify-end gap-2 text-xs">
+            <button
+              onClick={() => setSelectedRoom(null)}
+              className="px-3 py-1.5 bg-slate-90 text-slate-605 border border-slate-200 dark:border-slate-750 dark:text-slate-300 hover:bg-slate-100 rounded-lg font-mono text-2xs cursor-pointer"
+            >
+              Close Console
+            </button>
+          </div>
+        }
+      >
+        {selectedRoom && (
+          <div className="text-xs space-y-2">
+            <div className="flex justify-between font-sans">
+              <span className="text-slate-400">Room Category:</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedRoom.type}</span>
             </div>
-            
-            <div className="text-xs space-y-2">
-              <div className="flex justify-between font-sans">
-                <span className="text-slate-400">Room Category:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{selectedRoom.type}</span>
-              </div>
-              <div className="flex justify-between font-sans">
-                <span className="text-slate-400">Current Tariff:</span>
-                <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">{formatAmount(selectedRoom.rate)}/night</span>
-              </div>
-              <div className="flex justify-between font-sans">
-                <span className="text-slate-400">Cleaning Status:</span>
-                <span className={`px-2 py-0.5 rounded font-mono text-2xs ${getStatusColor(selectedRoom.status)} font-semibold`}>
-                  {selectedRoom.status}
-                </span>
-              </div>
-              <div className="flex flex-col gap-1 pt-1 font-sans">
-                <span className="text-slate-400">Amenities Loaded:</span>
-                <div className="flex flex-wrap gap-1">
-                  {selectedRoom.features.map(f => (
-                    <span key={f} className="px-1.5 py-0.5 bg-slate-150 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-3xs rounded-md">
-                      {f}
-                    </span>
-                  ))}
-                </div>
+            <div className="flex justify-between font-sans">
+              <span className="text-slate-400">Current Tariff:</span>
+              <span className="font-mono text-slate-800 dark:text-slate-200 font-semibold">{formatAmount(selectedRoom.rate)}/night</span>
+            </div>
+            <div className="flex justify-between font-sans">
+              <span className="text-slate-400">Cleaning Status:</span>
+              <span className={`px-2 py-0.5 rounded font-mono text-2xs ${getStatusColor(selectedRoom.status)} font-semibold`}>
+                {selectedRoom.status}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 pt-1 font-sans">
+              <span className="text-slate-400">Amenities Loaded:</span>
+              <div className="flex flex-wrap gap-1">
+                {selectedRoom.features.map(f => (
+                  <span key={f} className="px-1.5 py-0.5 bg-slate-150 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-3xs rounded-md">
+                    {f}
+                  </span>
+                ))}
               </div>
             </div>
 
@@ -1396,58 +1402,35 @@ export default function DashboardModule({
                 ))}
               </div>
             </div>
-
-            <div className="flex justify-end gap-2 pt-1 text-xs">
-              <button
-                onClick={() => setSelectedRoom(null)}
-                className="px-3 py-1.5 bg-slate-90 text-slate-605 border border-slate-200 dark:border-slate-750 dark:text-slate-300 hover:bg-slate-100 rounded-lg font-mono text-2xs cursor-pointer"
-              >
-                Close Console
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        )}
+      </ModalSystem>
 
       {/* AUTOMATED NIGHT AUDIT CONFIRMATION */}
-      {showAuditConfirm && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900/30 rounded-2xl shadow-lg dark:shadow-slate-900/20 max-w-md w-full p-5 space-y-4 border border-slate-200/80 dark:border-slate-700">
-            <div className="flex items-center gap-2 text-amber-600">
-              <Moon size={20} className="animate-spin" />
-              <h3 className="font-sans font-bold text-sm dark:text-white">Execute Night End & Tariff Ledger?</h3>
-            </div>
-            
-            <div className="text-xs text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed">
-              <p>You are about to launch the automated Night End audit transactions for hotel operating day: <strong className="text-slate-800 dark:text-white">{currentSystemDate}</strong></p>
-              <ul className="list-disc list-inside space-y-1 font-mono pl-1 text-[10px]">
-                <li>Locks all system accounts and closes reservation bookings for the day.</li>
-                <li>Applies and posts nightly room tariffs automatically to guest folios.</li>
-                <li>Flags outstanding unresolved arrivals as cancelled no-shows.</li>
-                <li>Reconciles metrics and rolls front office clock to the next day.</li>
-              </ul>
-              <p className="font-bold text-rose-600 dark:text-rose-450">This action runs final database queries and is irreversible.</p>
-            </div>
-
-            <div className="flex justify-end gap-2 border-t border-slate-100 dark:border-slate-800 pt-3">
-              <button
-                onClick={() => setShowAuditConfirm(false)}
-                className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-650 dark:text-slate-300 rounded-lg text-xs font-mono cursor-pointer"
-              >
-                Cancel Audit
-              </button>
-              <button
-                id="confirm-audit-action"
-                onClick={executeAudit}
-                className="px-4 py-1.5 bg-slate-950 dark:bg-slate-100 dark:text-slate-950 hover:bg-slate-900 dark:hover:bg-slate-200 text-white font-mono rounded-lg text-xs font-black cursor-pointer"
-              >
-                Launch Audit
-              </button>
-            </div>
-          </div>
+      <ModalSystem
+        isOpen={showAuditConfirm}
+        onClose={() => setShowAuditConfirm(false)}
+        onConfirm={executeAudit}
+        title="Execute Night End & Tariff Ledger?"
+        variant="confirm"
+        size="md"
+        confirmLabel="Launch Audit"
+        cancelLabel="Cancel Audit"
+        confirmColor="slate"
+        icon={<Moon size={20} className="text-amber-600 animate-spin" />}
+      >
+        <div className="text-xs text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed">
+          <p>You are about to launch the automated Night End audit transactions for hotel operating day: <strong className="text-slate-800 dark:text-white">{currentSystemDate}</strong></p>
+          <ul className="list-disc list-inside space-y-1 font-mono pl-1 text-[10px]">
+            <li>Locks all system accounts and closes reservation bookings for the day.</li>
+            <li>Applies and posts nightly room tariffs automatically to guest folios.</li>
+            <li>Flags outstanding unresolved arrivals as cancelled no-shows.</li>
+            <li>Reconciles metrics and rolls front office clock to the next day.</li>
+          </ul>
+          <p className="font-bold text-rose-600 dark:text-rose-450">This action runs final database queries and is irreversible.</p>
         </div>
-      )}
+      </ModalSystem>
 
-    </div>
+    </DashboardTemplate>
   );
 }

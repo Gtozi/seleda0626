@@ -25,6 +25,7 @@ import {
   ArrowRightLeft
 } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from './ModalSystem';
 
 const getPaymentIcon = (method: string) => {
   const m = method.toLowerCase();
@@ -122,8 +123,14 @@ export default function UnifiedInvoiceTemplate({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] overflow-y-auto px-4 py-8 flex flex-col justify-start items-center print:p-0 print:bg-white print:backdrop-blur-none">
-      
+    <ModalSystem
+      isOpen={true}
+      onClose={onClose}
+      title="Smart Digital Invoicing"
+      variant="info"
+      size="xl"
+      showFooter={false}
+    >
       {/* 1. TOP CONTROL BAR (HIDDEN DURING PRINT) */}
       <div className="w-full max-w-3xl bg-slate-900 text-white rounded-t-2xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 shadow-xl print:hidden border-b border-slate-800">
         <div className="flex items-center gap-3">
@@ -915,6 +922,6 @@ export default function UnifiedInvoiceTemplate({
         )}
 
       </div>
-    </div>
+    </ModalSystem>
   );
 }

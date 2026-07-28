@@ -6,6 +6,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { ShieldCheck, Plus, CheckCircle2, GitPullRequest, AlertTriangle, Users, Key, Lock, Clock, RefreshCw, Settings, Building, ShoppingCart, Heart, BarChart3, Plug, Monitor, ClipboardList, Archive, FileText } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { AdminChangeType, PendingAdminChange } from '../../types/erp';
 
 interface ChangeProposal {
@@ -374,10 +375,14 @@ export default function Governance() {
           </div>
 
           {/* New Change Proposal Modal */}
-          {showApplyModal && (
-            <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-              <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl p-6 space-y-4">
-                <h3 className="text-lg font-black text-slate-900">Raise Change Initiative</h3>
+          <ModalSystem
+            isOpen={showApplyModal}
+            onClose={() => setShowApplyModal(false)}
+            title="Raise Change Initiative"
+            variant="form"
+            size="md"
+            showFooter={false}
+          >
                 <form onSubmit={submitNewChange} className="space-y-4">
                   <div className="space-y-1">
                     <label className="text-[10px] font-mono uppercase text-slate-400 font-bold">Title</label>
@@ -443,9 +448,7 @@ export default function Governance() {
                     </button>
                   </div>
                 </form>
-              </div>
-            </div>
-          )}
+          </ModalSystem>
         </div>
       </div>
     </div>

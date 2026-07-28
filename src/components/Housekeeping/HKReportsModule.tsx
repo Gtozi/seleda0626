@@ -46,6 +46,7 @@ import {
   Line
 } from 'recharts';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 // Types for HK Structured Inputs
 interface CleaningLog {
@@ -2113,22 +2114,22 @@ export default function HKReportsModule() {
       {/* ========================================================================= */}
       {/* EXPORT WORKSPACE HANDSHAKE DIALOG MODAL (COMPACT SLICK SHADER) */}
       {/* ========================================================================= */}
-      {showExportModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center z-50 animate-fade-in" id="exporting-docket-modal">
-          <div className="bg-white dark:bg-slate-905 border dark:border-slate-850 p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center space-y-4 animate-scale-up">
+      <ModalSystem
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+        title="Building Layout Assets..."
+        variant="info"
+        size="sm"
+        showFooter={false}
+      >
             <RefreshCw size={44} className="mx-auto text-indigo-500 animate-spin" />
-            <h3 className="text-sm font-sans font-black uppercase text-slate-900 dark:text-white tracking-widest mt-4">
-              Building Layout Assets...
-            </h3>
-            <p className="text-[11px] text-slate-405 font-mono uppercase leading-relaxed max-w-xs mx-auto">
+            <p className="text-[11px] text-slate-405 font-mono uppercase leading-relaxed max-w-xs mx-auto mt-4">
               Hotel auditing stream pipeline currently serializing reports database layers. Direct download will execute upon pipeline clearance.
             </p>
             <div className="p-3 bg-slate-50 dark:bg-slate-950 font-mono text-[9px] text-[#10b981] font-bold border border-emerald-500/10 rounded-2xl uppercase tracking-wider">
               {exportType} Format - Cryptographic Key Applied
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
     </div>
   );

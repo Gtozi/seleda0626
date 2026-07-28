@@ -17,9 +17,7 @@ export default defineConfig(() => {
       },
     },
     server: {
-      hmr: hmrPort
-        ? { port: hmrPort, strictPort: false }
-        : { strictPort: false },
+      hmr: false,
       watch: {},
     },
   };

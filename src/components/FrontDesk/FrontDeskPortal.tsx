@@ -5,19 +5,17 @@
  * Standalone Front Desk Portal — all sub-modules visible without permission checks.
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useModalReturn } from '../../context/ModalReturnContext';
 import DashboardModule from './DashboardModule';
 import ReservationsModule from './ReservationsModule';
-import CheckInOutModule from './CheckInOutModule';
 import CRMModule from './CRMModule';
 import ReportsAuditModule from './ReportsAuditModule';
-import GiftShopPOS from './GiftShopPOS';
 import OfficeInventoryModule from './OfficeInventoryModule';
-import FolioPaymentAudit from './FolioPaymentAudit';
 import FolioPortal from './FolioPortal';
-type FrontDeskTab = 'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory';
-type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast';
+import { StandardFrontDeskReports } from './StandardFrontDeskReports';
+type FrontDeskTab = 'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'inventory' | 'giftshop' | 'standard-reports';
+type ReservationsTab = 'form' | 'calendar' | 'ota' | 'revenue' | 'walkin' | 'forecast' | 'series';
 
 export default function FrontDeskPortal({
   currentUser,
@@ -58,7 +56,7 @@ export default function FrontDeskPortal({
       }
     | undefined
   >(undefined);
-  const { push, pop } = useModalReturn();
+  const { push } = useModalReturn();
 
   const [viewGuestId, setViewGuestId] = useState<string | undefined>(undefined);
   const [viewGroupId, setViewGroupId] = useState<string | undefined>(undefined);
@@ -198,7 +196,7 @@ export default function FrontDeskPortal({
         )}
 
         {activeTab === 'reports' && <ReportsAuditModule />}
-        {activeTab === 'giftshop' && <GiftShopPOS />}
+        {activeTab === 'standard-reports' && <StandardFrontDeskReports />}
         {activeTab === 'inventory' && <OfficeInventoryModule />}
       </div>
     </div>

@@ -3,15 +3,15 @@
  * SPDX-License-Identifier: Apache-2.5
  */
 
-import React, { useState } from 'react';
-import { 
-  Package, 
-  Search, 
-  Filter, 
-  ArrowUpRight, 
-  AlertTriangle, 
-  CheckCircle2, 
-  History, 
+import React, { useState, useEffect } from 'react';
+import {
+  Package,
+  Search,
+  Filter,
+  ArrowUpRight,
+  AlertTriangle,
+  CheckCircle2,
+  History,
   Plus,
   Box,
   Truck,
@@ -26,30 +26,68 @@ import {
   BarChart3,
   X,
   RefreshCw,
-  Trash2
+  Trash2,
+  Store as StoreIcon,
+  Pencil,
+  Building2
 } from 'lucide-react';
+import StockCountModal from './StockCountModal';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { InventoryItem } from './FoodBeveragePortal';
+import {
+  fetchIngredients,
+  createIngredient,
+  updateIngredient,
+  fetchStockLocations,
+  fetchStockTransactions,
+  createStockTransaction,
+  fetchRequisitions,
+  createRequisition,
+  type Ingredient,
+  type StockLocation,
+  type StockTransaction,
+  type Requisition
+} from '../../services/foodBeverageService';
 
 export default function InventoryModule({ forcedStore }: { forcedStore?: string }) {
-  const { 
-    formatAmount, 
-    addNotification, 
-    inventoryItems, 
+  const {
+    formatAmount,
+    addNotification,
+    inventoryItems,
     inventoryStores,
     addInventoryItem,
     updateInventoryItem,
+    addInventoryStore,
+    updateInventoryStore,
+    deleteInventoryStore,
     logAudit,
     auditLogs,
     globalHotelSettings
   } = useERP();
-  
+
   const [activeType, setActiveType] = useState<'Consumable' | 'Fixed Asset'>('Consumable');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'transactions' | 'cost-control'>('inventory');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStore, setSelectedStore] = useState<string>(forcedStore || 'All');
   const [showAudit, setShowAudit] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [isCreatingRequisition, setIsCreatingRequisition] = useState(false);
+  const [isCreatingStockCount, setIsCreatingStockCount] = useState(false);
+  const [stockCountLines, setStockCountLines] = useState<{ ingredientId: string; countedQty: number }[]>([]);
+
+  // Store management state
+  const [showStoreManager, setShowStoreManager] = useState(false);
+  const [isAddingStore, setIsAddingStore] = useState(false);
+  const [editingStoreId, setEditingStoreId] = useState<string | null>(null);
+  const [newStore, setNewStore] = useState({ name: '', type: 'Departmental' as 'Main' | 'Departmental' | 'Virtual', manager: '' });
+
+  // API data state
+  const [loading, setLoading] = useState(true);
+  const [apiIngredients, setApiIngredients] = useState<Ingredient[]>([]);
+  const [apiStockLocations, setApiStockLocations] = useState<StockLocation[]>([]);
+  const [apiStockTransactions, setApiStockTransactions] = useState<StockTransaction[]>([]);
+  const [apiRequisitions, setApiRequisitions] = useState<Requisition[]>([]);
 
   const [newItem, setNewItem] = useState<Partial<InventoryItem>>({
     name: '',
@@ -59,52 +97,152 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
     quantity: 0,
     minLevel: 5,
     cost: 0,
-    location: forcedStore || 'Restaurant Store'
+    location: forcedStore || 'All'
   });
 
-  const handleAddItem = () => {
-    if (!newItem.name) return;
-    
-    addInventoryItem({
-      code: `FB-${Math.random().toString(36).substring(7).toUpperCase()}`,
-      name: newItem.name!,
-      category: 'Food & Beverage',
-      subcategory: newItem.stockCategory as any,
-      unit: newItem.unit || 'Pcs',
-      supplierId: 'S-001',
-      minStock: newItem.minLevel || 5,
-      maxStock: 100,
-      reorderLevel: 10,
-      lastCost: newItem.cost || 0,
-      avgCost: newItem.cost || 0,
-      currentStock: newItem.quantity || 0,
-      location: newItem.location || 'Restaurant Store'
-    });
+  // Load F&B inventory data from API
+  useEffect(() => {
+    const loadFBData = async () => {
+      setLoading(true);
+      try {
+        const [ingredientsData, locationsData, transactionsData, requisitionsData] = await Promise.all([
+          fetchIngredients(),
+          fetchStockLocations(),
+          fetchStockTransactions(),
+          fetchRequisitions()
+        ]);
+        setApiIngredients(ingredientsData);
+        setApiStockLocations(locationsData);
+        setApiStockTransactions(transactionsData);
+        setApiRequisitions(requisitionsData);
+      } catch (error) {
+        console.error('Failed to load F&B inventory data:', error);
+        addNotification('Failed to load inventory data from server', 'error', 'Inventory');
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadFBData();
+  }, []);
 
-    setIsAddingItem(false);
-    addNotification(`Added ${newItem.name} to inventory.`, 'success', 'Inventory');
+  const handleAddItem = async () => {
+    if (!newItem.name) return;
+
+    try {
+      // Create ingredient via API
+      const ingredient: Omit<Ingredient, 'id' | 'created_at' | 'updated_at'> = {
+        name: newItem.name!,
+        category: newItem.stockCategory as any || 'Food',
+        unit_of_measure: newItem.unit || 'Pcs',
+        par_level: newItem.minLevel || 5,
+        reorder_point: 10,
+        current_cost: newItem.cost || 0,
+        suppliers: [],
+        is_active: true
+      };
+
+      await createIngredient(ingredient);
+
+      // Reload data
+      const updatedIngredients = await fetchIngredients();
+      setApiIngredients(updatedIngredients);
+
+      // Also add to legacy inventory for compatibility
+      addInventoryItem({
+        code: `FB-${Math.random().toString(36).substring(7).toUpperCase()}`,
+        name: newItem.name!,
+        category: 'Food & Beverage',
+        subcategory: newItem.stockCategory as any,
+        unit: newItem.unit || 'Pcs',
+        supplierId: 'S-001',
+        minStock: newItem.minLevel || 5,
+        maxStock: 100,
+        reorderLevel: 10,
+        lastCost: newItem.cost || 0,
+        avgCost: newItem.cost || 0,
+        currentStock: newItem.quantity || 0,
+        location: newItem.location || 'Restaurant Store'
+      });
+
+      setIsAddingItem(false);
+      addNotification(`Added ${newItem.name} to inventory.`, 'success', 'Inventory');
+    } catch (error) {
+      console.error('Failed to add ingredient:', error);
+      addNotification('Failed to add ingredient to inventory', 'error', 'Inventory');
+    }
   };
 
-  const fbStores = inventoryStores.filter(s => 
-    s.name?.includes('Bar') || 
-    s.name?.includes('Restaurant') || 
-    s.name?.includes('Kitchen') || 
-    s.type === 'Main'
-  );
+  const fbStores = Array.isArray(inventoryStores) ? inventoryStores : [];
 
-  const filteredInventory = inventoryItems.filter(item => {
+  const handleAddStore = () => {
+    if (!newStore.name.trim() || !newStore.manager.trim()) {
+      addNotification('Please fill in store name and manager.', 'warning', 'F&B');
+      return;
+    }
+    addInventoryStore({
+      name: newStore.name.trim(),
+      type: newStore.type,
+      manager: newStore.manager.trim()
+    });
+    addNotification(`Store "${newStore.name.trim()}" created successfully.`, 'success', 'F&B');
+    setNewStore({ name: '', type: 'Departmental', manager: '' });
+    setIsAddingStore(false);
+  };
+
+  const handleUpdateStore = () => {
+    if (!editingStoreId || !newStore.name.trim() || !newStore.manager.trim()) {
+      addNotification('Please fill in store name and manager.', 'warning', 'F&B');
+      return;
+    }
+    updateInventoryStore(editingStoreId, {
+      name: newStore.name.trim(),
+      type: newStore.type,
+      manager: newStore.manager.trim()
+    });
+    addNotification(`Store "${newStore.name.trim()}" updated successfully.`, 'success', 'F&B');
+    setNewStore({ name: '', type: 'Departmental', manager: '' });
+    setEditingStoreId(null);
+    setIsAddingStore(false);
+  };
+
+  const handleDeleteStore = (storeId: string, storeName: string) => {
+    const itemCount = Array.isArray(inventoryItems) ? inventoryItems.filter(i => i.location === storeName).length : 0;
+    if (itemCount > 0) {
+      addNotification(`Cannot delete "${storeName}" — it still has ${itemCount} item(s). Transfer or remove them first.`, 'warning', 'F&B');
+      return;
+    }
+    deleteInventoryStore(storeId);
+    addNotification(`Store "${storeName}" deleted.`, 'warning', 'F&B');
+    if (selectedStore === storeName) setSelectedStore('All');
+  };
+
+  const startEditStore = (store: typeof fbStores[0]) => {
+    setEditingStoreId(store.id);
+    setNewStore({ name: store.name, type: store.type, manager: store.manager });
+    setIsAddingStore(true);
+  };
+
+  const getStoreItemCount = (storeName: string) =>
+    Array.isArray(inventoryItems) ? inventoryItems.filter(i => i.location === storeName).length : 0;
+
+  const getStoreValue = (storeName: string) =>
+    Array.isArray(inventoryItems) ? inventoryItems
+      .filter(i => i.location === storeName)
+      .reduce((acc, item) => acc + (item.lastCost * (item.currentStock || 0)), 0) : 0;
+
+  const filteredInventory = Array.isArray(inventoryItems) ? inventoryItems.filter(item => {
     const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) || item.id.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStore = selectedStore === 'All' || item.location === selectedStore;
-    
+
     // Type matching logic
     const isFixedAsset = item.category === 'Fixed Asset';
     const isConsumable = item.category === 'Food & Beverage' || item.subcategory === 'Beverages' || item.subcategory === 'Food';
-    
+
     if (activeType === 'Fixed Asset' && !isFixedAsset) return false;
     if (activeType === 'Consumable' && !isConsumable) return false;
 
     return matchesSearch && matchesStore;
-  });
+  }) : [];
 
   const [isRecordingLoss, setIsRecordingLoss] = useState(false);
   const [selectedItemForLoss, setSelectedItemForLoss] = useState<InventoryItem | null>(null);
@@ -163,8 +301,7 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
           <p className="text-[10px] text-slate-400 font-mono italic">Dedicated sub-store management for consumables and fixed assets.</p>
         </div>
 
-        {!forcedStore && (
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-1">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-1">
             <button
               onClick={() => setActiveType('Consumable')}
               className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all flex items-center gap-2 ${
@@ -191,38 +328,24 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
               onChange={(e) => setSelectedStore(e.target.value)}
               className="bg-transparent text-[10px] font-black uppercase tracking-widest text-slate-500 outline-none px-4 py-2"
             >
-              <option value="All">All F&B Stores</option>
+              <option value="All">All Stores</option>
               {fbStores.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
             </select>
           </div>
-        )}
-
-        {forcedStore && (
-          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl gap-1">
-            <button
-              onClick={() => setActiveType('Consumable')}
-              className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all flex items-center gap-2 ${
-                activeType === 'Consumable' 
-                ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <Box size={14} /> CONSUMABLES
-            </button>
-            <button
-              onClick={() => setActiveType('Fixed Asset')}
-              className={`px-5 py-2 rounded-xl text-[10px] font-black transition-all flex items-center gap-2 ${
-                activeType === 'Fixed Asset' 
-                ? 'bg-white dark:bg-slate-700 text-slate-950 dark:text-white shadow-sm' 
-                : 'text-slate-400 hover:text-slate-600'
-              }`}
-            >
-              <ShieldCheck size={14} /> FIXED ASSETS
-            </button>
-          </div>
-        )}
 
         <div className="flex items-center gap-2">
+           <button 
+             onClick={() => setShowStoreManager(true)}
+             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-tight shadow-lg shadow-indigo-600/10 hover:bg-indigo-700 transition-all"
+           >
+              <StoreIcon size={14} /> MANAGE STORES
+           </button>
+           <button 
+             onClick={() => setIsCreatingStockCount(true)}
+             className="flex items-center gap-2 px-5 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-tight shadow-lg shadow-emerald-600/10 hover:bg-emerald-700 transition-all"
+           >
+              <ClipboardCheck size={14} /> STOCK COUNT
+           </button>
            <button 
              onClick={() => setIsAddingItem(true)}
              className="flex items-center gap-2 px-5 py-2.5 bg-slate-900 dark:bg-white dark:text-slate-950 text-white rounded-2xl text-[10px] font-black uppercase tracking-tight shadow-lg shadow-slate-900/10 hover:bg-indigo-600 transition-all"
@@ -465,25 +588,20 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
       )}
 
       {/* Record Loss Modal */}
-      {isRecordingLoss && selectedItemForLoss && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-[60] flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-[3rem] w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200 overflow-hidden">
-            <div className="p-8">
-              <div className="flex justify-between items-start mb-8">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Loss / Damage Registry</h3>
-                  <p className="text-[10px] text-slate-500 font-mono italic">Adjusting stock for: {selectedItemForLoss.name}</p>
-                </div>
-                <button onClick={() => setIsRecordingLoss(false)} className="p-3 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-2xl transition-colors text-slate-400">
-                   <X size={20} />
-                </button>
-              </div>
-
+      <ModalSystem
+        isOpen={isRecordingLoss && !!selectedItemForLoss}
+        onClose={() => setIsRecordingLoss(false)}
+        title="Loss / Damage Registry"
+        subtitle={`Adjusting stock for: ${selectedItemForLoss?.name ?? ''}`}
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
               <div className="space-y-6">
                 <div>
                    <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 block">Loss Classification</label>
                    <div className="grid grid-cols-2 gap-2">
-                      {(selectedItemForLoss.category === 'Fixed Asset' ? ['Damage', 'Broken', 'Lost', 'Theft'] : ['Spoilage', 'Expired', 'Contamination', 'Discarded']).map(t => (
+                      {(selectedItemForLoss?.category === 'Fixed Asset' ? ['Damage', 'Broken', 'Lost', 'Theft'] : ['Spoilage', 'Expired', 'Contamination', 'Discarded']).map(t => (
                         <button
                           key={t}
                           onClick={() => setLossData({...lossData, type: t as any})}
@@ -510,9 +628,9 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
                           className="w-full bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border-2 border-transparent focus:border-rose-500 outline-none text-sm font-black transition-all"
                           placeholder="0"
                         />
-                        <span className="absolute right-4 top-4 text-[10px] font-black text-slate-400 uppercase">{selectedItemForLoss.unit}</span>
+                        <span className="absolute right-4 top-4 text-[10px] font-black text-slate-400 uppercase">{selectedItemForLoss?.unit}</span>
                       </div>
-                      <p className="text-[9px] text-slate-400 mt-2 font-bold italic ml-2">Currently: {selectedItemForLoss.currentStock} in stock</p>
+                      <p className="text-[9px] text-slate-400 mt-2 font-bold italic ml-2">Currently: {selectedItemForLoss?.currentStock} in stock</p>
                    </div>
                 </div>
 
@@ -536,32 +654,24 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
                  </button>
                  <button 
                   onClick={handleRecordLoss}
-                  disabled={!lossData.qty || !lossData.reason || lossData.qty > selectedItemForLoss.currentStock}
+                  disabled={!lossData.qty || !lossData.reason || (selectedItemForLoss && lossData.qty > selectedItemForLoss.currentStock)}
                   className="flex-1 py-4 bg-rose-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-xl shadow-rose-200 dark:shadow-none hover:bg-rose-700 transition-all disabled:opacity-30 disabled:grayscale"
                  >
                    Confirm Record
                  </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Requisition Modal */}
-      {isCreatingRequisition && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-            <div className="p-8 space-y-6">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Stock Requisition</h3>
-                  <p className="text-[10px] text-slate-500 font-mono italic">Pull inventory from the Main Lodge Warehouse.</p>
-                </div>
-                <button onClick={() => setIsCreatingRequisition(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                   <X size={20} />
-                </button>
-              </div>
-
+      <ModalSystem
+        isOpen={isCreatingRequisition}
+        onClose={() => setIsCreatingRequisition(false)}
+        title="Stock Requisition"
+        subtitle="Pull inventory from the Main Lodge Warehouse."
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
               <div className="p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-900/30 rounded-2xl flex gap-3 text-amber-800 dark:text-amber-400 text-xs font-medium">
                  <AlertTriangle size={16} className="shrink-0" />
                  <p>All pulls are logged and require Storekeeper approval at the Main Warehouse.</p>
@@ -605,26 +715,18 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
                   Submit Pull Request
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* Add Item Modal */}
-      {isAddingItem && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] w-full max-w-lg shadow-2xl border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in duration-200">
-            <div className="p-8 space-y-6">
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Add New Stock</h3>
-                  <p className="text-[10px] text-slate-500 font-mono italic">Register a new consumable or fixed asset.</p>
-                </div>
-                <button onClick={() => setIsAddingItem(false)} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
-                   <X size={20} />
-                </button>
-              </div>
-
+      <ModalSystem
+        isOpen={isAddingItem}
+        onClose={() => setIsAddingItem(false)}
+        title="Add New Stock"
+        subtitle="Register a new consumable or fixed asset."
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2">
                   <label className="text-[9px] font-black text-slate-400 uppercase mb-1.5 block">Item Name</label>
@@ -693,10 +795,7 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
                   Confirm Entry
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
          <div 
@@ -741,6 +840,170 @@ export default function InventoryModule({ forcedStore }: { forcedStore?: string 
             <div className="absolute -right-6 -bottom-6 opacity-5 group-hover:scale-125 transition-transform"><ShieldCheck size={120} /></div>
          </div>
       </div>
+
+      {/* Store Manager Modal */}
+      <ModalSystem
+        isOpen={showStoreManager}
+        onClose={() => { setShowStoreManager(false); setIsAddingStore(false); setEditingStoreId(null); setNewStore({ name: '', type: 'Departmental', manager: '' }); }}
+        title="F&B Store Management"
+        subtitle="Consolidated store governance — add, edit, and manage all F&B stores."
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
+        <div className="space-y-6">
+          {/* Add/Edit Store Form */}
+          {isAddingStore ? (
+            <div className="bg-slate-50 dark:bg-slate-850 rounded-2xl p-6 space-y-4 border-2 border-indigo-200 dark:border-indigo-900">
+              <div className="flex items-center justify-between">
+                <h4 className="text-[11px] font-black uppercase tracking-widest text-indigo-600">
+                  {editingStoreId ? 'Edit Store' : 'Register New Store'}
+                </h4>
+                <button
+                  onClick={() => { setIsAddingStore(false); setEditingStoreId(null); setNewStore({ name: '', type: 'Departmental', manager: '' }); }}
+                  className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Store Name</label>
+                  <input
+                    type="text"
+                    value={newStore.name}
+                    onChange={(e) => setNewStore({ ...newStore, name: e.target.value })}
+                    placeholder="e.g. Bar Store, Restaurant Store, Kitchen Pantry"
+                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-2xl border dark:border-slate-700 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Store Type</label>
+                  <select
+                    value={newStore.type}
+                    onChange={(e) => setNewStore({ ...newStore, type: e.target.value as 'Main' | 'Departmental' | 'Virtual' })}
+                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-2xl border dark:border-slate-700 text-sm outline-none"
+                  >
+                    <option value="Main">Main</option>
+                    <option value="Departmental">Departmental</option>
+                    <option value="Virtual">Virtual</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Manager</label>
+                  <input
+                    type="text"
+                    value={newStore.manager}
+                    onChange={(e) => setNewStore({ ...newStore, manager: e.target.value })}
+                    placeholder="Store manager name"
+                    className="w-full bg-white dark:bg-slate-800 p-3 rounded-2xl border dark:border-slate-700 text-sm outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setIsAddingStore(false); setEditingStoreId(null); setNewStore({ name: '', type: 'Departmental', manager: '' }); }}
+                  className="flex-1 py-3.5 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={editingStoreId ? handleUpdateStore : handleAddStore}
+                  className="flex-1 py-3.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] shadow-lg shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+                >
+                  {editingStoreId ? 'Update Store' : 'Create Store'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAddingStore(true)}
+              className="w-full py-4 border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-indigo-500 hover:text-indigo-600 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={16} /> Add New Store
+            </button>
+          )}
+
+          {/* Store Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {fbStores.length === 0 ? (
+              <div className="col-span-2 py-12 text-center">
+                <Building2 size={48} className="mx-auto text-slate-300 dark:text-slate-700 mb-3" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No stores configured yet.</p>
+                <p className="text-[9px] text-slate-400 mt-1">Click "Add New Store" to create your first F&B store.</p>
+              </div>
+            ) : (
+              fbStores.map(store => {
+                const itemCount = getStoreItemCount(store.name);
+                const storeValue = getStoreValue(store.name);
+                const isActive = selectedStore === store.name;
+                return (
+                  <div
+                    key={store.id}
+                    className={`bg-white dark:bg-slate-900 border-2 rounded-2xl p-5 transition-all cursor-pointer group ${
+                      isActive ? 'border-indigo-500 shadow-lg shadow-indigo-100 dark:shadow-indigo-900/20' : 'border-slate-150 dark:border-slate-800 hover:border-indigo-300'
+                    }`}
+                    onClick={() => { setSelectedStore(store.name); setShowStoreManager(false); }}
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-3 rounded-2xl ${
+                          store.type === 'Main' ? 'bg-amber-100 text-amber-600' :
+                          store.type === 'Virtual' ? 'bg-purple-100 text-purple-600' :
+                          'bg-indigo-100 text-indigo-600'
+                        }`}>
+                          <StoreIcon size={20} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">{store.name}</p>
+                          <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{store.type}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); startEditStore(store); }}
+                          className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+                          title="Edit Store"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteStore(store.id, store.name); }}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                          title="Delete Store"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+                      <div className="space-y-0.5">
+                        <p className="text-slate-400">Manager</p>
+                        <p className="text-slate-700 dark:text-slate-300 normal-case tracking-tight">{store.manager || '—'}</p>
+                      </div>
+                      <div className="space-y-0.5 text-right">
+                        <p className="text-slate-400">Items</p>
+                        <p className="text-slate-700 dark:text-slate-300 tabular-nums">{itemCount}</p>
+                      </div>
+                      <div className="space-y-0.5 text-right">
+                        <p className="text-slate-400">Value</p>
+                        <p className="text-slate-700 dark:text-slate-300 tabular-nums">{formatAmount(storeValue)}</p>
+                      </div>
+                    </div>
+                    {isActive && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+                        <p className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1">
+                          <CheckCircle2 size={10} /> Currently Selected
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </ModalSystem>
     </div>
   );
 }

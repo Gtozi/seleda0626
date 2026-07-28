@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   Clock
 } from 'lucide-react';
+import { DataTable, Column } from '../../Shared/DataTable';
 
 const PettyCashManagement = () => {
   const branches = [
@@ -71,59 +72,62 @@ const PettyCashManagement = () => {
 
       <div className="grid lg:grid-cols-12 gap-6">
          {/* Ledger */}
-         <div className="lg:col-span-8 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs">
-            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+         <div className="lg:col-span-8">
+            <div className="flex items-center justify-between mb-4">
                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Daily Cash Disbursement Log</h3>
                <button className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-2 hover:opacity-70 transition">
                   <RefreshCw size={14} />
                   Reconcile All
                </button>
             </div>
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Transaction ID</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Purpose / Branch</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Amount</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Verification</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                {recentTransactions.map((tx, i) => (
-                  <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group">
-                    <td className="px-6 py-4">
-                       <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{tx.id}</span>
-                       <p className="text-[9px] font-bold text-slate-400 mt-0.5">{tx.date}</p>
-                    </td>
-                    <td className="px-6 py-4">
-                       <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{tx.purpose}</span>
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">{tx.account} • {tx.vendor}</span>
-                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                       <span className="text-xs font-black text-slate-900 dark:text-white">-${tx.amount.toFixed(2)}</span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                       <div className="flex flex-col items-center gap-1">
-                          {tx.status === 'Reconciled' ? (
-                            <CheckCircle2 size={14} className="text-emerald-500" />
-                          ) : (
-                            <Clock size={14} className="text-amber-500" />
-                          )}
-                          <span className="text-[8px] font-black text-slate-400 uppercase">{tx.status}</span>
-                       </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                       <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
-                          <MoreVertical size={14} />
-                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <DataTable
+              columns={[
+                {
+                  key: 'id', label: 'Transaction ID',
+                  render: (tx: any) => (
+                    <div>
+                      <span className="text-[10px] font-black text-indigo-600 font-mono tracking-tighter">{tx.id}</span>
+                      <p className="text-[9px] font-bold text-slate-400 mt-0.5">{tx.date}</p>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'purpose', label: 'Purpose / Branch',
+                  render: (tx: any) => (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{tx.purpose}</span>
+                      <span className="text-[9px] font-bold text-slate-400 uppercase">{tx.account} • {tx.vendor}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'amount', label: 'Amount', align: 'center' as const,
+                  render: (tx: any) => <span className="text-xs font-black text-slate-900 dark:text-white">-${tx.amount.toFixed(2)}</span>,
+                },
+                {
+                  key: 'status', label: 'Verification', align: 'center' as const,
+                  render: (tx: any) => (
+                    <div className="flex flex-col items-center gap-1">
+                      {tx.status === 'Reconciled' ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Clock size={14} className="text-amber-500" />}
+                      <span className="text-[8px] font-black text-slate-400 uppercase">{tx.status}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'actions', label: 'Action', align: 'right' as const, sortable: false,
+                  render: () => (
+                    <button className="p-1.5 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"><MoreVertical size={14} /></button>
+                  ),
+                },
+              ] as Column<any>[]}
+              data={recentTransactions}
+              rowKey={(tx) => tx.id}
+              sortable
+              filterable
+              filterPlaceholder="Search transactions..."
+              filterKeys={['id', 'purpose', 'account', 'vendor', 'status']}
+              containerClassName="rounded-[32px]"
+            />
          </div>
 
          {/* Controls */}

@@ -66,6 +66,7 @@ import {
   AreaChart,
   Area
 } from 'recharts';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 import { 
   DAILY_REPORTS_LIST, 
@@ -3595,14 +3596,15 @@ export default function ReportsAuditModule() {
       />
 
       {/* CREATE AUTOMATED SCHEDULE DISPATCH TRIGGER DIALOGUE */}
-      {showAddScheduleModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-xs animate-fade-in font-sans">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-805 rounded-3xl p-6 shadow-2xl w-full max-w-md space-y-4 text-slate-800 dark:text-slate-100">
-            <div>
-              <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Create Distribution Schedule</h3>
-              <p className="text-xs text-slate-400 mt-1">Specify automated report delivery triggers directly to circles.</p>
-            </div>
-
+      <ModalSystem
+        isOpen={showAddScheduleModal}
+        onClose={() => setShowAddScheduleModal(false)}
+        title="Create Distribution Schedule"
+        subtitle="Specify automated report delivery triggers directly to circles."
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
             <div className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[9px] uppercase font-mono font-black tracking-widest text-slate-400 pl-0.5">Report Target</label>
@@ -3643,73 +3645,18 @@ export default function ReportsAuditModule() {
                 </select>
               </div>
             </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 font-mono uppercase text-3xs font-semibold">
-              <button
-                onClick={() => setShowAddScheduleModal(false)}
-                className="bg-slate-50 dark:bg-slate-950 text-slate-400 py-2 px-3 rounded-xl hover:bg-slate-100 transition duration-150"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!newScheduleEmail) {
-                    alert('Please select a recipient.');
-                    return;
-                  }
-                  
-                  // Add schedule to collection dynamically
-                  const newScheduleObj: ScheduledReport = {
-                    id: `sch-${Math.floor(100 + Math.random() * 900)}`,
-                    reportName: newScheduleName,
-                    frequency: newScheduleFreq,
-                    recipients: [newScheduleEmail],
-                    status: 'Active',
-                    nextRun: 'No data'
-                  };
-
-                  setScheduledSchedules(prev => [newScheduleObj, ...prev]);
-
-                  // Best-effort backend persistence (falls back to local state silently).
-                  createReportSchedule({
-                    reportName: newScheduleName,
-                    frequency: newScheduleFreq,
-                    recipients: [newScheduleEmail],
-                    status: 'Active',
-                    nextRun: newScheduleObj.nextRun
-                  });
-
-                  // Push draft verification to history
-                  const newVer: VersionEntry = {
-                    id: `ver-${Math.floor(100 + Math.random() * 900)}`,
-                    reportName: newScheduleName,
-                    generatedBy: 'User Schedule Setup',
-                    timestamp: new Date().toISOString().replace('T', ' ').substring(0, 16),
-                    fileSize: '0 KB',
-                    status: 'Draft'
-                  };
-                  setVersionHistory(prev => [newVer, ...prev]);
-
-                  setShowAddScheduleModal(false);
-                }}
-                className="bg-slate-600 hover:bg-slate-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
-              >
-                Create Scheduler
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* CREATE NEW EMAIL SUBSCRIBER POPUP */}
-      {showAddEmailModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 text-xs animate-fade-in font-sans">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-sm space-y-4 text-slate-800 dark:text-slate-100">
-            <div>
-              <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Add Corporate Circle</h3>
-              <p className="text-xs text-slate-400 mt-1">Enroll an approved email address for distribution pipelines.</p>
-            </div>
-
+      <ModalSystem
+        isOpen={showAddEmailModal}
+        onClose={() => { setShowAddEmailModal(false); setNewEmailInput(''); }}
+        title="Add Corporate Circle"
+        subtitle="Enroll an approved email address for distribution pipelines."
+        variant="form"
+        size="sm"
+        showFooter={false}
+      >
             <div className="space-y-1">
               <label className="text-[9px] uppercase font-mono font-black tracking-widest text-slate-400 pl-0.5">Email Node Address</label>
               <input
@@ -3720,35 +3667,7 @@ export default function ReportsAuditModule() {
                 className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-bold font-mono text-xs text-slate-800 dark:text-white"
               />
             </div>
-
-            <div className="pt-2 flex items-center justify-end gap-2 font-mono uppercase text-3xs font-semibold">
-              <button
-                onClick={() => {
-                  setShowAddEmailModal(false);
-                  setNewEmailInput('');
-                }}
-                className="bg-slate-50 dark:bg-slate-950 text-slate-400 py-2 px-3 rounded-xl hover:bg-slate-100 transition duration-150"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  if (!newEmailInput || !newEmailInput.includes('@')) {
-                    alert('Please specify a valid email address.');
-                    return;
-                  }
-                  setEmailList(prev => [...prev, newEmailInput]);
-                  setNewEmailInput('');
-                  setShowAddEmailModal(false);
-                }}
-                className="bg-slate-600 hover:bg-slate-700 text-white font-sans font-black py-2.5 px-4 rounded-xl transition duration-150"
-              >
-                Enroll Address
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
     </div>
   );

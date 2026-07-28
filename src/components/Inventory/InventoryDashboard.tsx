@@ -4,14 +4,9 @@ import {
   Package, 
   AlertCircle, 
   TrendingUp, 
-  TrendingDown, 
   DollarSign, 
   Truck, 
-  ArrowUpRight, 
-  ArrowDownRight,
   ClipboardList,
-  BarChart3,
-  Calendar,
   Clock,
   BellOff,
   Box
@@ -27,12 +22,9 @@ import {
   PieChart, 
   Pie, 
   Cell,
-  AreaChart,
-  Area,
-  LineChart,
-  Line
 } from 'recharts';
 import { useERP } from '../../context/ERPContext';
+import { DashboardTemplate, ChartCard, type KpiTile } from '../Shared/DashboardTemplate';
 
 const InventoryDashboard: React.FC = () => {
   const { inventoryItems, inventoryStores, inventoryRequisitions, stockMovements, formatAmount } = useERP();
@@ -48,12 +40,12 @@ const InventoryDashboard: React.FC = () => {
     return inventoryItems.filter(item => item.currentStock <= item.reorderLevel && !dismissedAlerts.has(item.id));
   }, [inventoryItems, dismissedAlerts]);
 
-  const topStats = [
-    { label: 'Total Value', value: formatAmount(totalValue), sub: `Across ${inventoryItems.length} SKUs`, color: 'bg-emerald-500', icon: DollarSign },
-    { label: 'Total Stores', value: inventoryStores.length.toString(), sub: 'Operational Outlets', color: 'bg-blue-500', icon: Package },
-    { label: 'Low Stock', value: lowStockItems.length.toString(), sub: 'Reorder required', color: 'bg-amber-500', icon: AlertCircle },
-    { label: 'Pending Req', value: inventoryRequisitions.filter(r => r.status === 'Pending').length.toString(), sub: 'Internal demands', color: 'bg-indigo-500', icon: Truck },
-    { label: 'Stores Active', value: inventoryStores.filter(s => s.type === 'Departmental').length.toString(), sub: 'Outlets synced', color: 'bg-purple-500', icon: ClipboardList },
+  const topStats: KpiTile[] = [
+    { label: 'Total Value', value: formatAmount(totalValue), sub: `Across ${inventoryItems.length} SKUs`, icon: DollarSign, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Total Stores', value: inventoryStores.length.toString(), sub: 'Operational Outlets', icon: Package, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'Low Stock', value: lowStockItems.length.toString(), sub: 'Reorder required', icon: AlertCircle, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
+    { label: 'Pending Req', value: inventoryRequisitions.filter(r => r.status === 'Pending').length.toString(), sub: 'Internal demands', icon: Truck, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Stores Active', value: inventoryStores.filter(s => s.type === 'Departmental').length.toString(), sub: 'Outlets synced', icon: ClipboardList, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
   ];
 
   const categoryData = useMemo(() => {
@@ -128,42 +120,18 @@ const InventoryDashboard: React.FC = () => {
   }, [stockMovements, inventoryItems]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        {topStats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="bg-white dark:bg-slate-900 p-4 border border-slate-150 dark:border-slate-800 rounded-3xl shadow-3xs group hover:border-emerald-400 transition-all">
-              <div className="flex justify-between items-center mb-2">
-                <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-400 group-hover:${stat.color.replace('bg-', 'text-')} transition-colors`}>
-                  <Icon size={14} />
-                </div>
-                <span className="text-sm font-black text-slate-900 dark:text-white leading-none">{stat.value}</span>
-              </div>
-              <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{stat.label}</span>
-              <p className="text-[8px] text-slate-500 font-medium">{stat.sub}</p>
-            </div>
-          );
-        })}
-      </div>
-
+    <DashboardTemplate kpiTiles={topStats} kpiColumns={5}>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Value Chart & Trends */}
         <div className="lg:col-span-8 space-y-6">
-           <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-              <div className="flex justify-between items-center mb-8">
-                 <div>
-                    <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white">Store Inventory Value</h3>
-                    <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest mt-0.5">Distribution across all stores (including Bar & Gift)</p>
-                 </div>
-                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1.5">
-                       <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                       <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Stock Value</span>
-                    </div>
-                 </div>
-              </div>
+           <ChartCard title="Store Inventory Value" subtitle="Distribution across all stores (including Bar & Gift)"
+             actions={
+               <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Stock Value</span>
+               </div>
+             }
+           >
               <div className="h-64 mt-4">
                  <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={storeStockData}>
@@ -179,11 +147,10 @@ const InventoryDashboard: React.FC = () => {
                     </BarChart>
                  </ResponsiveContainer>
               </div>
-           </div>
+           </ChartCard>
 
            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                 <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white mb-6">Inventory Value by Category</h3>
+              <ChartCard title="Inventory Value by Category">
                  <div className="h-48 flex items-center justify-center relative">
                     <ResponsiveContainer width="100%" height="100%">
                        <PieChart>
@@ -214,10 +181,9 @@ const InventoryDashboard: React.FC = () => {
                        </div>
                     ))}
                  </div>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                 <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white mb-6">Fast-Moving Items (Last 7 Days)</h3>
+              <ChartCard title="Fast-Moving Items (Last 7 Days)">
                  <div className="space-y-4">
                     {fastMovingItems.map((item, i) => (
                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-850 rounded-2xl group hover:bg-emerald-50 transition-colors">
@@ -238,7 +204,7 @@ const InventoryDashboard: React.FC = () => {
                        </div>
                     ))}
                  </div>
-              </div>
+              </ChartCard>
            </div>
         </div>
 
@@ -308,7 +274,7 @@ const InventoryDashboard: React.FC = () => {
            </div>
         </div>
       </div>
-    </div>
+    </DashboardTemplate>
   );
 };
 

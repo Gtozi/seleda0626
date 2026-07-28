@@ -41,6 +41,12 @@ export default function CheckInOutModule({
   initialFolioResId?: string;
   onClearFolioResId?: () => void;
 }) {
+  // Folio API state — replaces legacy reservation.charges/payments JSONB reads
+  const [folioLines, setFolioLines] = useState<any[]>([]);
+  const [folioPayments, setFolioPayments] = useState<any[]>([]);
+  const [folioConsolidatedBalance, setFolioConsolidatedBalance] = useState(0);
+  const [folioBillingBreakdown, setFolioBillingBreakdown] = useState<any>(null);
+
   const { 
     rooms, 
     reservations, 
@@ -119,11 +125,48 @@ export default function CheckInOutModule({
   const [guestSearchQuery, setGuestSearchQuery] = useState<string>('');
 
   // Invoice generation handler
-  const handleGenerateInvoice = () => {
+  const handleGenerateInvoice = async () => {
     if (!currentFolioRes) return;
 
-    // In production: Call generate_folio_invoice database function
-    setFolioSuccess(`Invoice generated for Room ${currentFolioRes.roomNumber || 'N/A'} - ${currentFolioRes.guestName}`);
+    try {
+      // Get the folio ID for the current reservation
+      const { data: folios } = await supabase
+        .from('folios')
+        .select('id')
+        .eq('reservation_id', currentFolioRes.id)
+        .single();
+
+      if (!folios) {
+        setFolioSuccess('No folio found for this reservation');
+        return;
+      }
+
+      // Call the new invoice generation API
+      const token = localStorage.getItem('auth_token');
+      const response = await fetch(`/api/folios/${folios.id}/generate-invoice`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          invoiceType: 'Standard',
+          dueDate: null,
+          notes: `Invoice for Room ${currentFolioRes.roomNumber || 'N/A'} - ${currentFolioRes.guestName}`
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setFolioSuccess(`Invoice ${data.invoice.invoice_number} generated for Room ${currentFolioRes.roomNumber || 'N/A'} - ${currentFolioRes.guestName} (${data.paymentsLinked} payments linked)`);
+      } else {
+        const error = await response.json();
+        setFolioSuccess(`Failed to generate invoice: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error generating invoice:', error);
+      setFolioSuccess('Failed to generate invoice. Please try again.');
+    }
   };
 
   // Helper function to upload payment receipt screenshot to Supabase Storage
@@ -183,14 +226,23 @@ export default function CheckInOutModule({
     const rawCharges = res.charges || [];
     const chargesAll = rawCharges;
 
-    const chargesA = chargesAll.filter((c: any) => !c.isVoided && getChargeFolio(c, profile, billingMode, activeGroupChargeTypes) === 'A');
-    const chargesB = chargesAll.filter((c: any) => !c.isVoided && getChargeFolio(c, profile, billingMode, activeGroupChargeTypes) === 'B');
+    // Filter out tax, service charge, and discount lines from base charges
+    // These are calculated separately to avoid double-counting when database
+    // already contains these lines from check_in_reservation
+    const baseCharges = chargesAll.filter((c: any) => !c.isVoided && 
+      c.lineType !== 'Tax' && 
+      c.lineType !== 'ServiceCharge' && 
+      c.lineType !== 'Discount'
+    );
+
+    const chargesA = baseCharges.filter((c: any) => !c.isVoided && getChargeFolio(c, profile, billingMode, activeGroupChargeTypes) === 'A');
+    const chargesB = baseCharges.filter((c: any) => !c.isVoided && getChargeFolio(c, profile, billingMode, activeGroupChargeTypes) === 'B');
 
     const discPct = res.discountPercent || 0;
     const scPct = res.serviceChargePercent !== undefined && res.serviceChargePercent !== null ? res.serviceChargePercent : globalHotelSettings.serviceChargePercent;
     const taxPct = res.taxPercent !== undefined && res.taxPercent !== null ? res.taxPercent : globalHotelSettings.taxPercent;
 
-    const subtotal = chargesAll.filter((c: any) => !c.isVoided).reduce((sum: number, c: any) => sum + c.amount, 0);
+    const subtotal = baseCharges.filter((c: any) => !c.isVoided).reduce((sum: number, c: any) => sum + c.amount, 0);
     const discountAmt = Math.round(subtotal * (discPct / 100) * 100) / 100;
     const serviceAmt = Math.round(subtotal * (scPct / 100) * 100) / 100;
 
@@ -235,7 +287,7 @@ export default function CheckInOutModule({
     // Payments
     const paymentsAll = (res.payments || []).filter((p: any) => !p.isVoided);
     const paymentsA = paymentsAll.filter((p: any) => p.method === 'Corporate Account Settle' || p.notes?.includes('A-Folio') || p.notes?.includes('Corporate'));
-    const paymentsB = paymentsAll.filter((p: any) => p.method !== 'Corporate Account Settle' && !p.notes?.includes('A-Folio') && !p.notes?.includes('Corporate'));
+    const paymentsB = paymentsAll.filter((p: any) => !(p.method === 'Corporate Account Settle' || p.notes?.includes('A-Folio') || p.notes?.includes('Corporate')));
 
     const totalPaid = paymentsAll.reduce((sum: number, p: any) => sum + p.amount, 0);
     const totalPaidA = paymentsA.reduce((sum: number, p: any) => sum + p.amount, 0);
@@ -307,6 +359,37 @@ export default function CheckInOutModule({
   // Active checked in reservations
   const checkedInReservations = reservations.filter(r => r.status === 'CheckedIn');
   const currentFolioRes = reservations.find(r => r.id === selectedFolioResId);
+
+  // Fetch folio data from API (canonical source — replaces reservation.charges/payments JSONB)
+  React.useEffect(() => {
+    if (!selectedFolioResId) {
+      setFolioLines([]);
+      setFolioPayments([]);
+      setFolioConsolidatedBalance(0);
+      setFolioBillingBreakdown(null);
+      return;
+    }
+    let cancelled = false;
+    const fetchFolio = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch(`/api/reservations/${selectedFolioResId}/folio`, {
+          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+        });
+        if (response.ok && !cancelled) {
+          const data = await response.json();
+          setFolioLines(data.lines || []);
+          setFolioPayments(data.payments || []);
+          setFolioConsolidatedBalance(data.consolidatedBalance || 0);
+          setFolioBillingBreakdown(data.billingBreakdown || null);
+        }
+      } catch (err) {
+        console.error('Failed to fetch folio:', err);
+      }
+    };
+    fetchFolio();
+    return () => { cancelled = true; };
+  }, [selectedFolioResId]);
 
   // Fetch bank accounts for split payments
   React.useEffect(() => {
@@ -384,8 +467,8 @@ export default function CheckInOutModule({
 
   const activeProfile = (globalHotelSettings.splitFolioRules || []).find((r: any) => r.id === activeRoutingProfileId);
 
-  // Base charges split
-  const chargesAll = currentFolioRes ? (currentFolioRes.charges || []) : [];
+  // Base charges split — sourced from folio API (canonical), not reservation.charges JSONB
+  const chargesAll = folioLines;
   const chargesA = chargesAll.filter(c => !c.isVoided && getChargeFolio(c, activeProfile, billingMode, activeGroupChargeTypes) === 'A');
   const chargesB = chargesAll.filter(c => !c.isVoided && getChargeFolio(c, activeProfile, billingMode, activeGroupChargeTypes) === 'B');
 
@@ -418,13 +501,25 @@ export default function CheckInOutModule({
     ? (currentFolioRes.hotelVatDate || globalHotelSettings.hotelVatDate)
     : globalHotelSettings.hotelVatDate;
 
-  // CONSOLIDATED MATH
-  const consolidatedBilling = calculateFolioComponents(
-    chargesAll.filter(c => !c.isVoided),
-    currentFolioRes || {},
-    globalHotelSettings
-  );
-  
+  // CONSOLIDATED MATH — prefer canonical billing breakdown from get_reservation_billing RPC
+  // Falls back to deprecated calculateFolioComponents only if RPC response is unavailable
+  const consolidatedBilling = folioBillingBreakdown
+    ? {
+        subtotal: Number(folioBillingBreakdown.subtotal) || 0,
+        discountAmt: Number(folioBillingBreakdown.discount_amount) || 0,
+        serviceAmt: Number(folioBillingBreakdown.service_charges) || 0,
+        addonTotal: 0,
+        addonDetails: [] as { name: string; amount: number }[],
+        taxAmt: Number(folioBillingBreakdown.tax_amount) || 0,
+        total: Number(folioBillingBreakdown.total_charges) || 0,
+        feeBreakdown: [] as any[],
+      }
+    : calculateFolioComponents(
+        chargesAll.filter(c => !c.isVoided),
+        currentFolioRes || {},
+        globalHotelSettings
+      );
+
   const subtotal = consolidatedBilling.subtotal;
   const originalDiscountAmt = consolidatedBilling.discountAmt;
   const serviceAmt = consolidatedBilling.serviceAmt;
@@ -466,10 +561,10 @@ export default function CheckInOutModule({
   const totalB = billingB.total;
   const feeBreakdownB = billingB.feeBreakdown || [];
 
-  // PAYMENTS & OFFSETS
-  const paymentsAll = currentFolioRes ? (currentFolioRes.payments || []).filter(p => !p.isVoided) : [];
+  // PAYMENTS & OFFSETS — sourced from folio API (canonical), not reservation.payments JSONB
+  const paymentsAll = folioPayments.filter(p => !p.isVoided);
   const paymentsA = paymentsAll.filter(p => p.targetFolio === 'A' || (!p.targetFolio && (p.method === 'Corporate Account Settle' || p.notes?.includes('A-Folio') || p.notes?.includes('Corporate'))));
-  const paymentsB = paymentsAll.filter(p => p.targetFolio === 'B' || (!p.targetFolio && (p.method !== 'Corporate Account Settle' && !p.notes?.includes('A-Folio') && !p.notes?.includes('Corporate'))));
+  const paymentsB = paymentsAll.filter(p => !(p.targetFolio === 'A' || (!p.targetFolio && (p.method === 'Corporate Account Settle' || p.notes?.includes('A-Folio') || p.notes?.includes('Corporate')))));
 
   const totalPaid = paymentsAll.reduce((sum, p) => sum + p.amount, 0);
   const totalPaidA = paymentsA.reduce((sum, p) => sum + p.amount, 0);

@@ -26,18 +26,24 @@ import LostAndFoundModule from './LostAndFoundModule';
 import HousekeepingInventoryModule from './HousekeepingInventoryModule';
 import GuestAmenitiesModule from './GuestAmenitiesModule';
 import TaskManagementModule from './TaskManagementModule';
+// import TaskOptimizationModule from './TaskOptimizationModule';
+// import PerformanceAnalyticsModule from './PerformanceAnalyticsModule';
 import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
+import { StandardHKReports } from './StandardHKReports';
 
-export type HKTab = 
-  | 'dashboard' 
-  | 'rooms' 
+export type HKTab =
+  | 'dashboard'
+  | 'rooms'
   | 'tasks'
-  | 'laundry' 
+  | 'optimization'
+  | 'analytics'
+  | 'laundry'
   | 'inventory'
   | 'amenities'
-  | 'lostfound' 
-  | 'staff' 
-  | 'reports';
+  | 'lostfound'
+  | 'staff'
+  | 'reports'
+  | 'standard-reports';
 
 export type RoomCleaningStatus = 
   | 'Vacant Clean' 
@@ -92,25 +98,28 @@ export default function HousekeepingPortal({ activeTab }: { activeTab: HKTab }) 
       <div className="min-h-[600px]">
         {activeTab === 'dashboard' && <HKDashboard />}
         {activeTab === 'rooms' && (
-          <RoomBoardModule 
-            priorityQueue={priorityQueue} 
+          <RoomBoardModule
+            priorityQueue={priorityQueue}
             setPriorityQueue={setPriorityQueue}
             housekeepers={housekeepers}
             setHousekeepers={setHousekeepers}
           />
         )}
         {activeTab === 'tasks' && <TaskManagementModule />}
+        {/* {activeTab === 'optimization' && <TaskOptimizationModule />} */}
+        {/* {activeTab === 'analytics' && <PerformanceAnalyticsModule />} */}
         {activeTab === 'laundry' && <LaundryModule />}
         {activeTab === 'inventory' && <HousekeepingInventoryModule />}
         {activeTab === 'amenities' && <GuestAmenitiesModule />}
         {activeTab === 'lostfound' && <LostAndFoundModule />}
         {activeTab === 'staff' && (
-          <StaffManagementModule 
+          <StaffManagementModule
             housekeepers={housekeepers}
             setHousekeepers={setHousekeepers}
           />
         )}
         {activeTab === 'reports' && <DepartmentReportsModule departmentName="Housekeeping" />}
+        {activeTab === 'standard-reports' && <StandardHKReports />}
       </div>
     </div>
   );

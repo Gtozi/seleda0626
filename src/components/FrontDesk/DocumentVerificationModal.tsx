@@ -8,6 +8,7 @@ import {
   Check, X, AlertTriangle, FileText, Camera, ShieldCheck, 
   Clock, User, Calendar, Eye, Download, Upload
 } from 'lucide-react';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 interface Document {
   id: string;
@@ -74,32 +75,17 @@ export default function DocumentVerificationModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center">
-              <ShieldCheck size={20} className="text-indigo-600" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-slate-800">Document Verification Queue</h2>
-              <p className="text-xs text-slate-500">
-                {pendingDocs.length} pending • {processedDocs.length} processed
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X size={20} className="text-slate-400" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <ModalSystem
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Document Verification Queue"
+      subtitle={`${pendingDocs.length} pending • ${processedDocs.length} processed`}
+      icon={<ShieldCheck size={20} className="text-indigo-600" />}
+      variant="info"
+      size="xl"
+      showFooter={false}
+    >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Document List */}
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
@@ -321,9 +307,7 @@ export default function DocumentVerificationModal({
                 </div>
               </div>
             )}
-          </div>
         </div>
-      </div>
-    </div>
+    </ModalSystem>
   );
 }

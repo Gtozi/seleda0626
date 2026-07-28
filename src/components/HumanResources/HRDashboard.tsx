@@ -1,40 +1,33 @@
 import React from 'react';
 import { 
   Users, 
-  UserPlus, 
-  Clock, 
-  Calendar, 
-  TrendingUp, 
+  AlertCircle, 
   DollarSign, 
-  AlertCircle,
-  Briefcase,
+  Briefcase, 
+  Clock, 
   GraduationCap,
-  ArrowUpRight,
-  ArrowDownRight
 } from 'lucide-react';
 import { 
   BarChart, 
   Bar, 
   XAxis, 
   YAxis, 
-  CartesianGrid, 
   Tooltip, 
   ResponsiveContainer, 
   PieChart, 
   Pie, 
-  Cell, 
-  AreaChart, 
-  Area 
+  Cell,
 } from 'recharts';
+import { DashboardTemplate, ChartCard, type KpiTile } from '../Shared/DashboardTemplate';
 
 const HRDashboard = () => {
-  const kpis = [
-    { label: 'Total Employees', value: '248', sub: '12 New Hires', icon: Users, color: 'text-indigo-500', bg: 'bg-indigo-50 dark:bg-indigo-500/10' },
-    { label: 'Absent Today', value: '8', sub: '3.2% Rate', icon: AlertCircle, color: 'text-rose-500', bg: 'bg-rose-50 dark:bg-rose-500/10' },
-    { label: 'Payroll Cost', value: '$84.2k', sub: 'This Month', icon: DollarSign, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-500/10' },
-    { label: 'Open Positions', value: '14', sub: '5 Urgent', icon: Briefcase, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-500/10' },
-    { label: 'Overtime', value: '142h', sub: 'Reduced by 5%', icon: Clock, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-500/10' },
-    { label: 'Trainings', value: '6', sub: 'Scheduled', icon: GraduationCap, color: 'text-purple-500', bg: 'bg-purple-50 dark:bg-purple-500/10' },
+  const kpis: KpiTile[] = [
+    { label: 'Total Employees', value: '248', sub: '12 New Hires', icon: Users, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Absent Today', value: '8', sub: '3.2% Rate', icon: AlertCircle, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
+    { label: 'Payroll Cost', value: '$84.2k', sub: 'This Month', icon: DollarSign, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Open Positions', value: '14', sub: '5 Urgent', icon: Briefcase, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
+    { label: 'Overtime', value: '142h', sub: 'Reduced by 5%', icon: Clock, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'Trainings', value: '6', sub: 'Scheduled', icon: GraduationCap, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
   ];
 
   const deptDistribution = [
@@ -56,28 +49,13 @@ const HRDashboard = () => {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {kpis.map((kpi, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-4 rounded-3xl transition-all hover:shadow-sm dark:shadow-slate-900/20">
-            <div className={`p-2 w-fit rounded-xl ${kpi.bg} ${kpi.color} mb-3`}>
-              <kpi.icon size={18} />
-            </div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{kpi.label}</p>
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">{kpi.value}</h3>
-            <p className="text-[9px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{kpi.sub}</p>
-          </div>
-        ))}
-      </div>
-
+    <DashboardTemplate kpiTiles={kpis} kpiColumns={6}>
       <div className="grid lg:grid-cols-12 gap-6">
-        {/* Attendance Trend */}
-        <div className="lg:col-span-8 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Attendance Analysis</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Weekly Workforce Presence</p>
-            </div>
+        <ChartCard
+          title="Attendance Analysis"
+          subtitle="Weekly Workforce Presence"
+          className="lg:col-span-8"
+          actions={
             <div className="flex gap-4">
                <div className="flex items-center gap-1.5">
                   <div className="w-2 h-2 rounded-full bg-indigo-500" />
@@ -88,7 +66,8 @@ const HRDashboard = () => {
                   <span className="text-[10px] font-bold text-slate-500">Absent</span>
                </div>
             </div>
-          </div>
+          }
+        >
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={attendanceTrend}>
@@ -100,11 +79,9 @@ const HRDashboard = () => {
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </ChartCard>
 
-        {/* Dept Distribution */}
-        <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
-          <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight mb-8">Staff by Dept.</h3>
+        <ChartCard title="Staff by Dept." className="lg:col-span-4">
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -126,7 +103,7 @@ const HRDashboard = () => {
               </div>
             ))}
           </div>
-        </div>
+        </ChartCard>
 
         {/* Onboarding Pipeline */}
         <div className="lg:col-span-4 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 p-6 rounded-3xl shadow-sm dark:shadow-slate-900/20">
@@ -206,7 +183,7 @@ const HRDashboard = () => {
            </div>
         </div>
       </div>
-    </div>
+    </DashboardTemplate>
   );
 };
 

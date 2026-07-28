@@ -1,10 +1,21 @@
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
 import { toISODate } from '../../utils/date';
 import { supabaseService } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 import UnifiedInvoiceTemplate from '../Shared/UnifiedInvoiceTemplate';
+import PaymentSystem, { PaymentSplit } from '../Shared/PaymentSystem';
+import { SplitPayment } from '../../types/finance';
+import {
+  PaymentMethodSummary,
+  BankAccountSummary,
+  buildPaymentCSVHeader,
+  formatTransactionRowsForCSV,
+  POSPaymentAuditTable,
+  type PaymentAuditTransaction
+} from '../Shared/POSPaymentJournalHelpers';
 import { 
   Search, 
   ShoppingCart, 
@@ -77,7 +88,9 @@ interface SavedTransaction {
     guestName: string;
   };
   changeGiven?: number;
-  splitPayments?: { method: string; amount: number }[];
+  splitPayments?: SplitPayment[];
+  status?: 'Completed' | 'Voided' | 'Pending';
+  receiptUrl?: string;
 }
 
 interface GiftShopIssue {
@@ -161,10 +174,12 @@ export default function GiftShopPOS() {
   const [searchTermRoom, setSearchTermRoom] = useState('');
   const [invoicePrintData, setInvoicePrintData] = useState<any>(null);
   
-  // Split payment state support matching BarPOSModule
-  const [isSplitPayment, setIsSplitPayment] = useState<boolean>(false);
-  const [splitAmounts, setSplitAmounts] = useState<Record<string, string>>({});
+  // Payment system state - using unified PaymentSystem component
+  const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [paymentScreenshot, setPaymentScreenshot] = useState<File | null>(null);
+  const [bankAccounts, setBankAccounts] = useState<any[]>([]);
+  
+  // Remove old split payment state - using PaymentSystem component instead
 
   // Named active tabs logic, matching Bar module
   const [openTabs, setOpenTabs] = useState<GiftShopTab[]>(() => {
@@ -212,12 +227,32 @@ export default function GiftShopPOS() {
   }, [paymentMethod, selectedTabId]);
 
   useEffect(() => {
-    updateTabField(selectedTabId, 'isSplitPayment', isSplitPayment);
-  }, [isSplitPayment, selectedTabId]);
-
-  useEffect(() => {
     updateTabField(selectedTabId, 'paymentScreenshot', paymentScreenshot);
   }, [paymentScreenshot, selectedTabId]);
+
+  // Fetch bank accounts for split payments
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      try {
+        const token = localStorage.getItem('auth_token');
+        const response = await fetch('/api/finance/bank-accounts', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setBankAccounts(data.bankAccounts || []);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch bank accounts:', error);
+      }
+    };
+    fetchBankAccounts();
+  }, []);
 
   // Persist open tabs to cache
   useEffect(() => {
@@ -247,8 +282,6 @@ export default function GiftShopPOS() {
     setWalkInClientVATNo(target.walkInClientVATNo || '');
     setWalkInClientVATDate(target.walkInClientVATDate || '');
     setCashAmountPaid(target.cashAmountPaid || '');
-    setIsSplitPayment(target.isSplitPayment || false);
-    setSplitAmounts(target.splitAmounts || {});
     setPaymentScreenshot(target.paymentScreenshot || null);
   };
 
@@ -270,7 +303,8 @@ export default function GiftShopPOS() {
       walkInClientVATDate: '',
       cashAmountPaid: '',
       isSplitPayment: false,
-      splitAmounts: {}
+      splitAmounts: {},
+      paymentScreenshot: null
     };
     setOpenTabs(prev => [...prev, newTab]);
     setNewTabName('');
@@ -400,7 +434,7 @@ export default function GiftShopPOS() {
           setRecentTransactions(sales.map((s: any) => ({
             id: s.id,
             invoiceNumber: s.invoice_number,
-            date: s.date,
+            date: s.sale_date,
             cashier: s.cashier,
             items: s.items || [],
             subtotal: Number(s.subtotal),
@@ -413,7 +447,9 @@ export default function GiftShopPOS() {
             clientVATDate: s.client_vat_date,
             roomChargeDetails: s.room_charge_details,
             changeGiven: Number(s.change_given),
-            splitPayments: s.split_payments
+            splitPayments: s.split_payments,
+            status: s.status || 'Completed',
+            receiptUrl: s.receipt_url || undefined
           })));
         }
         if (issues.length > 0) {
@@ -423,7 +459,7 @@ export default function GiftShopPOS() {
             productName: i.product_name,
             quantity: i.quantity,
             type: i.type,
-            date: i.date,
+            date: i.created_at,
             reporter: i.reporter,
             notes: i.notes,
             itemCost: Number(i.item_cost)
@@ -556,8 +592,6 @@ export default function GiftShopPOS() {
     setWalkInClientTIN('');
     setWalkInClientVATNo('');
     setWalkInClientVATDate('');
-    setIsSplitPayment(false);
-    setSplitAmounts({});
     setPaymentScreenshot(null);
     updateTabField(selectedTabId, 'items', []);
     updateTabField(selectedTabId, 'discountPercent', 0);
@@ -567,8 +601,6 @@ export default function GiftShopPOS() {
     updateTabField(selectedTabId, 'walkInClientTIN', '');
     updateTabField(selectedTabId, 'walkInClientVATNo', '');
     updateTabField(selectedTabId, 'walkInClientVATDate', '');
-    updateTabField(selectedTabId, 'isSplitPayment', false);
-    updateTabField(selectedTabId, 'splitAmounts', {});
     updateTabField(selectedTabId, 'paymentScreenshot', null);
   };
 
@@ -577,6 +609,151 @@ export default function GiftShopPOS() {
     setTimeout(() => {
       setAlertMessage(null);
     }, 4000);
+  };
+
+  // Process payment using the unified PaymentSystem splits
+  const processPaymentWithSplits = async (splits: PaymentSplit[], receiptUrl?: string) => {
+    if (cart.length === 0) {
+      showNotification('error', 'Cannot process an empty checkout cart.');
+      return;
+    }
+
+    // Generate invoice number via DB sequence (atomic, unique)
+    const invoiceNum = await supabaseService.nextGiftShopInvoice();
+    const dateStr = new Date().toISOString();
+
+    const orderItems = cart.map(item => ({
+      productName: item.product.name,
+      quantity: item.quantity,
+      price: item.product.priceUsd
+    }));
+
+    let targetReservation: any = null;
+    const roomChargeSplit = splits.find(s => s.method === 'RoomCharge' || s.method === 'Room Charge' || s.method.includes('Room'));
+    
+    if (roomChargeSplit && roomChargeSplit.amount > 0) {
+      if (!selectedRoomId) {
+        showNotification('error', 'Please select an in-house room to post the folio charge portion!');
+        return;
+      }
+      targetReservation = reservations.find(r => r.id === selectedRoomId);
+      if (!targetReservation) {
+        showNotification('error', 'Selected room reservation has expired or cannot be found for split folio post.');
+        return;
+      }
+    }
+
+    // Add folio charge if Room Charge is selected
+    const names = cart.map(i => `${i.product.name} (x${i.quantity})`).join(', ');
+    if (roomChargeSplit && roomChargeSplit.amount > 0) {
+      try {
+        addFolioCharge(selectedRoomId, {
+          amount: roomChargeSplit.amount,
+          description: `Gift Shop Purchase Split [Invoice: ${invoiceNum}]: ${names}`,
+          // USALI tracking
+          usaliCode: '6700',
+          usaliRevenueCode: '6700',
+          usaliCostCode: '6700',
+          department: 'Gift Shop'
+        });
+      } catch (err) {
+        showNotification('error', 'Folio split charge failed to submit. Try again.');
+        return;
+      }
+    }
+
+    const finalPaymentMethod = splits.length > 1
+      ? `Split: ${splits.map(s => `${s.method} (${formatAmount(s.amount)})`).join(', ')}`
+      : splits[0].method;
+
+    const enrichedSplits = splits.map((split) => {
+      const account = split.bankAccountId ? bankAccounts.find((a: any) => a.id === split.bankAccountId) : undefined;
+      return {
+        ...split,
+        bankAccountName: account
+          ? `${account.bank_name || account.account_name || account.name || account.bankName || 'Bank'}-${account.accountNumber || account.account_number || ''}`
+          : undefined
+      };
+    });
+
+    const transaction: SavedTransaction = {
+      id: 'TXN-' + Date.now(),
+      invoiceNumber: invoiceNum,
+      date: dateStr,
+      cashier: userProfile?.name || 'Front Desk Agent',
+      items: orderItems,
+      subtotal: subtotalUsd,
+      tax: taxAmountUsd,
+      total: totalUsd,
+      paymentMethod: finalPaymentMethod as any,
+      clientName: walkInClientName || (selectedRoomId ? reservations.find(r => r.id === selectedRoomId)?.guestName : '') || 'Walk-in Customer',
+      clientTIN: walkInClientTIN,
+      clientVATNo: walkInClientVATNo,
+      clientVATDate: walkInClientVATDate,
+      ...(targetReservation ? {
+        roomChargeDetails: {
+          reservationId: targetReservation.id,
+          roomNumber: targetReservation.roomNumber || 'TBD',
+          guestName: targetReservation.guestName
+        }
+      } : {}),
+      splitPayments: enrichedSplits
+    };
+
+    // Decrement from central inventoryItems to sync physical multi-store stock counts
+    cart.forEach(item => {
+      const dbItem = inventoryItems.find(
+        i => i.storeId === 'ST-GIFT' && i.code === item.product.id
+      );
+      if (dbItem) {
+        const remaining = Math.max(0, dbItem.currentStock - item.quantity);
+        updateInventoryItem(dbItem.id, {
+          currentStock: remaining
+        });
+        if (remaining <= dbItem.reorderPoint) {
+          console.warn(`Low stock warning: ${dbItem.name} reorder point reached! Current stock: ${remaining}`);
+        }
+      }
+    });
+
+    // Persist to Supabase
+    const dbPayload = {
+      invoice_number: invoiceNum,
+      sale_date: dateStr,
+      cashier: transaction.cashier,
+      items: orderItems,
+      subtotal: subtotalUsd,
+      tax: taxAmountUsd,
+      total: totalUsd,
+      discount_percent: discountPercent,
+      discount_amount: discountAmountUsd,
+      payment_method: finalPaymentMethod,
+      split_payments: enrichedSplits.length > 0 ? enrichedSplits : null,
+      client_name: transaction.clientName,
+      client_tin: transaction.clientTIN || null,
+      client_vat_no: transaction.clientVATNo || null,
+      client_vat_date: transaction.clientVATDate || null,
+      room_charge_details: transaction.roomChargeDetails || null,
+      change_given: 0,
+      status: 'Completed'
+    };
+
+    try {
+      console.log('[GiftShopPOS] Inserting sale to DB:', dbPayload);
+      const insertedId = await supabaseService.insertGiftShopSale(dbPayload);
+      
+      showNotification('success', `Gift Shop sale completed successfully! Invoice: ${invoiceNum}`);
+      
+      // Clear cart after successful payment
+      clearCart();
+      
+      // Update payment method for next transaction
+      setPaymentMethod(splits[0].method);
+      
+    } catch (error) {
+      console.error('[GiftShopPOS] Failed to insert sale:', error);
+      showNotification('error', 'Failed to record sale. Please try again.');
+    }
   };
 
   // Helper function to upload payment receipt screenshot to Supabase Storage
@@ -627,12 +804,6 @@ export default function GiftShopPOS() {
   const allMethods = React.useMemo(() => {
     return Array.from(new Set([...baseTypes, ...accounts, 'RoomCharge']));
   }, [baseTypes, accounts]);
-
-  const sumOfSplits = React.useMemo(() => {
-    return allMethods.reduce((acc, m) => acc + (parseFloat(splitAmounts[m] || '0') || 0), 0);
-  }, [splitAmounts, allMethods]);
-
-  const remainingAmount = Math.max(0, totalUsd - sumOfSplits);
 
   const isRoomChargeOnly = paymentMethod === 'RoomCharge' || paymentMethod === 'Room Charge' || paymentMethod.includes('RoomCharge') || paymentMethod.includes('Room Charge');
   const isCashOnly = paymentMethod === 'Cash' || paymentMethod.includes('Cash');
@@ -689,245 +860,11 @@ export default function GiftShopPOS() {
     setAddItemCategory('');
     setShowAddModal(false);
   };
-  
+
+  // Legacy handleCheckout - replaced by processPaymentWithSplits using PaymentSystem component
   const handleCheckout = async () => {
-
-    if (cart.length === 0) {
-      showNotification('error', 'Cannot process an empty checkout cart.');
-      return;
-    }
-
-    // Generate invoice number via DB sequence (atomic, unique)
-    const invoiceNum = await supabaseService.nextGiftShopInvoice();
-    const dateStr = new Date().toISOString();
-
-    const orderItems = cart.map(item => ({
-      productName: item.product.name,
-      quantity: item.quantity,
-      price: item.product.priceUsd
-    }));
-
-    let targetReservation: any = null;
-    const isRoomChargeOnly = paymentMethod === 'RoomCharge' || paymentMethod === 'Room Charge' || paymentMethod.includes('RoomCharge') || paymentMethod.includes('Room Charge');
-    const isCashOnly = paymentMethod === 'Cash' || paymentMethod.includes('Cash');
-
-    const splits = isSplitPayment
-      ? allMethods
-          .map(m => ({ method: m, amount: parseFloat(splitAmounts[m] || '0') }))
-          .filter(s => s.amount > 0)
-      : [];
-
-    if (isSplitPayment) {
-      const sumOfSplits = splits.reduce((sum, s) => sum + s.amount, 0);
-      if (Math.abs(sumOfSplits - totalUsd) > 0.01) {
-        showNotification('error', `Split payment total (${formatAmount(sumOfSplits)}) must balance with invoice total (${formatAmount(totalUsd)}).`);
-        return;
-      }
-      // Overpayment safeguard for split payments
-      if (sumOfSplits > totalUsd + 0.01) {
-        showNotification('error', `Overpayment warning: Split payment total (${formatAmount(sumOfSplits)}) exceeds invoice total (${formatAmount(totalUsd)}). Please adjust payment amounts.`);
-        return;
-      }
-      const roomChargeSplit = splits.find(s => s.method === 'RoomCharge' || s.method === 'Room Charge' || s.method.includes('RoomCharge') || s.method.includes('Room Charge'));
-      if (roomChargeSplit && roomChargeSplit.amount > 0) {
-        if (!selectedRoomId) {
-          showNotification('error', 'Please select an in-house room to post the folio charge portion!');
-          return;
-        }
-        targetReservation = reservations.find(r => r.id === selectedRoomId);
-        if (!targetReservation) {
-          showNotification('error', 'Selected room reservation has expired or cannot be found for split folio post.');
-          return;
-        }
-      }
-    } else {
-      if (isRoomChargeOnly) {
-        if (!selectedRoomId) {
-          showNotification('error', 'Please select an in-house room to post this charge!');
-          return;
-        }
-        
-        targetReservation = reservations.find(r => r.id === selectedRoomId);
-        if (!targetReservation) {
-          showNotification('error', 'Selected room reservation has expired or cannot be found.');
-          return;
-        }
-      }
-    }
-
-    // Add folio charge if Room Charge is selected
-    const names = cart.map(i => `${i.product.name} (x${i.quantity})`).join(', ');
-    if (isSplitPayment) {
-      const roomChargeSplit = splits.find(s => s.method === 'RoomCharge' || s.method === 'Room Charge' || s.method.includes('RoomCharge') || s.method.includes('Room Charge'));
-      if (roomChargeSplit && roomChargeSplit.amount > 0) {
-        try {
-          addFolioCharge(selectedRoomId, {
-            amount: roomChargeSplit.amount,
-            description: `Gift Shop Purchase Split [Invoice: ${invoiceNum}]: ${names}`
-          });
-        } catch (err) {
-          showNotification('error', 'Folio split charge failed to submit. Try again.');
-          return;
-        }
-      }
-    } else if (isRoomChargeOnly) {
-      try {
-        addFolioCharge(selectedRoomId, {
-          amount: totalUsd,
-          description: `Gift Shop Purchase [Invoice: ${invoiceNum}]: ${names}`
-        });
-      } catch (err) {
-        showNotification('error', 'Folio charge failed to submit. Try again.');
-        return;
-      }
-    }
-
-    const finalPaymentMethod = isSplitPayment
-      ? `Split: ${splits.map(s => `${s.method} (${formatAmount(s.amount)})`).join(', ')}`
-      : paymentMethod;
-
-    const transaction: SavedTransaction = {
-      id: 'TXN-' + Date.now(),
-      invoiceNumber: invoiceNum,
-      date: dateStr,
-      cashier: userProfile?.name || 'Front Desk Agent',
-      items: orderItems,
-      subtotal: subtotalUsd,
-      tax: taxAmountUsd,
-      total: totalUsd,
-      paymentMethod: finalPaymentMethod as any,
-      clientName: walkInClientName || (selectedRoomId ? reservations.find(r => r.id === selectedRoomId)?.guestName : '') || 'Walk-in Customer',
-      clientTIN: walkInClientTIN,
-      clientVATNo: walkInClientVATNo,
-      clientVATDate: walkInClientVATDate,
-      ...((isRoomChargeOnly || (isSplitPayment && splits.some(s => s.method.includes('Room')))) && targetReservation ? {
-        roomChargeDetails: {
-          reservationId: targetReservation.id,
-          roomNumber: targetReservation.roomNumber || 'TBD',
-          guestName: targetReservation.guestName
-        }
-      } : {}),
-      ...(isCashOnly && { changeGiven: cashChangeNeededUsd }),
-      splitPayments: isSplitPayment ? splits : undefined
-    };
-
-    // Decrement from central inventoryItems to sync physical multi-store stock counts
-    cart.forEach(item => {
-      const dbItem = inventoryItems.find(
-        i => i.storeId === 'ST-GIFT' && i.code === item.product.id
-      );
-      if (dbItem) {
-        const remaining = Math.max(0, dbItem.currentStock - item.quantity);
-        updateInventoryItem(dbItem.id, {
-          currentStock: remaining
-        });
-        if (remaining <= dbItem.reorderPoint) {
-          console.warn(`Low stock warning: ${dbItem.name} reorder point reached! Current stock: ${remaining}`);
-        }
-      }
-    });
-
-    // Upload receipt screenshot if provided
-    let receiptUrl: string | undefined;
-    if (paymentScreenshot) {
-      receiptUrl = await uploadPaymentReceipt(paymentScreenshot);
-      if (!receiptUrl) {
-        showNotification('error', 'Failed to upload receipt screenshot. Sale will be recorded without receipt attachment.');
-      }
-    }
-
-    // Persist to Supabase
-    const dbPayload = {
-      invoice_number: invoiceNum,
-      date: dateStr,
-      cashier: transaction.cashier,
-      items: orderItems,
-      subtotal: subtotalUsd,
-      tax: taxAmountUsd,
-      total: totalUsd,
-      discount_percent: discountPercent,
-      discount_amount: discountAmountUsd,
-      payment_method: finalPaymentMethod,
-      split_payments: isSplitPayment ? splits : null,
-      client_name: transaction.clientName,
-      client_tin: transaction.clientTIN || null,
-      client_vat_no: transaction.clientVATNo || null,
-      client_vat_date: transaction.clientVATDate || null,
-      room_charge_details: transaction.roomChargeDetails || null,
-      change_given: isCashOnly ? cashChangeNeededUsd : 0,
-      receipt_url: receiptUrl || null,
-      status: 'Completed'
-    };
-
-    try {
-      console.log('[GiftShopPOS] Inserting sale to DB:', dbPayload);
-      const insertedId = await supabaseService.insertGiftShopSale(dbPayload);
-      console.log('[GiftShopPOS] DB insert returned:', insertedId);
-      if (insertedId) {
-        setRecentTransactions(prev => [transaction, ...prev]);
-        console.log('[GiftShopPOS] Sale persisted to DB. ID:', insertedId);
-      } else {
-        console.warn('[GiftShopPOS] DB insert returned null — check Supabase config / table existence / RLS policies.');
-        showNotification('error', 'Checkout succeeded locally but failed to sync to database (insert returned null).');
-      }
-    } catch (err: any) {
-      console.error('[GiftShopPOS] DB insert threw error:', err?.message || err);
-      showNotification('error', `Checkout sync failed: ${err?.message || 'Unknown DB error'}`);
-    }
-
-    // Structured audit log
-    addStructuredAuditLog({
-      action: 'Gift Shop Sale',
-      user: userProfile?.name || 'Front Desk Agent',
-      target: invoiceNum,
-      details: `Total ${formatAmount(totalUsd)} via ${finalPaymentMethod}. Items: ${names}`
-    });
-
-    // Add to Global Sales Register
-    addSaleTransaction({
-      date: new Date().toISOString(),
-      invoiceNumber: invoiceNum,
-      module: 'Gift Shop',
-      customerName: transaction.clientName || 'Walk-in',
-      items: cart.map(item => ({ productName: item.product.name, quantity: item.quantity, price: item.product.priceUsd })),
-      subtotal: subtotalUsd,
-      tax: taxAmountUsd,
-      total: totalUsd,
-      paymentMethod: finalPaymentMethod,
-      splitPayments: isSplitPayment ? splits : undefined,
-      status: 'Completed',
-      cashierName: userProfile?.name || 'Receptionist'
-    });
-    
-    // Animate and trigger Receipt print
-    setSuccessAnimation(true);
-    showNotification('success', `Transaction Posted Successfully! Invoice reference: ${invoiceNum}`);
-    
-    setTimeout(() => {
-      setSuccessAnimation(false);
-      setShowInvoicePrint(transaction); // display receipt print
-      if (selectedTabId !== 'quick-sale') {
-        const remainingTabs = openTabs.filter(t => t.id !== selectedTabId);
-        setOpenTabs(remainingTabs);
-        setCart([]);
-        setPaymentMethod('Cash');
-        setSelectedRoomId('');
-        setDiscountPercent(0);
-        setWalkInClientName('');
-        setWalkInClientTIN('');
-        setWalkInClientVATNo('');
-        setWalkInClientVATDate('');
-        setCashAmountPaid('');
-        setIsSplitPayment(false);
-        setSplitAmounts({});
-        setSelectedTabId('quick-sale');
-        localStorage.setItem('hotel_erp_giftshop_tabs_v1', JSON.stringify(remainingTabs));
-      } else {
-        clearCart();
-        setIsSplitPayment(false);
-        setSplitAmounts({});
-      }
-    }, 1200);
+    // This function is no longer used - payment processing now handled by PaymentSystem component
+    showNotification('info', 'Please use the Process Payment button to complete checkout.');
   };
 
   const voidTransaction = async (id: string) => {
@@ -1005,8 +942,7 @@ export default function GiftShopPOS() {
         type: newIssue.type,
         item_cost: newIssue.itemCost,
         notes: newIssue.notes,
-        reporter: newIssue.reporter,
-        date: newIssue.date
+        reporter: newIssue.reporter
       });
       console.log('[GiftShopPOS] DB issue insert returned:', insertedId);
       if (insertedId) {
@@ -1124,6 +1060,7 @@ export default function GiftShopPOS() {
 
       {/* RENDER POS MAIN WORKSPACE OR HISTORICAL REPORTS */}
       {activeTab === 'pos' ? (
+        <>
         <div className="flex-1 grid lg:grid-cols-12 gap-6 min-h-[900px]" id="pos-grid-workspace">
 
           
@@ -1493,8 +1430,8 @@ export default function GiftShopPOS() {
               </div>
             </div>
 
-              {/* Client Specifications Module */}
-              <div className="bg-slate-950/20 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl p-3.5 space-y-3 text-2xs font-sans transition-all hover:border-slate-350 dark:hover:border-white/10 group/specs text-slate-900 dark:text-white">
+            {/* Client Specifications Module */}
+            <div className="bg-slate-950/20 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl p-3.5 space-y-3 text-2xs font-sans transition-all hover:border-slate-350 dark:hover:border-white/10 group/specs text-slate-900 dark:text-white">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 group-hover/specs:text-amber-500/90 transition-colors">
                     <UserPlus size={11} className="text-amber-500" />
@@ -1556,392 +1493,136 @@ export default function GiftShopPOS() {
                 )}
               </div>
 
-              {/* ONE-LINE INTEGRATED BILLING TERMINAL */}
+              {/* UNIFIED PAYMENT SYSTEM - Using folio-style payment component */}
               <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 space-y-2.5 font-sans text-white">
-                {/* SPLIT TOGGLE */}
-                <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                  <span className="text-[10px] font-mono uppercase text-slate-400 font-bold whitespace-nowrap">Payment Settle Mode:</span>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      disabled={cart.length === 0}
-                      onClick={() => setIsSplitPayment(false)}
-                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                        !isSplitPayment
-                          ? 'bg-amber-400 text-slate-950 border-amber-400 font-extrabold'
-                          : 'text-slate-400 hover:text-white border-slate-700 hover:bg-slate-800'
-                      }`}
-                    >
-                      Single
-                    </button>
-                    <button
-                      type="button"
-                      disabled={cart.length === 0}
-                      onClick={() => setIsSplitPayment(true)}
-                      className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider transition-all border cursor-pointer ${
-                        isSplitPayment
-                          ? 'bg-amber-400 text-slate-950 border-amber-400 font-extrabold'
-                          : 'text-slate-400 hover:text-white border-slate-700 hover:bg-slate-800'
-                      }`}
-                    >
-                      Split Pay
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2">
-                  {isSplitPayment && (
-                    <div className="flex items-center justify-end border-b border-slate-800 pb-2">
-                      <div className="text-[9px] font-mono text-slate-400">
-                        Remaining: <span className={remainingAmount === 0 ? "text-emerald-400 font-bold" : "text-amber-400 font-bold"}>{formatAmount(remainingAmount)}</span> / {formatAmount(totalUsd)}
-                      </div>
-                    </div>
-                  )}
-
-                  {!isSplitPayment ? (
-                    <>
-                      {/* SINGLE PAYMENT SELECTION */}
-                      <div className="flex flex-wrap gap-0.5 items-center bg-slate-950 p-0.5 rounded-lg border border-slate-800 max-h-[80px] overflow-y-auto">
-                        {allMethods.map(methodName => {
-                          const isSelected = paymentMethod === methodName;
-                          let MethodIcon = Coins;
-                          let btnLabel = methodName;
-                          
-                          const normalized = methodName.toLowerCase();
-                          if (normalized.includes('card')) MethodIcon = CreditCard;
-                          else if (normalized.includes('mobile') || normalized.includes('mpesa')) MethodIcon = Smartphone;
-                          else if (normalized.includes('roomcharge') || normalized.includes('room')) { MethodIcon = User; btnLabel = 'Room'; }
-                          else if (normalized.includes('bank') || normalized.includes('transfer')) MethodIcon = Landmark;
-
-                          return (
-                            <button
-                              key={methodName}
-                              disabled={cart.length === 0}
-                              onClick={() => {
-                                setPaymentMethod(methodName as any);
-                                updateTabField(selectedTabId, 'paymentMethod', methodName as any);
-                              }}
-                              type="button"
-                              className={`px-1.5 py-0.5 rounded flex items-center gap-1 text-[8px] font-sans font-black uppercase tracking-tight transition-all cursor-pointer ${
-                                isSelected
-                                  ? 'bg-amber-400 text-slate-950 shadow-xs'
-                                  : 'text-slate-400 hover:text-white'
-                              }`}
-                            >
-                              <MethodIcon size={10} />
-                              <span className="truncate max-w-[50px]">{btnLabel}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* Room selection block */}
-                      {paymentMethod === 'RoomCharge' && cart.length > 0 && (
-                        <div className="space-y-1 animate-fade-in text-white">
-                          <select
-                            value={selectedRoomId}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setSelectedRoomId(val);
-                              updateTabField(selectedTabId, 'selectedRoomId', val);
-                            }}
-                            className="w-full bg-slate-850 border border-slate-700 text-white p-1.5 text-[11px] rounded-lg focus:outline-none"
-                          >
-                            <option value="">Select In-House Guest...</option>
-                            {reservations.filter(r => r.status === 'CheckedIn' || r.status === 'Check-In').map(r => (
-                              <option key={r.id} value={r.id} className="bg-slate-900 text-white animate-fade-in">
-                                Rm {r.roomNumber} - {r.guestName}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-
-                      {paymentMethod === 'Card' && cart.length > 0 && (
-                        <p className="text-[8px] text-slate-400 text-center animate-fade-in">
-                          Verification of card reader terminal is ready.
-                        </p>
-                      )}
-
-                      {paymentMethod === 'Mobile' && cart.length > 0 && (
-                        <p className="text-[8px] text-slate-400 text-center animate-fade-in">
-                          Verify Telebirr / CBE Birr merchant confirmation.
-                        </p>
-                      )}
-                      
-                      {!(isCashOnly || isRoomChargeOnly) && cart.length > 0 && (
-                         <div className="mt-2 space-y-1 animate-fade-in">
-                           <label className="text-[8px] font-mono uppercase text-slate-400 font-bold block">Payment Receipt Screenshot:</label>
-                           <input
-                             type="file"
-                             accept="image/*"
-                             onChange={(e) => {
-                               if (e.target.files && e.target.files.length > 0) {
-                                 setPaymentScreenshot(e.target.files[0]);
-                               }
-                             }}
-                             className="w-full bg-slate-950 text-white text-[10px] p-1.5 rounded-lg border border-slate-700"
-                           />
-                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      {/* SPLIT PAYMENT INPUTS */}
-                      <div className="bg-slate-950 p-2 rounded-xl border border-slate-800 space-y-2 animate-fade-in">
-                        <div className="space-y-1.5 max-h-[140px] overflow-y-auto">
-                          {allMethods.map(methodName => {
-                            let MethodIcon = Coins;
-                            const normalized = methodName.toLowerCase();
-                            if (normalized.includes('card')) MethodIcon = CreditCard;
-                            else if (normalized.includes('mobile') || normalized.includes('mpesa')) MethodIcon = Smartphone;
-                            else if (normalized.includes('roomcharge') || normalized.includes('room')) MethodIcon = User;
-                            else if (normalized.includes('bank') || normalized.includes('transfer')) MethodIcon = Landmark;
-
-                            const val = splitAmounts[methodName] || '';
-
-                            const handleValChange = (newVal: string) => {
-                              if (parseFloat(newVal) < 0) return;
-                              setSplitAmounts(prev => ({
-                                ...prev,
-                                [methodName]: newVal
-                              }));
-                            };
-
-                            const handleUseRemaining = () => {
-                              const otherSplitsTotal = allMethods
-                                .filter(m => m !== methodName)
-                                .reduce((acc, m) => acc + (parseFloat(splitAmounts[m] || '0') || 0), 0);
-                              const remaining = Math.max(0, totalUsd - otherSplitsTotal);
-                              setSplitAmounts(prev => ({
-                                ...prev,
-                                [methodName]: parseFloat(remaining.toFixed(2)).toString()
-                              }));
-                            };
-
-                            return (
-                              <div key={methodName} className="flex items-center justify-between gap-1 bg-slate-900 p-1 px-2 rounded-lg border border-slate-800">
-                                <div className="flex items-center gap-1 truncate text-[10px]">
-                                  <MethodIcon size={11} className="text-amber-400 shrink-0" />
-                                  <span className="truncate text-slate-200">{methodName}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5 shrink-0">
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={val}
-                                    onChange={(e) => handleValChange(e.target.value)}
-                                    className="bg-slate-950 text-white font-mono text-center font-bold w-16 px-1 py-0.5 rounded border border-slate-700 text-[10px] focus:outline-none focus:border-amber-400"
-                                  />
-                                  {remainingAmount > 0 && (
-                                    <button
-                                      type="button"
-                                      onClick={handleUseRemaining}
-                                      className="px-1.5 py-0.5 bg-amber-400 text-slate-950 rounded text-[8px] font-black uppercase hover:bg-amber-500 transition cursor-pointer shrink-0"
-                                    >
-                                      Rem
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Room Selection if split incorporates RoomCharge */}
-                        {parseFloat(splitAmounts['RoomCharge'] || '0') > 0 && (
-                          <div className="space-y-1 mt-2 p-1.5 bg-slate-900 rounded-lg border border-slate-800 animate-fade-in text-white">
-                            <label className="text-[8px] font-mono uppercase text-slate-400 font-bold block mb-1">Room charge assignee guest:</label>
-                            <select
-                              value={selectedRoomId}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setSelectedRoomId(val);
-                                updateTabField(selectedTabId, 'selectedRoomId', val);
-                              }}
-                              className="w-full bg-slate-950 border border-slate-700 text-white p-1 text-[10px] rounded focus:outline-none"
-                            >
-                              <option value="">Select In-House Guest...</option>
-                              {reservations.filter(r => r.status === 'CheckedIn' || r.status === 'Check-In').map(r => (
-                                <option key={r.id} value={r.id} className="bg-slate-900 text-white">
-                                  Rm {r.roomNumber} - {r.guestName}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
-
-                        {/* Status tracker bar */}
-                        <div className="flex items-center justify-between text-[10px] font-mono pt-1 text-slate-300">
-                          <span>Paid: {formatAmount(sumOfSplits)}</span>
-                          {Math.abs(sumOfSplits - totalUsd) < 0.01 ? (
-                            <span className="text-emerald-400 font-bold">✓ Balanced</span>
-                          ) : sumOfSplits > totalUsd ? (
-                            <span className="text-rose-450 font-bold">Over: {formatAmount(sumOfSplits - totalUsd)}</span>
-                          ) : (
-                            <span className="text-amber-400 font-bold">Short: {formatAmount(totalUsd - sumOfSplits)}</span>
-                          )}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* 3. Action Buttons */}
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    disabled={cart.length === 0}
-                    onClick={() => {
-                      const matchedRes = selectedRoomId ? reservations.find(r => r.id === selectedRoomId) : null;
-                      const currentTabName = openTabs.find(t => t.id === selectedTabId)?.name || 'Guest';
-                      const finalCustomerName = matchedRes ? matchedRes.guestName : (walkInClientName || currentTabName || 'Walk-In Bar Guest');
-                      
-                      const splits = isSplitPayment
-                        ? allMethods
-                            .map(m => ({ method: m, amount: parseFloat(splitAmounts[m] || '0') }))
-                            .filter(s => s.amount > 0)
-                        : [];
-                      const finalPaymentMethod = isSplitPayment
-                        ? `Split: ${splits.map(s => `${s.method} (${formatAmount(s.amount)})`).join(', ')}`
-                        : paymentMethod;
-
-                      setInvoicePrintData({
-                        invoiceNumber: `DRAFT-${selectedTabId}-${Date.now().toString().slice(-4)}`,
-                        date: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                        customerName: finalCustomerName,
-                        customerEmail: matchedRes ? matchedRes.guestEmail : '',
-                        roomNo: matchedRes ? matchedRes.roomNumber : '',
-                        customerTin: matchedRes ? matchedRes.guestTin : walkInClientTIN,
-                        customerVatNo: matchedRes ? matchedRes.guestVatNo : walkInClientVATNo,
-                        customerVatDate: matchedRes ? matchedRes.guestVatDate : walkInClientVATDate,
-                        items: cart.map(i => ({ productName: i.product.name, quantity: i.quantity, price: i.product.priceUsd })),
-                        subtotalUsd,
-                        fees: [
-                          ...(discountAmountUsd > 0 ? [{ label: `Discount (-${discountPercent}%)`, amount: discountAmountUsd, isDiscount: true }] : []),
-                          ...(taxData.serviceChargeAmount > 0 ? [{ label: `Service Charge (${globalHotelSettings?.serviceChargePercent || 10}%)`, amount: taxData.serviceChargeAmount }] : []),
-                          ...taxData.addonDetails.map(a => ({ label: a.name, amount: a.amount })),
-                          { label: `VAT (${vatRate}%)`, amount: taxAmountUsd }
-                        ],
-                        totalUsd,
-                        paymentMethod: finalPaymentMethod,
-                        splitPayments: isSplitPayment ? splits : undefined
-                      });
-                    }}
-                    className="w-full mb-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1.5 cursor-pointer transition"
-                  >
-                    <Printer size={11} /> Draft Invoice
-                  </button>
-
-                  <button
-                    disabled={
-                      cart.length === 0 || 
-                      (isSplitPayment 
-                        ? (Math.abs(sumOfSplits - totalUsd) > 0.01 || (parseFloat(splitAmounts['RoomCharge'] || '0') > 0 && !selectedRoomId))
-                        : (paymentMethod === 'RoomCharge' && !selectedRoomId)
-                      )
-                    }
-                    onClick={handleCheckout}
-                    className="w-full py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <CheckCircle2 size={12} /> {isSplitPayment ? 'Settle Split Payment' : paymentMethod === 'RoomCharge' ? 'Folio Charge' : 'Settle Tab'}
-                  </button>
-
-                  {selectedTabId !== 'quick-sale' && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        handleDeleteTab(selectedTabId);
-                      }}
-                      className="w-full py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/15 hover:border-rose-500/30 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition"
-                    >
-                      <Trash2 size={11} /> Void / Close Active Tab
-                    </button>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  disabled={cart.length === 0}
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <CreditCard size={12} /> Process Payment
+                </button>
               </div>
+
+              {selectedTabId !== 'quick-sale' && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDeleteTab(selectedTabId);
+                  }}
+                  className="w-full py-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/15 hover:border-rose-500/30 rounded-xl font-bold text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 cursor-pointer transition"
+                >
+                  <Trash2 size={11} /> Void / Close Active Tab
+                </button>
+              )}
             </div>
           </div>
-          {showAddModal && (
-              <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800">
-                  <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-850">
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Add Item to POS Catalog</h3>
-                      <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest leading-none">Select an item from the Gift Shop store to activate in POS</p>
-                    </div>
-                    <button type="button" onClick={() => setShowAddModal(false)} className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-xs hover:text-rose-600 transition-colors cursor-pointer text-slate-500 dark:text-slate-400">
-                      <X size={16} />
-                    </button>
-                  </div>
-                  <form onSubmit={handleAddGiftShopItem} className="flex-1 overflow-y-auto p-6 space-y-4">
-                    <div className="space-y-1.5">
-                       <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Select Gift Shop Item</label>
-                       <select
-                         required
-                         value={selectedAddItemCode}
-                         onChange={(e) => {
-                           const code = e.target.value;
-                           setSelectedAddItemCode(code);
-                           const item = inventoryItems.find(i => i.code === code);
-                           setAddItemPrice(item ? String(item.retailPrice || item.salePrice || item.lastCost * 1.5) : '');
-                           setAddItemCategory(item ? (item.subcategory || item.category || outletCategories[0] || 'General') : '');
-                         }}
-                         className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
-                       >
-                         <option value="">-- Choose an item from Gift Shop store --</option>
-                         {inventoryItems
-                           .filter(item => item.storeId === 'ST-GIFT' && !posActiveItemCodes.includes(item.code))
-                           .map(item => (
-                             <option key={item.code} value={item.code}>
-                               {item.name} — {item.code} (Stock: {item.currentStock} {item.unit})
-                             </option>
-                           ))}
-                       </select>
-                       {inventoryItems.filter(item => item.storeId === 'ST-GIFT' && !posActiveItemCodes.includes(item.code)).length === 0 && (
-                         <p className="text-[10px] text-slate-400 font-mono">All Gift Shop items are already in the POS catalog.</p>
-                       )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Category</label>
-                        <select
-                          value={addItemCategory}
-                          onChange={(e) => setAddItemCategory(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
-                        >
-                          {outletCategories.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Retail Price ($)</label>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          required
-                          value={addItemPrice}
-                          onChange={(e) => setAddItemPrice(e.target.value)}
-                          placeholder="e.g. 24.99"
-                          className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
-                        />
-                      </div>
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={!selectedAddItemCode}
-                      className="w-full py-3 bg-amber-500 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    >
-                      Add to POS Catalog
-                    </button>
-                  </form>
+        </div>
+
+        {/* Payment Modal */}
+        <ModalSystem
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          title="Payment Processing"
+          variant="form"
+          size="lg"
+          showFooter={false}
+        >
+                <PaymentSystem
+                  totalAmount={totalUsd}
+                  availableMethods={allMethods}
+                  currency={currency}
+                  initialMethod={paymentMethod}
+                  isRoomChargeAvailable={true}
+                  selectedRoomId={selectedRoomId}
+                  allowReceiptUpload={true}
+                  requireReference={false}
+                  requireBankAccount={true}
+                  bankAccounts={bankAccounts}
+                  onPaymentComplete={async (splits: PaymentSplit[], receiptUrl?: string) => {
+                    // Process the payment using the splits from PaymentSystem
+                    await processPaymentWithSplits(splits, receiptUrl);
+                    setShowPaymentModal(false);
+                  }}
+                  onCancel={() => setShowPaymentModal(false)}
+                />
+        </ModalSystem>
+
+      <ModalSystem
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Add Item to POS Catalog"
+        subtitle="Select an item from the Gift Shop store to activate in POS"
+        variant="form"
+        size="lg"
+        showFooter={false}
+      >
+            <form onSubmit={handleAddGiftShopItem} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Select Gift Shop Item</label>
+                <select
+                  required
+                  value={selectedAddItemCode}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setSelectedAddItemCode(code);
+                    const item = inventoryItems.find(i => i.code === code);
+                    setAddItemPrice(item ? String(item.retailPrice || item.salePrice || item.lastCost * 1.5) : '');
+                    setAddItemCategory(item ? (item.subcategory || item.category || outletCategories[0] || 'General') : '');
+                  }}
+                  className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                >
+                  <option value="">-- Choose an item from Gift Shop store --</option>
+                  {inventoryItems
+                    .filter(item => item.storeId === 'ST-GIFT' && !posActiveItemCodes.includes(item.code))
+                    .map(item => (
+                      <option key={item.code} value={item.code}>
+                        {item.name} — {item.code} (Stock: {item.currentStock} {item.unit})
+                      </option>
+                    ))}
+                </select>
+                {inventoryItems.filter(item => item.storeId === 'ST-GIFT' && !posActiveItemCodes.includes(item.code)).length === 0 && (
+                  <p className="text-[10px] text-slate-400 font-mono">All Gift Shop items are already in the POS catalog.</p>
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Category</label>
+                  <select
+                    value={addItemCategory}
+                    onChange={(e) => setAddItemCategory(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                  >
+                    {outletCategories.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider font-bold">Retail Price ($)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required
+                    value={addItemPrice}
+                    onChange={(e) => setAddItemPrice(e.target.value)}
+                    placeholder="e.g. 24.99"
+                    className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                  />
                 </div>
               </div>
-          )}
-        </div>
+              <button
+                type="submit"
+                disabled={!selectedAddItemCode}
+                className="w-full py-3 bg-amber-500 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Add to POS Catalog
+              </button>
+            </form>
+      </ModalSystem>
+      </>
       ) : activeTab === 'history' ? (
         /* SOUVENIR TRANSACTION history dockets */
         <div ref={shiftJournalRef} className="bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-3xs space-y-4" id="historical-pos-records">
@@ -1965,9 +1646,13 @@ export default function GiftShopPOS() {
               </button>
               <button 
                 onClick={() => {
+                  const rows: string[][] = [];
+                  filteredTransactions.forEach(t => {
+                    rows.push(...formatTransactionRowsForCSV(t));
+                  });
                   const csv = [
-                    ['Invoice', 'Date', 'Cashier', 'Total', 'Method'].join(','),
-                    ...filteredTransactions.map(t => [t.invoiceNumber, t.date, t.cashier, t.total, t.paymentMethod].join(','))
+                    buildPaymentCSVHeader().join(','),
+                    ...rows.map(r => r.join(','))
                   ].join('\n');
                   const blob = new Blob([csv], { type: 'text/csv' });
                   const url = window.URL.createObjectURL(blob);
@@ -1983,6 +1668,19 @@ export default function GiftShopPOS() {
             </div>
           </div>
 
+          <div className="space-y-4">
+            <PaymentMethodSummary
+              transactions={filteredTransactions}
+              bankAccounts={bankAccounts}
+              formatAmount={formatAmount}
+            />
+            <BankAccountSummary
+              transactions={filteredTransactions}
+              bankAccounts={bankAccounts}
+              formatAmount={formatAmount}
+            />
+          </div>
+
           <div className="flex gap-4 items-center text-xs">
             <div className="bg-slate-50 dark:bg-slate-900 border px-3 py-1.5 rounded-xl text-slate-500 font-mono">
               Shift Total Collections:{' '}
@@ -1992,87 +1690,39 @@ export default function GiftShopPOS() {
             </div>
           </div>
 
-          {filteredTransactions.length === 0 ? (
-            <div className="py-16 text-center text-slate-400 space-y-4 border border-dashed border-slate-250 dark:border-slate-800/60 rounded-xl">
-              <History size={40} className="mx-auto text-slate-300 dark:text-slate-800" />
-              <div>
-                <h5 className="font-sans font-bold text-slate-900 dark:text-white uppercase text-xs">Journal ledger empty</h5>
-                <p className="text-4xs text-slate-400 font-mono mt-1 max-w-xs mx-auto uppercase">
-                  No boutique sales logs posted in current cashier shift cycle. Click "Checkout Desk" to start transactions.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="border border-slate-150 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-3xs overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse min-w-[700px]">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-900 font-mono text-[9px] uppercase text-slate-405 sticky top-0 border-b border-slate-200 dark:border-slate-800">
-                    <th className="py-2.5 px-4 font-bold">Invoice Number</th>
-                    <th className="py-2.5 px-3 font-bold">Date & Time</th>
-                    <th className="py-2.5 px-3 font-bold">Cashier Profile</th>
-                    <th className="py-2.5 px-3 font-bold">Items Sold</th>
-                    <th className="py-2.5 px-3 font-bold text-center">Payment Method</th>
-                    <th className="py-2.5 px-3 font-bold text-right">Invoice Sum</th>
-                    <th className="py-2.5 px-4 font-bold text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-300">
-                  {filteredTransactions.map(txn => (
-                    <tr key={txn.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 text-[11px] font-sans">
-                      <td className="py-3 px-4 font-mono font-bold text-indigo-650 dark:text-indigo-400">{txn.invoiceNumber}</td>
-                      <td className="py-3 px-3 font-mono text-[10px] text-slate-500">
-                        {new Date(txn.date).toLocaleString(undefined, { 
-                          month: 'short', 
-                          day: '2-digit', 
-                          hour: '2-digit', 
-                          minute: '2-digit' 
-                        })}
-                      </td>
-                      <td className="py-3 px-3 text-slate-505 font-medium">{txn.cashier}</td>
-                      <td className="py-3 px-3">
-                        <span className="block font-medium truncate max-w-[200px]" title={txn.items.map(i => `${i.productName} (x${i.quantity})`).join(', ')}>
-                          {txn.items.map(i => `${i.productName} (x${i.quantity})`).join(', ')}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase ${
-                          txn.paymentMethod === 'Room Charge' 
-                            ? 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-650 dark:text-indigo-400' 
-                            : txn.paymentMethod === 'Cash'
-                            ? 'bg-emerald-50 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-450'
-                            : 'bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-450'
-                        }`}>
-                          {txn.paymentMethod}
-                          {txn.roomChargeDetails && ` (Rm ${txn.roomChargeDetails.roomNumber})`}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-black text-slate-900 dark:text-white">
-                        {formatAmount(txn.total)}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex gap-2 justify-end">
-                          <button
-                            onClick={() => setShowInvoicePrint(txn)}
-                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-slate-600 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-amber-400 transition"
-                            title="Print Invoice Receipt File"
-                          >
-                            <Receipt size={13} />
-                          </button>
-                          <button
-                            onClick={() => voidTransaction(txn.id)}
-                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-rose-500 transition"
-                            title="Void this Invoice Docket"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <POSPaymentAuditTable
+            transactions={filteredTransactions.map(t => ({
+              id: t.id,
+              invoiceNumber: t.invoiceNumber,
+              date: t.date,
+              customerName: t.clientName || t.customerName || 'Walk-in Customer',
+              items: t.items,
+              paymentMethod: t.paymentMethod,
+              splitPayments: t.splitPayments,
+              status: t.status,
+              receiptUrl: t.receiptUrl,
+              total: t.total,
+              subtotal: t.subtotal,
+              tax: t.tax
+            })) as PaymentAuditTransaction[]}
+            bankAccounts={bankAccounts}
+            formatAmount={formatAmount}
+            emptyMessage="No boutique sales logs posted in current cashier shift cycle."
+            onViewReceipt={(tx) => {
+              if (tx.receiptUrl) window.open(tx.receiptUrl, '_blank', 'noopener,noreferrer');
+            }}
+            onPrintInvoice={(tx) => {
+              const original = filteredTransactions.find(t => t.id === tx.id);
+              setShowInvoicePrint(
+                original || ({
+                  ...tx,
+                  cashier: userProfile?.name || 'Front Desk Agent',
+                  clientName: tx.customerName
+                } as SavedTransaction)
+              );
+            }}
+            onVoidTransaction={(tx) => voidTransaction(tx.id)}
+          />
         </div>
       ) : (
         /* SOUVENIR DAMAGES AND LOSS REGISTRATION */
@@ -2357,18 +2007,15 @@ export default function GiftShopPOS() {
       )}
 
       {/* Name New Gift Shop Tab Modal */}
-      {showNewTabModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-800 animate-none">
-            <div className="p-6 border-b dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-850">
-               <div className="space-y-1">
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Open New Boutique Tab</h3>
-                  <p className="text-[10px] font-mono text-slate-400 uppercase tracking-widest leading-none font-bold">Open guest draft tab ledgers</p>
-               </div>
-               <button type="button" onClick={() => setShowNewTabModal(false)} className="p-2 bg-white dark:bg-slate-800 rounded-xl shadow-xs hover:text-rose-600 transition-colors cursor-pointer text-slate-500 dark:text-slate-400">
-                  <X size={16} />
-               </button>
-            </div>
+      <ModalSystem
+        isOpen={showNewTabModal}
+        onClose={() => setShowNewTabModal(false)}
+        title="Open New Boutique Tab"
+        subtitle="Open guest draft tab ledgers"
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
             <form onSubmit={handleCreateTab}>
                <div className="p-6 space-y-4">
                   <div className="space-y-1.5">
@@ -2392,9 +2039,7 @@ export default function GiftShopPOS() {
                   </button>
                </div>
             </form>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
     </div>
   );

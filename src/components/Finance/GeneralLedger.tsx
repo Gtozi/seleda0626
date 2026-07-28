@@ -24,13 +24,20 @@ import {
   Filter,
   CheckCircle2,
   Clock,
-  Menu
+  Menu,
+  ShieldCheck,
+  UserCheck,
+  AlertCircle,
+  Send,
+  RotateCcw
 } from 'lucide-react';
 import { JournalEntry, ChartOfAccount } from '../../types/finance';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
+import { DataTable, Column } from '../Shared/DataTable';
 
 const GeneralLedger = () => {
-  const { journals: erpJournals, chartOfAccounts: coa, addJournalEntry, currentSystemDate, formatAmount } = useERP();
+  const { journals: erpJournals, chartOfAccounts: coa, createJournalEntry, postJournalEntry, reverseJournalEntry, currentSystemDate, formatAmount } = useERP();
   const [activeTab, setActiveTab] = useState<'journals' | 'coa' | 'ledger' | 'invoices'>('journals');
   const [selectedLedgerAccount, setSelectedLedgerAccount] = useState<string>(coa?.[0]?.code || '1010');
   const [showNewJournal, setShowNewJournal] = useState(false);
@@ -45,6 +52,9 @@ const GeneralLedger = () => {
       description: 'Monthly F&B Supplier Payment Posting', 
       status: 'Posted', 
       createdBy: 'Sarah Accountant', 
+      approvedBy: 'Finance Manager',
+      approvedAt: '2024-05-28T10:30:00Z',
+      postedAt: '2024-05-28T11:00:00Z',
       amount: 14200.50,
       lines: [
         { id: '1', accountId: '1010', accountName: 'Cash on Hand', description: 'Payment Received', debit: 14200.50, credit: 0 },
@@ -56,7 +66,7 @@ const GeneralLedger = () => {
       date: '2024-05-29', 
       reference: 'UTIL-MAY-01', 
       description: 'Accrued Electricity Charges May', 
-      status: 'Pending', 
+      status: 'Draft', 
       createdBy: 'John Doe', 
       amount: 4500.00,
       lines: [] 
@@ -66,10 +76,25 @@ const GeneralLedger = () => {
       date: '2024-05-30', 
       reference: 'PR-MAY-24', 
       description: 'Payroll Disbursements Executive', 
-      status: 'Approved', 
+      status: 'Pending Approval', 
       createdBy: 'Elena Finance', 
       amount: 85000.00,
       lines: [] 
+    },
+    { 
+      id: 'JV-2024-05-004', 
+      date: '2024-05-31', 
+      reference: 'MAINT-JUN-01', 
+      description: 'Prepaid Maintenance Contract', 
+      status: 'Approved', 
+      createdBy: 'Michael Accountant', 
+      approvedBy: 'Finance Manager',
+      approvedAt: '2024-05-31T14:20:00Z',
+      amount: 12000.00,
+      lines: [
+        { id: '1', accountId: '1510', accountName: 'Prepaid Expenses', description: 'Annual Maintenance Contract', debit: 12000.00, credit: 0 },
+        { id: '2', accountId: '1010', accountName: 'Cash on Hand', description: 'Payment for Maintenance', debit: 0, credit: 12000.00 }
+      ] 
     },
   ];
 
@@ -114,7 +139,7 @@ const GeneralLedger = () => {
 
   // Journal Filters
   const [journalSearch, setJournalSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
@@ -127,14 +152,14 @@ const GeneralLedger = () => {
   const [refNum, setRefNum] = useState('');
   const [mainDesc, setMainDesc] = useState('');
 
-  const handleSaveJournal = () => {
+  const handleSaveJournal = async () => {
     if (!isBalanced) return;
-    
-    addJournalEntry({
+
+    await createJournalEntry({
       date: entryDate,
       reference: refNum,
       description: mainDesc,
-      status: 'Posted',
+      status: 'Draft',
       createdBy: 'Zeray Goytom',
       amount: totalDebit,
       lines: newJournalLines.map((line, idx) => ({
@@ -146,11 +171,46 @@ const GeneralLedger = () => {
         credit: line.credit
       }))
     });
-    
+
     setShowNewJournal(false);
     setNewJournalLines([{ accountId: '', description: '', debit: 0, credit: 0 }, { accountId: '', description: '', debit: 0, credit: 0 }]);
     setRefNum('');
     setMainDesc('');
+  };
+
+  const handleSubmitForApproval = (journal: JournalEntry) => {
+    // In a real app, this would update the journal status via API
+    const updatedJournals = erpJournals?.map(j => 
+      j.id === journal.id ? { ...j, status: 'Pending Approval' as const } : j
+    );
+    // For now, we'll just log this action
+    console.log('Journal submitted for approval:', journal.id);
+  };
+
+  const handleApproveJournal = (journal: JournalEntry) => {
+    // In a real app, this would update the journal status via API
+    const updatedJournals = erpJournals?.map(j => 
+      j.id === journal.id ? { ...j, status: 'Approved' as const, approvedBy: 'Finance Manager', approvedAt: new Date().toISOString() } : j
+    );
+    console.log('Journal approved:', journal.id);
+  };
+
+  const handlePostJournal = async (journal: JournalEntry) => {
+    try {
+      await postJournalEntry(journal.id);
+      console.log('Journal posted:', journal.id);
+    } catch (error) {
+      console.error('Failed to post journal:', error);
+    }
+  };
+
+  const handleReverseJournal = async (journal: JournalEntry) => {
+    try {
+      await reverseJournalEntry(journal.id);
+      console.log('Journal reversed:', journal.id);
+    } catch (error) {
+      console.error('Failed to reverse journal:', error);
+    }
   };
 
   const addJournalLine = () => {
@@ -188,6 +248,13 @@ const GeneralLedger = () => {
     { date: '05-28', amount: 42000 },
     { date: '05-29', amount: 88000 },
     { date: '05-30', amount: 74000 },
+  ];
+
+  const invoiceDocuments = [
+    { id: 'INV-2026-001', type: 'Guest Folio', entity: 'John Smith (Room 402)', date: '2026-06-03', net: 1250.00, tax: 187.50, gl: 'Posted', glRef: 'JV-2026-8821', items: [{ desc: 'Room Tariff (3 Nights)', qty: 3, rate: 350, total: 1050 }, { desc: 'Room Service - Dinner', qty: 1, rate: 125, total: 125 }, { desc: 'Spa Treatment - Swedish', qty: 1, rate: 75, total: 75 }] },
+    { id: 'INV-2026-002', type: 'Vendor Bill', entity: 'Apex Cleaning Supplies', date: '2026-06-02', net: 4500.00, tax: 0.00, gl: 'Pending', glRef: '-', items: [{ desc: 'Industrial Detergent (20L)', qty: 10, rate: 250, total: 2500 }, { desc: 'Microfiber Towel Set', qty: 50, rate: 20, total: 1000 }, { desc: 'Disinfectant Spray 500ml', qty: 100, rate: 10, total: 1000 }] },
+    { id: 'INV-2026-003', type: 'Guest Folio', entity: 'TechCorp Group', date: '2026-06-01', net: 15400.00, tax: 2310.00, gl: 'Posted', glRef: 'JV-2026-8840', items: [{ desc: 'Conference Room Rental', qty: 2, rate: 2500, total: 5000 }, { desc: 'Executive Catering Package', qty: 40, rate: 150, total: 6000 }, { desc: 'Audio Visual Support', qty: 1, rate: 4400, total: 4400 }] },
+    { id: 'INV-2026-004', type: 'Maintenance Bill', entity: 'Elevator Pro Services', date: '2026-05-31', net: 850.00, tax: 127.50, gl: 'Draft', glRef: '-', items: [{ desc: 'Monthly Preventative Maintenance', qty: 1, rate: 850, total: 850 }] },
   ];
 
   return (
@@ -234,22 +301,15 @@ const GeneralLedger = () => {
         </div>
       </div>
 
-      {showNewJournal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
-                 <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">New Journal Entry</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Double-entry architectural matching</p>
-                 </div>
-                 <button 
-                  onClick={() => setShowNewJournal(false)}
-                  className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
-                 >
-                    <Settings size={20} className="rotate-45" />
-                 </button>
-              </div>
-
+      <ModalSystem
+        isOpen={showNewJournal}
+        onClose={() => setShowNewJournal(false)}
+        title="New Journal Entry"
+        subtitle="Double-entry architectural matching"
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="space-y-2">
@@ -380,13 +440,11 @@ const GeneralLedger = () => {
                       onClick={handleSaveJournal}
                       className="px-8 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-50 transition shadow-lg shadow-indigo-600/20"
                     >
-                       Post Transaction
+                       Save as Draft
                     </button>
                  </div>
               </div>
-           </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {activeTab === 'journals' && (
         <div className="grid lg:grid-cols-12 gap-6">
@@ -489,119 +547,105 @@ const GeneralLedger = () => {
                     />
                  </div>
                  <div className="flex gap-2">
-                    <button className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><Filter size={14} /></button>
+                    <select 
+                      value={statusFilter}
+                      onChange={(e) => setStatusFilter(e.target.value)}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[11px] font-bold outline-none focus:ring-1 focus:ring-indigo-500 transition-all"
+                    >
+                      <option value="All">All Status</option>
+                      <option value="Draft">Draft</option>
+                      <option value="Pending Approval">Pending Approval</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Posted">Posted</option>
+                    </select>
                     <button className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><History size={14} /></button>
                     <button className="p-1.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"><Settings size={14} /></button>
                  </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                  <thead>
-                    <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Journal ID</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Created By</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
-                      <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {filteredJournals.map((j) => (
-                      <tr key={j.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="px-5 py-4">
-                           <div className="flex items-center gap-2">
-                              <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-lg">
-                                 <FileText size={12} />
-                              </div>
-                              <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">{j.id}</span>
-                           </div>
-                        </td>
-                        <td className="px-5 py-4 text-xs font-bold text-slate-500">{j.date}</td>
-                        <td className="px-5 py-4">
-                           <div className="flex flex-col">
-                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{j.description}</span>
-                              <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Ref: {j.reference}</span>
-                           </div>
-                        </td>
-                        <td className="px-5 py-4 text-xs font-black text-slate-900 dark:text-white text-right">${j.amount?.toLocaleString()}</td>
-                        <td className="px-5 py-4 text-xs font-bold text-slate-500">{j.createdBy}</td>
-                        <td className="px-5 py-4">
-                           <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                             j.status === 'Posted' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
-                             j.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20' :
-                             'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20'
-                           }`}>
-                             {j.status}
-                           </span>
-                        </td>
-                        <td className="px-5 py-4">
-                           <div className="flex justify-center gap-1">
-                              <button 
-                                onClick={() => setSelectedJournal(j)}
-                                className="p-1.5 text-slate-400 hover:text-indigo-600 transition"
-                              >
-                                <Eye size={14} />
-                              </button>
-                              <button className="p-1.5 text-slate-400 hover:text-indigo-600 transition"><Menu size={14} /></button>
-                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <DataTable
+                columns={[
+                  { key: 'id', label: 'Journal ID', render: (j: JournalEntry) => (
+                    <div className="flex items-center gap-2">
+                      <div className="p-1.5 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-lg"><FileText size={12} /></div>
+                      <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tighter">{j.id}</span>
+                    </div>
+                  ) },
+                  { key: 'date', label: 'Date', render: (j: JournalEntry) => <span className="text-xs font-bold text-slate-500">{j.date}</span> },
+                  { key: 'description', label: 'Description', render: (j: JournalEntry) => (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{j.description}</span>
+                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">Ref: {j.reference}</span>
+                    </div>
+                  ) },
+                  { key: 'amount', label: 'Amount', align: 'right' as const, render: (j: JournalEntry) => <span className="text-xs font-black text-slate-900 dark:text-white">${j.amount?.toLocaleString()}</span> },
+                  { key: 'createdBy', label: 'Created By', render: (j: JournalEntry) => <span className="text-xs font-bold text-slate-500">{j.createdBy}</span> },
+                  { key: 'status', label: 'Status', render: (j: JournalEntry) => (
+                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
+                      j.status === 'Posted' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
+                      j.status === 'Approved' ? 'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20' :
+                      j.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20' :
+                      j.status === 'Draft' ? 'bg-slate-50 text-slate-600 border-slate-100 dark:bg-slate-500/10 dark:border-slate-500/20' :
+                      'bg-slate-50 text-slate-600 border-slate-100'
+                    }`}>{j.status}</span>
+                  ) },
+                  { key: 'actions', label: 'Actions', align: 'center' as const, sortable: false, render: (j: JournalEntry) => (
+                    <div className="flex justify-center gap-1">
+                      <button onClick={() => setSelectedJournal(j)} className="p-1.5 text-slate-400 hover:text-indigo-600 transition"><Eye size={14} /></button>
+                      {j.status === 'Draft' && <button onClick={() => handleSubmitForApproval(j)} className="p-1.5 text-slate-400 hover:text-amber-600 transition" title="Submit for Approval"><Send size={14} /></button>}
+                      {j.status === 'Pending' && <button onClick={() => handleApproveJournal(j)} className="p-1.5 text-slate-400 hover:text-blue-600 transition" title="Approve Journal"><UserCheck size={14} /></button>}
+                      {j.status === 'Approved' && <button onClick={() => handlePostJournal(j)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition" title="Post to GL"><ShieldCheck size={14} /></button>}
+                      {j.status === 'Posted' && <button onClick={() => handleReverseJournal(j)} className="p-1.5 text-slate-400 hover:text-rose-600 transition" title="Reverse Journal"><RotateCcw size={14} /></button>}
+                      <button className="p-1.5 text-slate-400 hover:text-indigo-600 transition"><Menu size={14} /></button>
+                    </div>
+                  ) },
+                ] as Column<JournalEntry>[]}
+                data={filteredJournals}
+                rowKey={(j) => j.id}
+                sortable
+                filterable
+                filterPlaceholder="Search journals..."
+                filterKeys={['id', 'description', 'reference', 'createdBy', 'status']}
+                containerClassName="rounded-3xl"
+              />
            </div>
         </div>
       )}
 
       {activeTab === 'coa' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
-           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+        <div>
+           <div className="mb-4">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Enterprise Chart of Accounts</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Multi-level double entry matching structure</p>
            </div>
-           <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                 <thead>
-                    <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Code</th>
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Account Name</th>
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Category</th>
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest">Sub-Category</th>
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Balance</th>
-                       <th className="px-5 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
-                    </tr>
-                 </thead>
-                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                    {coa?.map((acc) => (
-                       <tr key={acc.code} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                          <td className="px-5 py-4 text-xs font-black text-indigo-600 font-mono italic">{acc.code}</td>
-                          <td className="px-5 py-4 text-xs font-black text-slate-900 dark:text-white">{acc.name}</td>
-                          <td className="px-5 py-4">
-                             <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                               acc.category === 'Asset' ? 'bg-blue-100 text-blue-700' :
-                               acc.category === 'Liability' ? 'bg-amber-100 text-amber-700' :
-                               acc.category === 'Revenue' ? 'bg-emerald-100 text-emerald-700' :
-                               'bg-slate-100 text-slate-700'
-                             }`}>
-                                {acc.category}
-                             </span>
-                          </td>
-                          <td className="px-5 py-4 text-xs font-bold text-slate-500">{acc.subCategory}</td>
-                          <td className="px-5 py-4 text-xs font-black text-slate-900 dark:text-white text-right">${acc.balance.toLocaleString()}</td>
-                          <td className="px-5 py-4">
-                             <div className="flex justify-center items-center gap-1.5 text-emerald-500">
-                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                                <span className="text-[9px] font-black uppercase">Active</span>
-                             </div>
-                          </td>
-                       </tr>
-                    ))}
-                 </tbody>
-              </table>
-           </div>
+           <DataTable
+             columns={[
+               { key: 'code', label: 'Account Code', render: (acc: ChartOfAccount) => <span className="text-xs font-black text-indigo-600 font-mono italic">{acc.code}</span> },
+               { key: 'name', label: 'Account Name', render: (acc: ChartOfAccount) => <span className="text-xs font-black text-slate-900 dark:text-white">{acc.name}</span> },
+               { key: 'category', label: 'Category', render: (acc: ChartOfAccount) => (
+                 <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                   acc.category === 'Asset' ? 'bg-blue-100 text-blue-700' :
+                   acc.category === 'Liability' ? 'bg-amber-100 text-amber-700' :
+                   acc.category === 'Revenue' ? 'bg-emerald-100 text-emerald-700' :
+                   'bg-slate-100 text-slate-700'
+                 }`}>{acc.category}</span>
+               ) },
+               { key: 'subCategory', label: 'Sub-Category', render: (acc: ChartOfAccount) => <span className="text-xs font-bold text-slate-500">{acc.subCategory}</span> },
+               { key: 'balance', label: 'Balance', align: 'right' as const, render: (acc: ChartOfAccount) => <span className="text-xs font-black text-slate-900 dark:text-white">${acc.balance.toLocaleString()}</span> },
+               { key: 'status', label: 'Status', align: 'center' as const, sortable: false, render: () => (
+                 <div className="flex justify-center items-center gap-1.5 text-emerald-500">
+                   <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                   <span className="text-[9px] font-black uppercase">Active</span>
+                 </div>
+               ) },
+             ] as Column<ChartOfAccount>[]}
+             data={coa || []}
+             rowKey={(acc) => acc.code}
+             sortable
+             filterable
+             filterPlaceholder="Search accounts..."
+             filterKeys={['code', 'name', 'category', 'subCategory']}
+             containerClassName="rounded-3xl"
+           />
         </div>
       )}
 
@@ -657,56 +701,42 @@ const GeneralLedger = () => {
                     </button>
                  </div>
               </div>
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left border-collapse">
-                    <thead>
-                       <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">Entry Date</th>
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">ID / Ref</th>
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest">Description</th>
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Debit (+)</th>
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Credit (-)</th>
-                          <th className="px-5 py-3 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Running Balance</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 transition-all">
-                       {ledgerEntries.length > 0 ? ledgerEntries.map((trx, i) => (
-                          <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                             <td className="px-5 py-4 text-[10px] font-bold text-slate-500 whitespace-nowrap">
-                                {new Date(trx.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-                             </td>
-                             <td className="px-5 py-4">
-                                <div className="flex flex-col">
-                                  <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tighter">{trx.id}</span>
-                                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">Ref: {trx.reference}</span>
-                                </div>
-                             </td>
-                             <td className="px-5 py-4 text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-[240px] truncate" title={trx.description}>
-                                {trx.description}
-                             </td>
-                             <td className="px-5 py-4 text-[10px] font-black text-emerald-600 text-right font-mono">
-                                {trx.debit > 0 ? (formatAmount ? formatAmount(trx.debit) : `$${trx.debit.toLocaleString()}`) : '-'}
-                             </td>
-                             <td className="px-5 py-4 text-[10px] font-black text-rose-600 text-right font-mono">
-                                {trx.credit > 0 ? (formatAmount ? formatAmount(trx.credit) : `$${trx.credit.toLocaleString()}`) : '-'}
-                             </td>
-                             <td className="px-5 py-4 text-[11px] font-black text-slate-900 dark:text-white text-right font-mono bg-slate-50/30 dark:bg-slate-950/20">
-                                {formatAmount ? formatAmount(trx.runningBalance) : `$${trx.runningBalance.toLocaleString()}`}
-                             </td>
-                          </tr>
-                       )) : (
-                         <tr>
-                            <td colSpan={6} className="px-5 py-20 text-center">
-                               <div className="flex flex-col items-center gap-3 opacity-30">
-                                  <ArrowRightLeft size={32} className="text-slate-300" />
-                                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">No transaction activity recorded for this period</p>
-                               </div>
-                            </td>
-                         </tr>
-                       )}
-                    </tbody>
-                 </table>
-              </div>
+              <DataTable
+                columns={[
+                  { key: 'date', label: 'Entry Date', render: (trx: any) => (
+                    <span className="text-[10px] font-bold text-slate-500 whitespace-nowrap">
+                      {new Date(trx.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  ) },
+                  { key: 'id', label: 'ID / Ref', render: (trx: any) => (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tighter">{trx.id}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tight">Ref: {trx.reference}</span>
+                    </div>
+                  ) },
+                  { key: 'description', label: 'Description', render: (trx: any) => (
+                    <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 max-w-[240px] truncate" title={trx.description}>{trx.description}</span>
+                  ) },
+                  { key: 'debit', label: 'Debit (+)', align: 'right' as const, render: (trx: any) => (
+                    <span className="text-[10px] font-black text-emerald-600 font-mono">{trx.debit > 0 ? (formatAmount ? formatAmount(trx.debit) : `$${trx.debit.toLocaleString()}`) : '-'}</span>
+                  ) },
+                  { key: 'credit', label: 'Credit (-)', align: 'right' as const, render: (trx: any) => (
+                    <span className="text-[10px] font-black text-rose-600 font-mono">{trx.credit > 0 ? (formatAmount ? formatAmount(trx.credit) : `$${trx.credit.toLocaleString()}`) : '-'}</span>
+                  ) },
+                  { key: 'runningBalance', label: 'Running Balance', align: 'right' as const, render: (trx: any) => (
+                    <span className="text-[11px] font-black text-slate-900 dark:text-white font-mono bg-slate-50/30 dark:bg-slate-950/20">{formatAmount ? formatAmount(trx.runningBalance) : `$${trx.runningBalance.toLocaleString()}`}</span>
+                  ) },
+                ] as Column<any>[]}
+                data={ledgerEntries}
+                rowKey={(trx: any, i: number) => trx.id || i}
+                sortable
+                filterable
+                filterPlaceholder="Search ledger entries..."
+                filterKeys={['id', 'reference', 'description']}
+                containerClassName="rounded-3xl border-0"
+                emptyMessage="No transaction activity recorded for this period"
+                emptyIcon={<ArrowRightLeft size={32} className="text-slate-300" />}
+              />
               {ledgerEntries.length > 0 && (
                 <div className="p-4 bg-slate-50/50 dark:bg-slate-950/20 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
                    <div className="flex gap-6">
@@ -743,151 +773,53 @@ const GeneralLedger = () => {
               ))}
            </div>
 
-           <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden shadow-3xs">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
+           <div>
+              <div className="flex justify-between items-center mb-4">
                  <h4 className="text-[10px] font-black text-slate-800 dark:text-white uppercase tracking-widest">Document Audit Registry</h4>
                  <div className="flex gap-2">
-                    <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition">
-                       Category: All
-                    </button>
-                    <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition">
-                       Status: Active
-                    </button>
+                    <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition">Category: All</button>
+                    <button className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 dark:border-slate-800 rounded-xl text-[9px] font-black uppercase hover:bg-slate-50 transition">Status: Active</button>
                  </div>
               </div>
-              <div className="overflow-x-auto">
-                 <table className="w-full text-left border-collapse">
-                    <thead>
-                       <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Document #</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client / Vendor</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Issued Date</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Net Amount</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Tax</th>
-                          <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">GL Status</th>
-                       </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                       {[
-                         { 
-                           id: 'INV-2026-001', 
-                           type: 'Guest Folio', 
-                           entity: 'John Smith (Room 402)', 
-                           date: '2026-06-03', 
-                           net: 1250.00, 
-                           tax: 187.50, 
-                           gl: 'Posted', 
-                           glRef: 'JV-2026-8821',
-                           items: [
-                             { desc: 'Room Tariff (3 Nights)', qty: 3, rate: 350, total: 1050 },
-                             { desc: 'Room Service - Dinner', qty: 1, rate: 125, total: 125 },
-                             { desc: 'Spa Treatment - Swedish', qty: 1, rate: 75, total: 75 }
-                           ]
-                         },
-                         { 
-                           id: 'INV-2026-002', 
-                           type: 'Vendor Bill', 
-                           entity: 'Apex Cleaning Supplies', 
-                           date: '2026-06-02', 
-                           net: 4500.00, 
-                           tax: 0.00, 
-                           gl: 'Pending', 
-                           glRef: '-',
-                           items: [
-                             { desc: 'Industrial Detergent (20L)', qty: 10, rate: 250, total: 2500 },
-                             { desc: 'Microfiber Towel Set', qty: 50, rate: 20, total: 1000 },
-                             { desc: 'Disinfectant Spray 500ml', qty: 100, rate: 10, total: 1000 }
-                           ]
-                         },
-                         { 
-                           id: 'INV-2026-003', 
-                           type: 'Guest Folio', 
-                           entity: 'TechCorp Group', 
-                           date: '2026-06-01', 
-                           net: 15400.00, 
-                           tax: 2310.00, 
-                           gl: 'Posted', 
-                           glRef: 'JV-2026-8840',
-                           items: [
-                             { desc: 'Conference Room Rental', qty: 2, rate: 2500, total: 5000 },
-                             { desc: 'Executive Catering Package', qty: 40, rate: 150, total: 6000 },
-                             { desc: 'Audio Visual Support', qty: 1, rate: 4400, total: 4400 }
-                           ]
-                         },
-                         { 
-                           id: 'INV-2026-004', 
-                           type: 'Maintenance Bill', 
-                           entity: 'Elevator Pro Services', 
-                           date: '2026-05-31', 
-                           net: 850.00, 
-                           tax: 127.50, 
-                           gl: 'Draft', 
-                           glRef: '-',
-                           items: [
-                             { desc: 'Monthly Preventative Maintenance', qty: 1, rate: 850, total: 850 }
-                           ]
-                         },
-                       ].map((inv, i) => (
-                          <tr 
-                            key={i} 
-                            onClick={() => setSelectedInvoice(inv)}
-                            className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group cursor-pointer"
-                          >
-                             <td className="px-6 py-4">
-                                <span className="text-xs font-black text-indigo-600 uppercase tracking-tighter group-hover:underline">{inv.id}</span>
-                             </td>
-                             <td className="px-6 py-4">
-                                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                  inv.type === 'Guest Folio' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'
-                                }`}>{inv.type}</span>
-                             </td>
-                             <td className="px-6 py-4 text-xs font-bold text-slate-900 dark:text-white uppercase">{inv.entity}</td>
-                             <td className="px-6 py-4 text-xs font-bold text-slate-500">{inv.date}</td>
-                             <td className="px-6 py-4 text-xs font-black text-slate-900 dark:text-white text-right font-mono">${inv.net.toLocaleString()}</td>
-                             <td className="px-6 py-4 text-xs font-bold text-slate-400 text-right font-mono">${inv.tax.toLocaleString()}</td>
-                             <td className="px-6 py-4">
-                                <div className="flex flex-col items-start gap-1">
-                                   <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                     inv.gl === 'Posted' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'
-                                   }`}>{inv.gl}</span>
-                                   {inv.glRef !== '-' && <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{inv.glRef}</span>}
-                                </div>
-                             </td>
-                          </tr>
-                       ))}
-                    </tbody>
-                 </table>
-              </div>
+              <DataTable
+                columns={[
+                  { key: 'id', label: 'Document #', render: (inv: any) => <span className="text-xs font-black text-indigo-600 uppercase tracking-tighter">{inv.id}</span> },
+                  { key: 'type', label: 'Type', render: (inv: any) => (
+                    <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${inv.type === 'Guest Folio' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-600'}`}>{inv.type}</span>
+                  ) },
+                  { key: 'entity', label: 'Client / Vendor', render: (inv: any) => <span className="text-xs font-bold text-slate-900 dark:text-white uppercase">{inv.entity}</span> },
+                  { key: 'date', label: 'Issued Date', render: (inv: any) => <span className="text-xs font-bold text-slate-500">{inv.date}</span> },
+                  { key: 'net', label: 'Net Amount', align: 'right' as const, render: (inv: any) => <span className="text-xs font-black text-slate-900 dark:text-white font-mono">${inv.net.toLocaleString()}</span> },
+                  { key: 'tax', label: 'Tax', align: 'right' as const, render: (inv: any) => <span className="text-xs font-bold text-slate-400 font-mono">${inv.tax.toLocaleString()}</span> },
+                  { key: 'gl', label: 'GL Status', render: (inv: any) => (
+                    <div className="flex flex-col items-start gap-1">
+                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${inv.gl === 'Posted' ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-500'}`}>{inv.gl}</span>
+                      {inv.glRef !== '-' && <span className="text-[7px] font-black text-slate-400 uppercase tracking-widest">{inv.glRef}</span>}
+                    </div>
+                  ) },
+                ] as Column<any>[]}
+                data={invoiceDocuments}
+                rowKey={(inv: any) => inv.id}
+                sortable
+                filterable
+                filterPlaceholder="Search documents..."
+                filterKeys={['id', 'type', 'entity', 'gl']}
+                onRowClick={(inv: any) => setSelectedInvoice(inv)}
+                containerClassName="rounded-3xl"
+              />
            </div>
         </div>
       )}
 
-      {selectedJournal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-           <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-              <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/20">
-                 <div>
-                    <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{selectedJournal.id}</h3>
-                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-1">Reference: {selectedJournal.reference}</p>
-                 </div>
-                 <div className="flex items-center gap-4">
-                    <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${
-                      selectedJournal.status === 'Posted' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 dark:bg-emerald-500/10 dark:border-emerald-500/20' :
-                      selectedJournal.status === 'Pending' ? 'bg-amber-50 text-amber-600 border-amber-100 dark:bg-amber-500/10 dark:border-amber-500/20' :
-                      'bg-blue-50 text-blue-600 border-blue-100 dark:bg-blue-500/10 dark:border-blue-500/20'
-                    }`}>
-                      {selectedJournal.status}
-                    </span>
-                    <button 
-                      onClick={() => setSelectedJournal(null)}
-                      className="p-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition"
-                    >
-                      <Plus size={20} className="rotate-45" />
-                    </button>
-                 </div>
-              </div>
-
+      <ModalSystem
+        isOpen={!!selectedJournal}
+        onClose={() => setSelectedJournal(null)}
+        title={selectedJournal?.id ?? ''}
+        subtitle={`Reference: ${selectedJournal?.reference ?? ''}`}
+        variant="info"
+        size="xl"
+        showFooter={false}
+      >
               <div className="p-6 space-y-6 overflow-y-auto">
                  <div className="grid grid-cols-3 gap-6 text-[11px]">
                     <div>
@@ -903,6 +835,43 @@ const GeneralLedger = () => {
                        <span className="font-black text-indigo-600">{formatAmount ? formatAmount(selectedJournal.amount || 0) : `$${selectedJournal.amount?.toLocaleString()}`}</span>
                     </div>
                  </div>
+
+                 {/* Approval Workflow Info */}
+                 {(selectedJournal.status === 'Approved' || selectedJournal.status === 'Posted') && (
+                   <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-100 dark:border-blue-500/20 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                         <UserCheck size={16} className="text-blue-600" />
+                         <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Approval Information</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-[10px]">
+                         <div>
+                            <span className="text-slate-500 uppercase font-black block mb-1">Approved By</span>
+                            <span className="font-bold text-slate-900 dark:text-white">{selectedJournal.approvedBy || 'Finance Manager'}</span>
+                         </div>
+                         <div>
+                            <span className="text-slate-500 uppercase font-black block mb-1">Approved At</span>
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {selectedJournal.approvedAt ? new Date(selectedJournal.approvedAt).toLocaleString() : '-'}
+                            </span>
+                         </div>
+                      </div>
+                   </div>
+                 )}
+
+                 {selectedJournal.status === 'Posted' && (
+                   <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-100 dark:border-emerald-500/20 rounded-2xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                         <ShieldCheck size={16} className="text-emerald-600" />
+                         <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Posting Information</span>
+                      </div>
+                      <div className="text-[10px]">
+                         <span className="text-slate-500 uppercase font-black block mb-1">Posted At</span>
+                         <span className="font-bold text-slate-900 dark:text-white">
+                           {selectedJournal.postedAt ? new Date(selectedJournal.postedAt).toLocaleString() : '-'}
+                         </span>
+                      </div>
+                   </div>
+                 )}
 
                  <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Entry Description</h4>
@@ -949,43 +918,67 @@ const GeneralLedger = () => {
                  </div>
               </div>
 
-              <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-950/20">
-                 <button 
-                  onClick={() => window.print()}
-                  className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2"
-                 >
-                    <Download size={14} /> Print Voucher
-                 </button>
-                 <button 
-                  onClick={() => setSelectedJournal(null)}
-                  className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition"
-                 >
-                    Close View
-                 </button>
+              <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/30 dark:bg-slate-950/20">
+                 <div className="flex gap-2">
+                    {selectedJournal.status === 'Draft' && (
+                      <button 
+                        onClick={() => handleSubmitForApproval(selectedJournal)}
+                        className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2"
+                      >
+                        <Send size={14} /> Submit for Approval
+                      </button>
+                    )}
+                    {selectedJournal.status === 'Pending Approval' && (
+                      <button 
+                        onClick={() => handleApproveJournal(selectedJournal)}
+                        className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2"
+                      >
+                        <UserCheck size={14} /> Approve Journal
+                      </button>
+                    )}
+                    {selectedJournal.status === 'Approved' && (
+                      <button 
+                        onClick={() => handlePostJournal(selectedJournal)}
+                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2"
+                      >
+                        <ShieldCheck size={14} /> Post to GL
+                      </button>
+                    )}
+                    {selectedJournal.status === 'Posted' && (
+                      <button
+                        onClick={() => handleReverseJournal(selectedJournal)}
+                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2"
+                      >
+                        <RotateCcw size={14} /> Reverse Journal
+                      </button>
+                    )}
+                 </div>
+                 <div className="flex gap-3">
+                    <button 
+                      onClick={() => window.print()}
+                      className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition flex items-center gap-2"
+                    >
+                      <Download size={14} /> Print Voucher
+                    </button>
+                    <button 
+                      onClick={() => setSelectedJournal(null)}
+                      className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition"
+                    >
+                      Close View
+                    </button>
+                 </div>
               </div>
-           </div>
-        </div>
-      )}
+      </ModalSystem>
 
-      {selectedInvoice && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden border border-slate-100 dark:border-slate-800">
-            <div className="p-8 border-b border-slate-50 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20 flex justify-between items-start">
-              <div className="space-y-1">
-                <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-full text-[9px] font-black uppercase tracking-widest border border-indigo-100 dark:border-indigo-500/20 mb-2 inline-block">
-                  {selectedInvoice.type}
-                </span>
-                <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{selectedInvoice.id}</h3>
-                <p className="text-xs font-bold text-slate-500 uppercase">Document Audit Trail • Issued {selectedInvoice.date}</p>
-              </div>
-              <button 
-                onClick={() => setSelectedInvoice(null)}
-                className="p-2 border border-slate-200 dark:border-slate-800 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-              >
-                <Plus size={20} className="rotate-45" />
-              </button>
-            </div>
-
+      <ModalSystem
+        isOpen={!!selectedInvoice}
+        onClose={() => setSelectedInvoice(null)}
+        title={selectedInvoice?.id ?? ''}
+        subtitle={`Document Audit Trail • Issued ${selectedInvoice?.date ?? ''}`}
+        variant="info"
+        size="xl"
+        showFooter={false}
+      >
             <div className="p-8 space-y-8">
               <div className="grid grid-cols-2 gap-8">
                 <div>
@@ -1062,9 +1055,7 @@ const GeneralLedger = () => {
                  </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
     </div>
   );
 };

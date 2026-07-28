@@ -1,18 +1,19 @@
 import React from 'react';
-import { 
-  ShieldCheck, 
-  Building2, 
-  Zap, 
-  Settings, 
-  TrendingDown, 
-  History, 
-  CheckCircle2, 
+import {
+  ShieldCheck,
+  Building2,
+  Zap,
+  Settings,
+  TrendingDown,
+  History,
+  CheckCircle2,
   AlertTriangle,
   Search,
   Filter,
   Plus,
   ArrowUpRight
 } from 'lucide-react';
+import { DataTable, Column } from '../Shared/DataTable';
 
 const AssetManagement = () => {
   const assets = [
@@ -42,81 +43,87 @@ const AssetManagement = () => {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[40px] overflow-hidden shadow-3xs">
-         <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-            <div>
-               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Fixed Asset Register</h3>
-               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Capitalized Asset Inventory & Valuation</p>
+      <div className="flex items-center justify-between mb-4">
+         <div>
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Fixed Asset Register</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Capitalized Asset Inventory & Valuation</p>
+         </div>
+         <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
+            <Plus size={14} />
+            Capitalize Asset
+         </button>
+      </div>
+      <DataTable
+        columns={[
+          {
+            key: 'name',
+            label: 'Asset Description',
+            render: (a: any) => (
+              <div className="flex flex-col">
+                <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{a.name}</span>
+                <span className="text-[9px] font-bold text-slate-400 font-mono mt-0.5">{a.id}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'life',
+            label: 'Life Expectancy',
+            render: (a: any) => (
+              <div className="flex items-center gap-2">
+                <History size={12} className="text-slate-300" />
+                <span className="text-xs font-bold text-slate-600">{a.life}</span>
+              </div>
+            ),
+          },
+          {
+            key: 'value',
+            label: 'Purchase Value',
+            render: (a: any) => <span className="text-xs font-black text-slate-900 dark:text-white">${a.value.toLocaleString()}</span>,
+          },
+          {
+            key: 'dep',
+            label: 'Ann. Deprec.',
+            render: (a: any) => <span className="text-xs font-bold text-rose-500 font-mono">-${a.dep.toLocaleString()}</span>,
+          },
+          {
+            key: 'condition',
+            label: 'Health Status',
+            align: 'center',
+            render: (a: any) => (
+              <div className="flex justify-center">
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                  a.condition === 'Excellent' || a.condition === 'Good' ? 'bg-emerald-50 text-emerald-600' :
+                  a.condition === 'Watch' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
+                }`}>
+                  {a.condition}
+                </span>
+              </div>
+            ),
+          },
+        ] as Column<any>[]}
+        data={assets}
+        rowKey={(a) => a.id}
+        sortable
+        filterable
+        filterPlaceholder="Search assets..."
+        filterKeys={['name', 'id', 'condition']}
+        containerClassName="rounded-[40px]"
+      />
+      <div className="p-6 bg-slate-50 dark:bg-slate-950/20 flex justify-between items-center rounded-[32px] mt-4">
+         <div className="flex gap-4">
+            <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-emerald-500" />
+               <span className="text-[9px] font-black text-slate-400 uppercase">Operational Assets</span>
             </div>
-            <div className="flex gap-2">
-               <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
-                  <Plus size={14} />
-                  Capitalize Asset
-               </button>
-               <button className="p-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 hover:text-slate-600 transition">
-                  <Filter size={18} />
-               </button>
+            <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-rose-500" />
+               <span className="text-[9px] font-black text-slate-400 uppercase">Maintenance Required</span>
             </div>
          </div>
-         <table className="w-full text-left border-collapse">
-            <thead>
-               <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Asset Description</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Life Expectancy</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Purchase Value</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Ann. Deprec.</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Health Status</th>
-               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-               {assets.map((asset, i) => (
-                 <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors cursor-pointer group">
-                    <td className="px-8 py-5">
-                       <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-indigo-600 transition-colors">{asset.name}</span>
-                          <span className="text-[9px] font-bold text-slate-400 font-mono mt-0.5">{asset.id}</span>
-                       </div>
-                    </td>
-                    <td className="px-8 py-5">
-                       <div className="flex items-center gap-2">
-                          <History size={12} className="text-slate-300" />
-                          <span className="text-xs font-bold text-slate-600">{asset.life}</span>
-                       </div>
-                    </td>
-                    <td className="px-8 py-5 text-xs font-black text-slate-900 dark:text-white">${asset.value.toLocaleString()}</td>
-                    <td className="px-8 py-5">
-                       <span className="text-xs font-bold text-rose-500 font-mono">-${asset.dep.toLocaleString()}</span>
-                    </td>
-                    <td className="px-8 py-5">
-                       <div className="flex justify-center">
-                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
-                             asset.condition === 'Excellent' || asset.condition === 'Good' ? 'bg-emerald-50 text-emerald-600' : 
-                             asset.condition === 'Watch' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
-                          }`}>
-                             {asset.condition}
-                          </span>
-                       </div>
-                    </td>
-                 </tr>
-               ))}
-            </tbody>
-         </table>
-         <div className="p-6 bg-slate-50 dark:bg-slate-950/20 flex justify-between items-center">
-            <div className="flex gap-4">
-               <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase">Operational Assets</span>
-               </div>
-               <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-rose-500" />
-                  <span className="text-[9px] font-black text-slate-400 uppercase">Maintenance Required</span>
-               </div>
-            </div>
-            <button className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 group">
-               Full Depreciation Schedule
-               <ArrowUpRight size={12} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
-            </button>
-         </div>
+         <button className="text-[9px] font-black text-indigo-600 uppercase tracking-widest flex items-center gap-1 group">
+            Full Depreciation Schedule
+            <ArrowUpRight size={12} className="group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+         </button>
       </div>
     </div>
   );

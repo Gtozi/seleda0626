@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { Guest, GuestGroupRelationship, GuestGroupSummary } from '../types/erp';
+import { Guest, GuestGroupRelationship, GuestGroupSummary, GuestCommunication } from '../types/erp';
 import { initialGuests } from './initialState';
 import { useSystem } from './SystemContext';
 import { supabaseService } from '../services/supabaseService';
@@ -55,6 +55,13 @@ export interface GuestContextType {
     roleTitle?: string;
   }) => Promise<GuestGroupRelationship | null>;
   unlinkGuestFromGroup: (guestId: string, groupId: string, reason?: string) => Promise<boolean>;
+  
+  // Guest Communications
+  guestCommunications: GuestCommunication[];
+  addGuestCommunication: (comm: Omit<GuestCommunication, 'id' | 'createdAt'>) => string;
+  updateGuestCommunication: (id: string, updates: Partial<GuestCommunication>) => void;
+  deleteGuestCommunication: (id: string) => void;
+  
   refreshData: () => Promise<void>;
 }
 
@@ -71,6 +78,7 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
   const [guestFeedbacks, setGuestFeedbacks] = useState<any[]>([]);
   const [guestGroupRelationships, setGuestGroupRelationships] = useState<GuestGroupRelationship[]>([]);
+  const [guestCommunications, setGuestCommunications] = useState<GuestCommunication[]>([]);
 
   const refreshData = useCallback(async () => {
     if (!supabaseService.isConfigured()) return;
@@ -321,6 +329,31 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   }, [guests, updateGuestData, logAudit, addNotification]);
 
+  // Guest Communications
+  const addGuestCommunication = useCallback((comm: Omit<GuestCommunication, 'id' | 'createdAt'>) => {
+    const newId = `comm_${Date.now()}`;
+    const newComm: GuestCommunication = {
+      ...comm,
+      id: newId,
+      createdAt: new Date().toISOString()
+    };
+    setGuestCommunications(prev => [...prev, newComm]);
+    return newId;
+  }, []);
+
+  const updateGuestCommunication = useCallback((id: string, updates: Partial<GuestCommunication>) => {
+    setGuestCommunications(prev => prev.map(comm => {
+      if (comm.id === id) {
+        return { ...comm, ...updates };
+      }
+      return comm;
+    }));
+  }, []);
+
+  const deleteGuestCommunication = useCallback((id: string) => {
+    setGuestCommunications(prev => prev.filter(comm => comm.id !== id));
+  }, []);
+
   const value = {
     guests,
     guestFeedbacks,
@@ -341,6 +374,10 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     getGuestGroupSummary,
     linkGuestToGroup,
     unlinkGuestFromGroup,
+    guestCommunications,
+    addGuestCommunication,
+    updateGuestCommunication,
+    deleteGuestCommunication,
     refreshData
   };
 

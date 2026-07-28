@@ -36,6 +36,7 @@ import {
 } from 'recharts';
 import { useERP } from '../../context/ERPContext';
 import { REPORTS_METADATA, ReportItem } from '../../data/reportsMetadata';
+import { DataTable, Column } from './DataTable';
 
 interface DepartmentReportsModuleProps {
   departmentName: string;
@@ -72,41 +73,41 @@ export default function DepartmentReportsModule({ departmentName }: DepartmentRe
     }));
   }, []);
 
+  const statsColumns: Column<any>[] = [
+    {
+      key: 'metric',
+      label: 'Performance Metric',
+      render: (row) => <span className="font-bold text-slate-700 dark:text-slate-300">{row.metric}</span>,
+    },
+    {
+      key: 'current',
+      label: 'Current Value',
+      render: (row) => <span className="font-black font-mono text-slate-900 dark:text-white uppercase">{row.current}</span>,
+    },
+    {
+      key: 'previous',
+      label: 'Prior Period',
+      render: (row) => <span className="font-mono text-slate-400">{row.previous}</span>,
+    },
+    {
+      key: 'variance',
+      label: 'Variance Index',
+      align: 'right',
+      render: (row) => <span className={`font-mono font-black ${row.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>{row.variance}</span>,
+    },
+  ];
+
   const renderStatsTable = (stats?: any[]) => {
     if (!stats || stats.length === 0) return null;
     return (
-      <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden mt-6 animate-fade-in">
-        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/20 border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
-          <h5 className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-            <BarChart3 size={12} className="text-indigo-500" />
-            Statistical Data Ledger
-          </h5>
-          <span className="text-[9px] font-mono text-slate-400 uppercase">Consolidated Metrics</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-sans">
-            <thead>
-              <tr className="text-[9px] text-slate-400 uppercase tracking-widest font-mono bg-slate-50/20">
-                <th className="px-6 py-3 font-black">Performance Metric</th>
-                <th className="px-6 py-3 font-black">Current Value</th>
-                <th className="px-6 py-3 font-black">Prior Period</th>
-                <th className="px-6 py-3 text-right font-black">Variance Index</th>
-              </tr>
-            </thead>
-            <tbody className="text-[10px]">
-              {stats.map((row, i) => (
-                <tr key={i} className="border-t border-slate-50 dark:border-slate-850 hover:bg-slate-50/50 transition-colors">
-                  <td className="px-6 py-4 font-bold text-slate-700 dark:text-slate-300">{row.metric}</td>
-                  <td className="px-6 py-4 font-black font-mono text-slate-900 dark:text-white uppercase">{row.current}</td>
-                  <td className="px-6 py-4 font-mono text-slate-400">{row.previous}</td>
-                  <td className={`px-6 py-4 text-right font-mono font-black ${row.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                    {row.variance}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="mt-6 animate-fade-in">
+        <DataTable
+          columns={statsColumns}
+          data={stats}
+          rowKey={(_, i) => i}
+          sortable
+          containerClassName="rounded-3xl"
+        />
       </div>
     );
   };
@@ -299,43 +300,41 @@ export default function DepartmentReportsModule({ departmentName }: DepartmentRe
         )}
 
         {activeTab === 'weekly' && (
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden animate-fade-in">
-             <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-950/50">
-               <h4 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
-                 <TrendingUp size={14} className="text-indigo-500" />
-                 7-Day Comparative Variance Board
-               </h4>
-               <button className="text-[10px] font-mono font-black text-indigo-500 flex items-center gap-1.5 uppercase hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-3 py-1.5 rounded-lg transition active:scale-95">
-                 Export Data Grid <Download size={12} />
-               </button>
-             </div>
-             <div className="overflow-x-auto">
-               <table className="w-full text-left border-collapse">
-                 <thead>
-                   <tr className="bg-slate-50/30 dark:bg-slate-800/30 font-mono text-[10px] text-slate-400 uppercase tracking-wider">
-                     <th className="px-8 py-4 border-b border-slate-100 dark:border-slate-800 font-black">Operational Metric</th>
-                     <th className="px-8 py-4 border-b border-slate-100 dark:border-slate-800 font-black">Current Cycle</th>
-                     <th className="px-8 py-4 border-b border-slate-100 dark:border-slate-800 font-black">Prior Cycle</th>
-                     <th className="px-8 py-4 border-b border-slate-100 dark:border-slate-800 text-right font-black">Variance Index</th>
-                   </tr>
-                 </thead>
-                 <tbody className="text-[11px] font-sans">
-                   {metadata.weekly.map((row, i) => (
-                     <tr key={i} className="hover:bg-slate-50 dark:hover:bg-indigo-900/10 transition duration-150 border-b border-slate-50 dark:border-slate-800 last:border-0 group">
-                       <td className="px-8 py-5 font-bold text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{row.metric}</td>
-                       <td className="px-8 py-5 font-mono font-black text-slate-900 dark:text-white uppercase">{row.current}</td>
-                       <td className="px-8 py-5 font-mono text-slate-400 uppercase">{row.previous}</td>
-                       <td className={`px-8 py-5 text-right font-mono font-black ${row.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
-                         <span className="flex items-center justify-end gap-1.5">
-                            {row.variance}
-                            <ChevronRight size={10} className={row.isPositive ? 'rotate-270 -mb-0.5' : 'rotate-90 -mt-0.5'} />
-                         </span>
-                       </td>
-                     </tr>
-                   ))}
-                 </tbody>
-               </table>
-             </div>
+          <div className="animate-fade-in">
+            <DataTable
+              columns={[
+                {
+                  key: 'metric',
+                  label: 'Operational Metric',
+                  render: (row) => <span className="font-bold text-slate-700 dark:text-slate-300">{row.metric}</span>,
+                },
+                {
+                  key: 'current',
+                  label: 'Current Cycle',
+                  render: (row) => <span className="font-mono font-black text-slate-900 dark:text-white uppercase">{row.current}</span>,
+                },
+                {
+                  key: 'previous',
+                  label: 'Prior Cycle',
+                  render: (row) => <span className="font-mono text-slate-400 uppercase">{row.previous}</span>,
+                },
+                {
+                  key: 'variance',
+                  label: 'Variance Index',
+                  align: 'right',
+                  render: (row) => (
+                    <span className={`font-mono font-black flex items-center justify-end gap-1.5 ${row.isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {row.variance}
+                      <ChevronRight size={10} className={row.isPositive ? 'rotate-270 -mb-0.5' : 'rotate-90 -mt-0.5'} />
+                    </span>
+                  ),
+                },
+              ]}
+              data={metadata.weekly}
+              rowKey={(_, i) => i}
+              sortable
+              containerClassName="rounded-3xl"
+            />
           </div>
         )}
 

@@ -6,7 +6,7 @@
  * Server-side permission checks to prevent client-side bypass
  */
 
-import { User, UserRole } from '../types/erp';
+import { User, UserRole, isFullAccessRole } from '../types/erp';
 
 export type Permission = 
   | 'viewRatePlans'
@@ -23,7 +23,11 @@ export type Permission =
   | 'accessAuditLogs'
   | 'exportData'
   | 'deleteReservations'
-  | 'overrideRates';
+  | 'overrideRates'
+  | 'accessPOS'
+  | 'managePOSOutlets'
+  | 'assignPOSRoles'
+  | 'viewPOSReports';
 
 export type Action = 
   | 'create_reservation'
@@ -100,7 +104,7 @@ export const hasPermission = (
   }
 
   // Executive, General Manager, System Admin, Admin, GM, and Owner roles have all permissions
-  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'system_admin' || user.role === 'admin' || user.role === 'gm' || user.role === 'owner') {
+  if (isFullAccessRole(user.role)) {
     return true;
   }
 
@@ -122,6 +126,7 @@ export const hasPermission = (
     ],
     'f&b': [
       'viewRoomOutlook',
+      'accessPOS',
     ],
     maintenance: [
       'viewRoomOutlook',
@@ -148,6 +153,20 @@ export const hasPermission = (
     procurement: [
       'viewRoomOutlook',
     ],
+    operations: [
+      'viewRoomOutlook',
+      'managePOSOutlets',
+      'assignPOSRoles',
+    ],
+    sales: [
+      'viewRatePlans',
+      'editRatePlans',
+      'viewSalesCampaigns',
+      'manageSalesCampaigns',
+    ],
+    pos: [
+      'accessPOS',
+    ],
     custom: [], // Permissions handled via customRoleId and allowedSettings
     gm: [], // Has all permissions
     owner: [], // Has all permissions
@@ -161,7 +180,7 @@ export const hasPermission = (
  */
 export const canAccessTab = (
   user: User | null,
-  tab: UserRole | 'settings' | 'admin'
+  tab: UserRole | 'settings' | 'admin' | 'pos'
 ): boolean => {
   if (!user) return false;
 
@@ -184,9 +203,24 @@ export const canAccessTab = (
     return tab === 'admin';
   }
 
-  // Executive/GM/Owner can only access executive
+  // Executive/GM/Owner can access executive and operations (merged portal)
   if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'gm' || user.role === 'owner') {
-    return tab === 'executive';
+    return tab === 'executive' || tab === 'operations';
+  }
+
+  // F&B users can access POS tab
+  if (user.role === 'f&b' && tab === 'pos') {
+    return true;
+  }
+
+  // POS users can access POS tab
+  if (user.role === 'pos' && tab === 'pos') {
+    return true;
+  }
+
+  // Operations users can access POS tab for management and executive (merged portal)
+  if (user.role === 'operations' && (tab === 'pos' || tab === 'executive')) {
+    return true;
   }
 
   // Default: user can only access their own role's tab
@@ -237,6 +271,9 @@ export const withPermission = <T extends any[], R>(
   };
 };
 
+// Import React for the hook
+import React from 'react';
+
 /**
  * React hook for permission checking
  */
@@ -257,6 +294,3 @@ export const usePermission = (permission: Permission) => {
 
   return { isAllowed, isLoading };
 };
-
-// Import React for the hook
-import React from 'react';

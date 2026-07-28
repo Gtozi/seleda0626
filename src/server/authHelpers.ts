@@ -7,12 +7,12 @@
  */
 
 import express from 'express';
-import type { User, UserRole } from '../types/erp';
+import type { User } from '../types/erp';
+import { isFullAccessRole } from '../types/erp';
 import { hasSupabaseAdminConfig, supabaseAdmin } from './supabaseAdmin';
 import crypto from 'crypto';
 
 const SESSION_COOKIE = 'hotel_erp_session';
-const FORCE_FALLBACK_AUTH = process.env.FORCE_FALLBACK_AUTH === 'true';
 
 // Legacy permission mapping for backward compatibility
 const legacyPermissionMap: Record<string, string> = {
@@ -39,25 +39,6 @@ const legacyPermissionMap: Record<string, string> = {
   export_data: 'reports:export',
   modify_settings: 'settings:update',
 };
-
-const fallbackRolePermissions: Record<string, string[]> = {
-  frontoffice: ['reservation:create', 'reservation:update', 'reservation:check_in', 'reservation:check_out', 'folio:charge:add', 'folio:charge:void', 'folio:payment:add', 'folio:payment:void', 'room:status:update', 'reports:view', 'finance:read'],
-  housekeeping: ['room:status:update', 'reports:view'],
-  'f&b': ['folio:charge:add', 'folio:payment:add', 'reports:view'],
-  maintenance: ['room:status:update', 'reports:view'],
-  inventory: ['inventory:stock:adjust', 'inventory:transfer:create', 'reports:view', 'reports:export'],
-  finance: ['folio:charge:void', 'folio:payment:void', 'rates:view', 'rates:update', 'settings:tax:update', 'audit:view', 'reports:view', 'reports:export', 'finance:journal:create', 'finance:journal:post', 'finance:period:close', 'finance:read'],
-  hr: ['users:manage', 'audit:view', 'reports:view'],
-  executive: ['*'],
-  general_manager: ['*'],
-  admin: ['*'],
-  procurement: ['procurement:requisition:approve', 'procurement:po:create', 'procurement:po:approve', 'reports:view', 'reports:export'],
-  owner: ['*'],
-  gm: ['*'],
-  custom: [],
-};
-
-const fallbackSessions = new Map<string, { user: User; expiresAt: number }>();
 
 /**
  * Parse cookies from request header
@@ -94,6 +75,7 @@ function mapSystemUserFromDb(db: any): User {
     avatarInitials: db.avatar_initials || db.name?.slice(0, 2).toUpperCase() || 'U',
     status: db.status,
     lastLogin: db.last_login,
+    authUserId: db.auth_user_id || undefined,
     employeeId: db.employee_id,
     username: db.username,
     mobileNumber: db.mobile_number,
@@ -122,53 +104,100 @@ export async function getRequestUser(req: express.Request): Promise<User | null>
 
   const tokenHash = hashToken(token);
 
-  if (!FORCE_FALLBACK_AUTH && hasSupabaseAdminConfig && supabaseAdmin) {
-    const { data: session, error } = await supabaseAdmin
-      .from('user_sessions')
-      .select('id, expires_at, revoked_at, system_users (*)')
-      .eq('token_hash', tokenHash)
-      .is('revoked_at', null)
-      .maybeSingle();
+  if (!hasSupabaseAdminConfig || !supabaseAdmin) return null;
 
-    if (error || !session || new Date(session.expires_at).getTime() < Date.now()) return null;
-    const systemUser = Array.isArray(session.system_users) ? session.system_users[0] : session.system_users;
-    if (!systemUser) return null;
-    return mapSystemUserFromDb(systemUser);
-  }
+  const { data: session, error } = await supabaseAdmin
+    .from('user_sessions')
+    .select('id, expires_at, revoked_at, system_users (*)')
+    .eq('token_hash', tokenHash)
+    .is('revoked_at', null)
+    .maybeSingle();
 
-  const fallbackSession = fallbackSessions.get(tokenHash);
-  if (!fallbackSession || fallbackSession.expiresAt < Date.now()) return null;
-  return fallbackSession.user;
+  if (error || !session || new Date(session.expires_at).getTime() < Date.now()) return null;
+  const systemUser = Array.isArray(session.system_users) ? session.system_users[0] : session.system_users;
+  if (!systemUser) return null;
+  return mapSystemUserFromDb(systemUser);
 }
 
 /**
- * Check if user has permission for specific action
+ * Permission check context for granular RBAC (Step 3.2)
  */
-export async function userCan(user: User | null, action: string): Promise<boolean> {
+export interface PermissionContext {
+  module?: string;
+  department?: string;
+  recordOwnerId?: string;
+  field?: string;
+}
+
+/**
+ * Check if user has permission for specific action with optional context
+ * Supports module, department, record-owner, and field-level permissions
+ */
+export async function userCan(user: User | null, action: string, context?: PermissionContext): Promise<boolean> {
   const permissionCode = normalizePermission(action);
   if (!user || user.status === 'Inactive' || user.status === 'Pending' || user.status === 'Suspended' || user.status === 'Locked') return false;
-  if (user.role === 'executive') return true;
-  if (user.allowedSettings?.[action as keyof NonNullable<User['allowedSettings']>]) return true;
 
-  if (hasSupabaseAdminConfig && supabaseAdmin) {
-    const { data, error } = await supabaseAdmin
-      .from('user_roles')
-      .select('roles (is_superuser, role_permissions (permissions (code)))')
-      .eq('user_id', user.id);
-
-    if (error || !data) return false;
-
-    return data.some((row: any) => {
-      const role = Array.isArray(row.roles) ? row.roles[0] : row.roles;
-      if (role?.is_superuser) return true;
-      return role?.role_permissions?.some((rp: any) => {
-        const permission = Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions;
-        return permission?.code === permissionCode;
-      });
+  // If user has a custom role, check only the custom role's permissions
+  if (user.customRoleId) {
+    if (!hasSupabaseAdminConfig || !supabaseAdmin) return false;
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from('roles')
+      .select('is_superuser, role_permissions ( permissions ( code ) )')
+      .eq('id', user.customRoleId)
+      .maybeSingle();
+    if (roleError || !roleData) return false;
+    if (roleData.is_superuser) return true;
+    return (roleData.role_permissions || []).some((rp: any) => {
+      const perm = Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions;
+      return perm?.code === permissionCode;
     });
   }
 
-  return fallbackRolePermissions[user.role]?.includes('*') || fallbackRolePermissions[user.role]?.includes(permissionCode) || false;
+  if (isFullAccessRole(user.role)) return true;
+  if (user.allowedSettings?.[action as keyof NonNullable<User['allowedSettings']>]) return true;
+
+  // Field-level permission check (Step 3.2)
+  if (context?.field) {
+    const fieldPermission = `${permissionCode}:field:${context.field}`;
+    if (user.allowedSettings?.[fieldPermission as keyof NonNullable<User['allowedSettings']>]) {
+      return !!user.allowedSettings[fieldPermission as keyof NonNullable<User['allowedSettings']>];
+    }
+  }
+
+  // Department-level permission check (Step 3.2)
+  if (context?.department && user.department !== context.department) {
+    // Check if user has cross-department permission
+    const crossDeptPermission = `${permissionCode}:department:*`;
+    if (!user.allowedSettings?.[crossDeptPermission as keyof NonNullable<User['allowedSettings']>]) {
+      return false;
+    }
+  }
+
+  // Record-owner check (Step 3.2)
+  if (context?.recordOwnerId && context.recordOwnerId !== user.id) {
+    const ownerPermission = `${permissionCode}:owner`;
+    if (!user.allowedSettings?.[ownerPermission as keyof NonNullable<User['allowedSettings']>]) {
+      return false;
+    }
+  }
+
+  if (!hasSupabaseAdminConfig || !supabaseAdmin) return false;
+
+  const { data, error } = await supabaseAdmin
+    .from('user_roles')
+    .select('roles (is_superuser, role_permissions (permissions (code)))')
+    .eq('user_id', user.id);
+
+  if (error || !data) return false;
+
+  return data.some((row: any) => {
+    const role = Array.isArray(row.roles) ? row.roles[0] : row.roles;
+    if (role?.is_superuser) return true;
+    return role?.role_permissions?.some((rp: any) => {
+      const permission = Array.isArray(rp.permissions) ? rp.permissions[0] : rp.permissions;
+      return permission?.code === permissionCode;
+    });
+  });
 }
 
 /**
@@ -180,15 +209,12 @@ export async function revokeRequestSession(req: express.Request) {
 
   const tokenHash = hashToken(token);
 
-  if (!FORCE_FALLBACK_AUTH && hasSupabaseAdminConfig && supabaseAdmin) {
-    await supabaseAdmin
-      .from('user_sessions')
-      .update({ revoked_at: new Date().toISOString() })
-      .eq('token_hash', tokenHash);
-    return;
-  }
+  if (!hasSupabaseAdminConfig || !supabaseAdmin) return;
 
-  fallbackSessions.delete(tokenHash);
+  await supabaseAdmin
+    .from('user_sessions')
+    .update({ revoked_at: new Date().toISOString() })
+    .eq('token_hash', tokenHash);
 }
 
 /**
@@ -197,4 +223,92 @@ export async function revokeRequestSession(req: express.Request) {
 export function clearSessionCookie(res: express.Response) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
   res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${secure}`);
+}
+
+// ----------------------------------------------------------------
+// TOTP helpers (RFC 6238) — no external dependencies
+// ----------------------------------------------------------------
+
+const BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function base32Decode(input: string): Buffer {
+  const cleaned = input.toUpperCase().replace(/[^A-Z2-7]/g, '');
+  let bits = '';
+  for (const char of cleaned) {
+    const val = BASE32_ALPHABET.indexOf(char);
+    bits += val.toString(2).padStart(5, '0');
+  }
+  const bytes: number[] = [];
+  for (let i = 0; i + 8 <= bits.length; i += 8) {
+    bytes.push(parseInt(bits.slice(i, i + 8), 2));
+  }
+  return Buffer.from(bytes);
+}
+
+function generateHotp(secret: Buffer, counter: bigint): string {
+  const counterBuf = Buffer.alloc(8);
+  counterBuf.writeBigUInt64BE(counter);
+  const hmac = crypto.createHmac('sha1', secret).update(counterBuf).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const code = ((hmac[offset] & 0x7f) << 24 |
+                (hmac[offset + 1] & 0xff) << 16 |
+                (hmac[offset + 2] & 0xff) << 8 |
+                (hmac[offset + 3] & 0xff)) % 1_000_000;
+  return code.toString().padStart(6, '0');
+}
+
+function generateTotp(secret: string, timeStepSeconds = 30, window = 1): string[] {
+  const decoded = base32Decode(secret);
+  const now = Math.floor(Date.now() / 1000);
+  const currentStep = BigInt(Math.floor(now / timeStepSeconds));
+  const codes: string[] = [];
+  for (let i = -window; i <= window; i++) {
+    codes.push(generateHotp(decoded, currentStep + BigInt(i)));
+  }
+  return codes;
+}
+
+/**
+ * Verify a TOTP code against a base32-encoded secret.
+ * Allows a small time window for clock drift.
+ */
+export function verifyTotp(secret: string | null | undefined, code: string): boolean {
+  if (!secret || !/^\d{6}$/.test(code)) return false;
+  return generateTotp(secret).includes(code);
+}
+
+/**
+ * Set current user ID in session variable for audit triggers (Step 3.3)
+ * This allows DB triggers to capture the actor for audit events
+ */
+export async function setAuditContext(userId: string): Promise<void> {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    await supabaseAdmin.rpc('set_config', { p_key: 'app.user_id', p_value: userId });
+  }
+}
+
+/**
+ * Clear audit context (set to null)
+ */
+export async function clearAuditContext(): Promise<void> {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    await supabaseAdmin.rpc('set_config', { p_key: 'app.user_id', p_value: null });
+  }
+}
+
+/**
+ * Generate a new base32 MFA secret suitable for TOTP apps.
+ */
+export function generateMfaSecret(): string {
+  const bytes = crypto.randomBytes(20);
+  let secret = '';
+  let bits = '';
+  for (const byte of bytes) {
+    bits += byte.toString(2).padStart(8, '0');
+  }
+  for (let i = 0; i < bits.length; i += 5) {
+    if (i + 5 > bits.length) break;
+    secret += BASE32_ALPHABET[parseInt(bits.slice(i, i + 5), 2)];
+  }
+  return secret;
 }

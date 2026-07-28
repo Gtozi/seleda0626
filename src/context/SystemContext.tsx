@@ -51,16 +51,23 @@ export interface SystemContextType {
   toggleTheme: () => void;
   
   userProfile: {
+    id: string;
     name: string;
     email: string;
     role: string;
+    roleDescription?: string;
     avatar?: string;
     lastLogin: string;
+    department?: string;
+    employeeId?: string;
+    mobileNumber?: string;
+    username?: string;
+    status?: string;
   };
-  setUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
-  updateProfile: (data: Partial<{ name: string; email: string; avatar: string }>) => void;
+  setUserProfile: (profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => void;
+  updateProfile: (data: Partial<{ name: string; email: string; avatar: string; mobileNumber: string; username: string }>) => void;
   updatePassword: (old: string, newP: string) => Promise<boolean>;
-  syncUserProfile: (profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => void;
+  syncUserProfile: (profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => void;
   
   currentSystemDate: string;
   setCurrentSystemDate: (date: string) => void;
@@ -74,6 +81,33 @@ export interface SystemContextType {
   approveAdminChange: (id: string) => void;
   declineAdminChange: (id: string) => void;
   submitGlobalSettingsChange: (title: string, description: string, changeType: AdminChangeType, settings: Partial<GlobalHotelSettings>) => void;
+
+  // Settings version tracking (Step 2.5)
+  settingsVersion: number | null;
+  settingsChecksum: string | null;
+  isSettingsStale: boolean;
+
+  // Multi-property support (Step 6.1)
+  currentPropertyId: string | null;
+  setCurrentPropertyId: (id: string | null) => void;
+  properties: PropertyInfo[];
+  organizations: OrganizationInfo[];
+}
+
+export interface PropertyInfo {
+  id: string;
+  organization_id: string | null;
+  property_name: string;
+  property_code: string | null;
+  property_type: string | null;
+  currency_code: string;
+  is_active: boolean;
+}
+
+export interface OrganizationInfo {
+  id: string;
+  org_name: string;
+  org_code: string | null;
 }
 
 const SystemContext = createContext<SystemContextType | undefined>(undefined);
@@ -86,6 +120,9 @@ export const useSystem = () => {
 
 export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [platformView, setPlatformView] = useState<'erp' | 'direct' | 'mobile'>('erp');
+  const [currentPropertyId, setCurrentPropertyId] = useState<string | null>(() => localStorage.getItem('erp_property_id'));
+  const [properties, setProperties] = useState<PropertyInfo[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationInfo[]>([]);
   const [activeGuestPortalResId, setActiveGuestPortalResId] = useState<string>('');
   const [dispatchedEmails, setDispatchedEmails] = useState<DispatchedEmail[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>(initialNotifications);
@@ -110,6 +147,9 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   });
   const [isSystemLoading, setIsSystemLoading] = useState(true);
   const [pendingAdminChanges, setPendingAdminChanges] = useState<PendingAdminChange[]>([]);
+  const [settingsVersion, setSettingsVersion] = useState<number | null>(null);
+  const [settingsChecksum, setSettingsChecksum] = useState<string | null>(null);
+  const [isSettingsStale, setIsSettingsStale] = useState(false);
   
   const [globalHotelSettings, setGlobalHotelSettings] = useState<GlobalHotelSettings>({
     customHotelName: '',
@@ -138,11 +178,18 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [roomTypeMetadata, setRoomTypeMetadata] = useState<RoomTypeMetadata[]>(initialRoomTypeMetadata);
 
   const [userProfile, setUserProfile] = useState({
+    id: '',
     name: '',
     email: '',
     role: '',
+    roleDescription: '',
     avatar: '',
-    lastLogin: ''
+    lastLogin: '',
+    department: '',
+    employeeId: '',
+    mobileNumber: '',
+    username: '',
+    status: ''
   });
 
   const logAudit = useCallback((message: string) => {
@@ -184,23 +231,44 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let active = true;
     setIsSystemLoading(true);
     await Promise.all([
-      supabaseService.fetchGlobalSettings().then(dbSettings => {
-        if (active && dbSettings) {
-          // Validate fee components match between frontend and backend
-          if (dbSettings.feeComponents && globalHotelSettings.feeComponents) {
-            const validation = validateFeeComponentsMatch(
-              globalHotelSettings.feeComponents,
-              dbSettings.feeComponents
-            );
-            if (!validation.valid) {
-              console.warn('Fee components mismatch detected between frontend and backend:', validation.mismatches);
-              // Auto-sync to backend to prevent discrepancies
-              setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+      fetch('/api/settings', { credentials: 'include' }).then(async r => {
+        if (active && r.ok) {
+          const data = await r.json();
+          const dbSettings = data.settings;
+          const newVersion = Number(r.headers.get('X-Settings-Version')) || null;
+          const newChecksum = r.headers.get('X-Settings-Checksum') || null;
+
+          // Check if settings are stale (Step 2.5)
+          if (settingsVersion !== null && newVersion !== null && newVersion > settingsVersion) {
+            setIsSettingsStale(true);
+            addNotification('Settings have been updated by another user. Please refresh your browser.', 'warning', 'System');
+          } else if (settingsChecksum !== null && newChecksum !== null && newChecksum !== settingsChecksum) {
+            setIsSettingsStale(true);
+            addNotification('Settings checksum changed. Data may be out of sync.', 'warning', 'System');
+          } else {
+            setIsSettingsStale(false);
+          }
+
+          setSettingsVersion(newVersion);
+          setSettingsChecksum(newChecksum);
+
+          if (dbSettings) {
+            // Validate fee components match between frontend and backend
+            if (dbSettings.feeComponents && globalHotelSettings.feeComponents) {
+              const validation = validateFeeComponentsMatch(
+                globalHotelSettings.feeComponents,
+                dbSettings.feeComponents
+              );
+              if (!validation.valid) {
+                console.warn('Fee components mismatch detected between frontend and backend:', validation.mismatches);
+                // Auto-sync to backend to prevent discrepancies
+                setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+              } else {
+                setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
+              }
             } else {
               setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
             }
-          } else {
-            setGlobalHotelSettings(prev => ({ ...prev, ...dbSettings }));
           }
         }
       }).catch(console.error),
@@ -209,11 +277,17 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setSystemUsers(dbUsers);
         }
       }).catch(console.error),
-      supabaseService.fetchCustomRoles().then(dbRoles => {
-        if (active && dbRoles && dbRoles.length > 0) {
-          setCustomRoles(dbRoles);
-        }
-      }).catch(console.error),
+      // Step 3.5: Fetch roles from API (server is single source of truth)
+      fetch('/api/admin/roles', { credentials: 'include' })
+        .then(r => {
+          if (r.ok) return r.json();
+          return { roles: [] };
+        })
+        .then((data: { roles: any[] }) => {
+          if (active && data.roles && data.roles.length > 0) {
+            setCustomRoles(data.roles);
+          }
+        }).catch(console.error),
       fetch('/api/audit/events?limit=500', { credentials: 'include' })
         .then(r => {
           if (r.ok) return r.json();
@@ -228,6 +302,29 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         })
         .catch((err) => {
           console.warn('Failed to fetch audit events:', err);
+        }),
+      fetch('/api/properties', { credentials: 'include' })
+        .then(r => {
+          if (r.ok) return r.json();
+          return { properties: [], organizations: [] };
+        })
+        .then((data: { properties: PropertyInfo[]; organizations: OrganizationInfo[] }) => {
+          if (active) {
+            if (data.properties && data.properties.length > 0) {
+              setProperties(data.properties);
+              if (!currentPropertyId && data.properties.length > 0) {
+                const firstId = data.properties[0].id;
+                localStorage.setItem('erp_property_id', firstId);
+                setCurrentPropertyId(firstId);
+              }
+            }
+            if (data.organizations && data.organizations.length > 0) {
+              setOrganizations(data.organizations);
+            }
+          }
+        })
+        .catch((err) => {
+          console.warn('Failed to fetch properties:', err);
         }),
     ]).finally(() => {
       if (active) setIsSystemLoading(false);
@@ -273,7 +370,13 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addCustomRole = useCallback((role: Omit<CustomRole, 'id'>) => {
     const newRole: CustomRole = { ...role, id: `ROLE-${Date.now()}` };
     setCustomRoles(prev => [...prev, newRole]);
-    supabaseService.upsertCustomRole(newRole).catch(console.error);
+    // Step 3.5: Use API endpoint instead of direct Supabase
+    fetch('/api/admin/roles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(newRole)
+    }).catch(console.error);
   }, []);
 
   const updateCustomRole = useCallback((id: string, updates: Partial<CustomRole>) => {
@@ -281,7 +384,13 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const next = prev.map(r => r.id === id ? { ...r, ...updates } : r);
       const updated = next.find(r => r.id === id);
       if (updated) {
-        supabaseService.upsertCustomRole(updated).catch(console.error);
+        // Step 3.5: Use API endpoint instead of direct Supabase
+        fetch(`/api/admin/roles/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(updated)
+        }).catch(console.error);
       }
       return next;
     });
@@ -289,7 +398,11 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const deleteCustomRole = useCallback((id: string) => {
     setCustomRoles(prev => prev.filter(r => r.id !== id));
-    supabaseService.deleteCustomRole(id).catch(console.error);
+    // Step 3.5: Use API endpoint instead of direct Supabase
+    fetch(`/api/admin/roles/${id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    }).catch(console.error);
   }, []);
 
   const addSystemUser = useCallback((user: Omit<User, 'id'>) => {
@@ -376,13 +489,13 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } else if (operation === 'addCustomRole') {
       const newRole: CustomRole = { ...args[0], id: `ROLE-${Date.now()}` };
       setCustomRoles(r => [...r, newRole]);
-      supabaseService.upsertCustomRole(newRole).catch(console.error);
+      fetch('/api/admin/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(newRole) }).catch(console.error);
     } else if (operation === 'updateCustomRole') {
       setCustomRoles(r => r.map(role => role.id === args[0] ? { ...role, ...args[1] } : role));
-      supabaseService.upsertCustomRole(args[0]).catch(console.error);
+      fetch(`/api/admin/roles/${args[0]}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(args[0]) }).catch(console.error);
     } else if (operation === 'deleteCustomRole') {
       setCustomRoles(r => r.filter(role => role.id !== args[0]));
-      supabaseService.deleteCustomRole(args[0]).catch(console.error);
+      fetch(`/api/admin/roles/${args[0]}`, { method: 'DELETE', credentials: 'include' }).catch(console.error);
     } else if (operation === 'updateSecuritySettings') {
       // Handle security settings updates
       const settings = args[0];
@@ -431,13 +544,13 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         } else if (operation === 'addCustomRole') {
           const newRole: CustomRole = { ...args[0], id: `ROLE-${Date.now()}` };
           setCustomRoles(r => [...r, newRole]);
-          supabaseService.upsertCustomRole(newRole).catch(console.error);
+          fetch('/api/admin/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(newRole) }).catch(console.error);
         } else if (operation === 'updateCustomRole') {
           setCustomRoles(r => r.map(role => role.id === args[0] ? { ...role, ...args[1] } : role));
-          supabaseService.upsertCustomRole({ id: args[0], ...args[1] } as CustomRole).catch(console.error);
+          fetch(`/api/admin/roles/${args[0]}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ id: args[0], ...args[1] }) }).catch(console.error);
         } else if (operation === 'deleteCustomRole') {
           setCustomRoles(r => r.filter(role => role.id !== args[0]));
-          supabaseService.deleteCustomRole(args[0]).catch(console.error);
+          fetch(`/api/admin/roles/${args[0]}`, { method: 'DELETE', credentials: 'include' }).catch(console.error);
         } else if (operation === 'updateGlobalHotelSettings') {
           setGlobalHotelSettings(s => {
             const next = { ...s, ...args[0] };
@@ -530,15 +643,15 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [theme]);
 
-  const updateProfile = useCallback((data: Partial<{ name: string; email: string; avatar: string }>) => {
+  const updateProfile = useCallback((data: Partial<{ name: string; email: string; avatar: string; mobileNumber: string; username: string }>) => {
     setUserProfile(prev => ({ ...prev, ...data }));
   }, []);
 
-  const setUserProfileFull = useCallback((profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => {
+  const setUserProfileFull = useCallback((profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => {
     setUserProfile(profile);
   }, []);
 
-  const syncUserProfile = useCallback((profile: { name: string; email: string; role: string; avatar?: string; lastLogin: string }) => {
+  const syncUserProfile = useCallback((profile: { id: string; name: string; email: string; role: string; roleDescription?: string; avatar?: string; lastLogin: string; department?: string; employeeId?: string; mobileNumber?: string; username?: string; status?: string }) => {
     setUserProfile(profile);
   }, []);
 
@@ -558,6 +671,12 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
+  const handleSetCurrentPropertyId = (id: string | null) => {
+    if (id) localStorage.setItem('erp_property_id', id);
+    else localStorage.removeItem('erp_property_id');
+    setCurrentPropertyId(id);
+  };
+
   const value = {
     platformView, setPlatformView,
     activeGuestPortalResId, setActiveGuestPortalResId,
@@ -575,7 +694,9 @@ export const SystemProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     currentSystemDate, setCurrentSystemDate,
     isSystemLoading, refreshData,
     pendingAdminChanges, submitAdminChange, executeAdminChangeDirectly, approveAdminChange, declineAdminChange,
-    submitGlobalSettingsChange
+    submitGlobalSettingsChange,
+    settingsVersion, settingsChecksum, isSettingsStale,
+    currentPropertyId, setCurrentPropertyId: handleSetCurrentPropertyId, properties, organizations
   };
 
   return (

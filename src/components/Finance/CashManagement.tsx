@@ -18,6 +18,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
+import { DataTable, Column } from '../Shared/DataTable';
 import { motion, AnimatePresence } from 'motion/react';
 
 const CashManagement = () => {
@@ -169,34 +171,15 @@ const CashManagement = () => {
             </div>
          </div>
 
-      <AnimatePresence>
-        {showAddModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setShowAddModal(false)}
-              className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-            />
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-md bg-white dark:bg-slate-900 rounded-[32px] shadow-2xl p-8 overflow-hidden"
-            >
-               <div className="flex items-center justify-between mb-8">
-                  <div className="flex items-center gap-3">
-                     <div className="p-2.5 bg-indigo-50 dark:bg-indigo-500/10 rounded-xl text-indigo-600">
-                        <Plus size={20} />
-                     </div>
-                     <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Link New Treasury A/C</h3>
-                  </div>
-                  <button onClick={() => setShowAddModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                     <X size={20} />
-                  </button>
-               </div>
-
+      <ModalSystem
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="Link New Treasury A/C"
+        icon={<Plus size={20} className="text-indigo-600" />}
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
                <form onSubmit={handleAddAccount} className="space-y-6">
                   {isConnecting ? (
                     <div className="py-12 flex flex-col items-center justify-center gap-4">
@@ -291,76 +274,79 @@ const CashManagement = () => {
                     </>
                   )}
                </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </ModalSystem>
 
          {/* Recent Treasury Transactions */}
-         <div className="lg:col-span-12 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs">
-            <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
+         <div className="lg:col-span-12">
+            <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-3">
                   <ArrowRightLeft size={18} className="text-indigo-600" />
                   <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Settlement Audit Log</h3>
                </div>
                <button className="text-[10px] font-black text-indigo-600 px-3 py-1.5 bg-indigo-50 rounded-lg uppercase tracking-tight hover:bg-indigo-100 transition">Download Statements</button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Settlement Date</th>
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Internal Ref</th>
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Treasury Source</th>
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest">Settled Account</th>
-                    <th className="px-6 py-4 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Settlement Value</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50 dark:divide-slate-800 text-sans">
-                  {treasuryTransactions.length > 0 ? treasuryTransactions.map((tx, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
-                      <td className="px-6 py-4">
-                         <span className="text-[10px] font-bold text-slate-500 uppercase">
-                            {new Date(tx.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
-                         </span>
-                      </td>
-                      <td className="px-6 py-4">
-                         <div className="flex flex-col">
-                            <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{tx.id}</span>
-                            <span className="text-[8px] font-bold text-slate-400 uppercase">Ref: {tx.reference}</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                         <div className="flex flex-col">
-                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{tx.description}</span>
-                            <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{tx.source}</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                         <div className="flex items-center gap-2">
-                            {tx.account.includes('Bank') ? <Landmark size={12} className="text-blue-500" /> : <Wallet size={12} className="text-emerald-500" />}
-                            <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">{tx.account}</span>
-                         </div>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                         <span className={`text-[11px] font-black font-mono ${tx.type === 'Credit' ? 'text-emerald-500' : 'text-rose-500'}`}>
-                            {tx.type === 'Credit' ? '+' : '-'}{formatAmount(tx.amount)}
-                         </span>
-                      </td>
-                    </tr>
-                  )) : (
-                    <tr>
-                       <td colSpan={5} className="px-6 py-20 text-center">
-                          <div className="flex flex-col items-center gap-3 opacity-30">
-                             <History size={32} className="text-slate-300" />
-                             <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">No treasury activity recorded</p>
-                          </div>
-                       </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              columns={[
+                {
+                  key: 'date',
+                  label: 'Settlement Date',
+                  render: (tx: any) => (
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">
+                      {new Date(tx.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </span>
+                  ),
+                },
+                {
+                  key: 'id',
+                  label: 'Internal Ref',
+                  render: (tx: any) => (
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-tight">{tx.id}</span>
+                      <span className="text-[8px] font-bold text-slate-400 uppercase">Ref: {tx.reference}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'description',
+                  label: 'Treasury Source',
+                  render: (tx: any) => (
+                    <div className="flex flex-col">
+                      <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{tx.description}</span>
+                      <span className="text-[8px] font-black text-indigo-500 uppercase tracking-widest">{tx.source}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'account',
+                  label: 'Settled Account',
+                  render: (tx: any) => (
+                    <div className="flex items-center gap-2">
+                      {tx.account.includes('Bank') ? <Landmark size={12} className="text-blue-500" /> : <Wallet size={12} className="text-emerald-500" />}
+                      <span className="text-[10px] font-black text-slate-700 dark:text-slate-300 uppercase tracking-tight">{tx.account}</span>
+                    </div>
+                  ),
+                },
+                {
+                  key: 'amount',
+                  label: 'Settlement Value',
+                  align: 'right',
+                  render: (tx: any) => (
+                    <span className={`text-[11px] font-black font-mono ${tx.type === 'Credit' ? 'text-emerald-500' : 'text-rose-500'}`}>
+                      {tx.type === 'Credit' ? '+' : '-'}{formatAmount(tx.amount)}
+                    </span>
+                  ),
+                },
+              ] as Column<any>[]}
+              data={treasuryTransactions}
+              rowKey={(_, i) => i}
+              sortable
+              filterable
+              filterPlaceholder="Search settlements..."
+              filterKeys={['id', 'description', 'reference', 'account', 'source']}
+              emptyMessage="No treasury activity recorded"
+              emptyIcon={<History size={32} className="text-slate-300 dark:text-slate-700" />}
+              containerClassName="rounded-[32px]"
+            />
          </div>
       </div>
     </div>

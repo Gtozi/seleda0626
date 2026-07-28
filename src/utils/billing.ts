@@ -119,12 +119,29 @@ export const calculateDailyRate = (
   return Math.round(rate);
 };
 
+/**
+ * @deprecated Use GET /api/reservations/:id/folio for canonical folio data.
+ * The folio API returns folio_lines and folio_payments from the database,
+ * which are the canonical ledger. This function will be replaced by the
+ * unified billing RPC (Step 2.2) and removed in a future release.
+ */
 export const calculateFolioComponents = (
   charges: FolioCharge[],
   reservation: Partial<Reservation>,
   settings: any
 ) => {
-  const subtotal = calculateTotalCharges(charges);
+  console.warn('[DEPRECATED] calculateFolioComponents is deprecated. Use GET /api/reservations/:id/folio for canonical billing data.');
+  // Filter out tax, service charge, and discount lines from base charges
+  // These are calculated separately to avoid double-counting when database
+  // already contains these lines from check_in_reservation
+  const baseCharges = (charges || []).filter(c => 
+    !c.isVoided && 
+    (c as any).lineType !== 'Tax' && 
+    (c as any).lineType !== 'ServiceCharge' && 
+    (c as any).lineType !== 'Discount'
+  );
+  
+  const subtotal = baseCharges.reduce((sum, c) => sum + c.amount, 0);
   const discPct = reservation.discountPercent || 0;
   const discountAmt = subtotal * (discPct / 100);
 

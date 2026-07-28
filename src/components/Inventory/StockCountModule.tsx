@@ -1,421 +1,203 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  ClipboardCheck,
-  Search,
-  Plus,
-  ArrowUpRight,
-  AlertTriangle,
-  CheckCircle2,
-  Calendar,
-  History,
-  Activity,
-  FileBarChart,
-  X,
-  CalendarDays,
-  ListFilter,
-  AlertCircle
+  ClipboardCheck, Plus, AlertTriangle, CheckCircle2,
+  RefreshCw, Eye, Activity,
 } from 'lucide-react';
 import { useERP } from '../../context/ERPContext';
-import { InventoryItem } from '../../types/inventory';
+import { ModalSystem } from '../Shared/ModalSystem';
+import { DataTable, Column } from '../Shared/DataTable';
+import {
+  fetchStockCounts, createStockCount, updateStockCount,
+  type StockCount,
+} from '../../services/procurementService';
 
-interface CountSheet {
-  id: string;
-  store: string;
-  type: string;
-  date: string;
-  status: 'In Progress' | 'Completed' | 'Approved';
-  items: number;
-  variance: string;
-}
+const fmt = (n: number) => n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const StockCountModule: React.FC = () => {
-  const { inventoryItems, inventoryStores, updateInventoryItem, recordStockMovement } = useERP();
-
-  const [countSheets, setCountSheets] = useState<CountSheet[]>([
-    { id: 'CS-102', store: 'Main Store', type: 'Cycle Count', date: '2026-05-30', status: 'In Progress', items: 45, variance: 'TBD' },
-    { id: 'CS-101', store: 'Kitchen Pantry', type: 'Full Count', date: '2026-05-28', status: 'Completed', items: 120, variance: '0.4%' },
-    { id: 'CS-099', store: 'Bar Store South', type: 'Spot Count', date: '2026-05-25', status: 'Approved', items: 12, variance: '0%' },
-  ]);
-
+  const { inventoryItems, inventoryStores } = useERP();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [stockCounts, setStockCounts] = useState<StockCount[]>([]);
   const [showCountModal, setShowCountModal] = useState(false);
   const [selectedStore, setSelectedStore] = useState<string>('');
   const [counts, setCounts] = useState<Record<string, number>>({});
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showCountAnalysis, setShowCountAnalysis] = useState(false);
-  const [selectedSheet, setSelectedSheet] = useState<CountSheet | null>(null);
-  const [showCalendarModal, setShowCalendarModal] = useState(false);
+  const [selectedSC, setSelectedSC] = useState<StockCount | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
 
-  const storeItems = useMemo(() => {
-    if (!selectedStore) return [];
-    return inventoryItems.filter(i => i.location === selectedStore);
-  }, [selectedStore, inventoryItems]);
+  const loadData = useCallback(async () => {
+    setLoading(true); setError(null);
+    try {
+      setStockCounts(await fetchStockCounts());
+    } catch (err: any) {
+      setError(err.message || 'Failed to load stock counts');
+    } finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  const storeItems = inventoryItems.filter(i => i.location === selectedStore);
 
   const openCountModal = () => {
     setSelectedStore(inventoryStores.length > 0 ? inventoryStores[0].name : 'Main Hotel Store');
-    setCounts({});
-    setShowCountModal(true);
+    setCounts({}); setShowCountModal(true);
   };
 
-  const handleApplyCount = () => {
-    const adjusted: { item: InventoryItem; variance: number }[] = [];
-    storeItems.forEach(item => {
-      const physicalCount = counts[item.id];
-      if (physicalCount !== undefined) {
-        const variance = physicalCount - item.currentStock;
-        if (variance !== 0) {
-          updateInventoryItem(item.id, { currentStock: physicalCount });
-          recordStockMovement({
-            date: new Date().toISOString(),
-            itemId: item.id,
-            itemName: item.name,
-            type: 'Adjustment',
-            quantity: variance,
-            cost: item.avgCost,
-            reference: `CS-${Date.now()}`,
-            user: 'System',
-            storeFrom: item.location
-          });
-          adjusted.push({ item, variance });
-        }
-      }
-    });
-
-    const totalValueVariance = adjusted.reduce((sum, a) => sum + (a.variance * a.item.avgCost), 0);
-    const nextId = `CS-${String(countSheets.length + 1).padStart(3, '0')}`;
-    setCountSheets(prev => [{
-      id: nextId,
-      store: selectedStore,
-      type: 'Cycle Count',
-      date: new Date().toISOString().split('T')[0],
-      status: 'Completed',
-      items: storeItems.length,
-      variance: totalValueVariance === 0 ? '0%' : `${(totalValueVariance >= 0 ? '+' : '')}$${Math.abs(totalValueVariance).toFixed(2)}`
-    }, ...prev]);
-
-    setShowCountModal(false);
+  const handleCreateCount = async () => {
+    try {
+      const lines = storeItems.map(item => ({
+        itemId: item.id, itemName: item.name,
+        expectedQuantity: item.currentStock,
+        countedQuantity: counts[item.id] !== undefined ? counts[item.id] : null,
+        unit: item.unit,
+        varianceValue: counts[item.id] !== undefined ? (counts[item.id] - item.currentStock) * (item.avgCost || 0) : 0,
+      }));
+      await createStockCount({ locationId: selectedStore, countDate: new Date().toISOString().split('T')[0], lines });
+      setShowCountModal(false); setCounts({}); loadData();
+    } catch (err: any) { setError(err.message || 'Failed to create stock count'); }
   };
+
+  const handleApprove = async (sc: StockCount) => {
+    try {
+      const lines = (sc.stock_count_lines || []).map(l => ({ id: l.id, countedQuantity: l.counted_quantity || l.expected_quantity }));
+      await updateStockCount(sc.id, { status: 'Approved', lines });
+      loadData();
+      if (selectedSC?.id === sc.id) { setSelectedSC(null); setShowDetail(false); }
+    } catch (err: any) { setError(err.message || 'Failed to approve'); }
+  };
+
+  const totalVariance = (sc: StockCount) => (sc.stock_count_lines || []).reduce((s, l) => s + Math.abs(Number(l.variance_value) || 0), 0);
+
+  const scColumns: Column<StockCount>[] = [
+    { key: 'id', label: 'Count ID', render: (sc) => <span className="text-[10px] font-mono font-black text-slate-400 uppercase">{sc.id.slice(0, 8)}</span> },
+    { key: 'location_id', label: 'Store', render: (sc) => <span className="text-xs font-black text-slate-900 dark:text-white">{sc.location_id || '—'}</span> },
+    { key: 'count_date', label: 'Date', align: 'center', render: (sc) => <span className="text-[10px] font-bold text-slate-500">{sc.count_date || '—'}</span> },
+    { key: 'stock_count_lines', label: 'Items', align: 'center', render: (sc) => <span className="text-[10px] font-bold text-slate-500">{sc.stock_count_lines?.length || 0}</span> },
+    { key: 'variance', label: 'Variance Value', align: 'right', render: (sc) => { const v = totalVariance(sc); return <span className={`text-xs font-mono font-black ${v > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>${fmt(v)}</span>; } },
+    { key: 'status', label: 'Status', align: 'center', render: (sc) => { const colors: Record<string, string> = { Draft: 'bg-slate-50 text-slate-600', 'In Progress': 'bg-indigo-50 text-indigo-600', Completed: 'bg-amber-50 text-amber-600', Approved: 'bg-emerald-50 text-emerald-600' }; return <div className="flex justify-center"><span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${colors[sc.status] || colors['Draft']}`}>{sc.status}</span></div>; } },
+    { key: 'actions', label: 'Actions', align: 'center', sortable: false, render: (sc) => (
+      <div className="flex justify-center gap-1">
+        <button onClick={() => { setSelectedSC(sc); setShowDetail(true); }} className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="View"><Eye size={14} /></button>
+        {sc.status !== 'Approved' && <button onClick={() => handleApprove(sc)} className="p-1.5 text-slate-400 hover:text-emerald-600 transition" title="Approve & Post"><CheckCircle2 size={14} /></button>}
+      </div>
+    ) },
+  ];
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex items-center justify-between">
         <div>
-           <h2 className="text-xl font-sans font-black text-slate-900 dark:text-white leading-tight">Physical Stock Counting</h2>
-           <p className="text-xs text-slate-400 font-medium">Variance analysis and physical auditing of digital ledger</p>
+          <h2 className="text-xl font-black text-slate-900 dark:text-white leading-tight">Physical Stock Counting</h2>
+          <p className="text-xs text-slate-400 font-medium">Variance analysis and physical auditing of digital ledger</p>
         </div>
         <div className="flex items-center gap-2">
-           <button onClick={() => setShowHistoryModal(true)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
-              <History size={16} />
-              Count History
-           </button>
-           <button onClick={openCountModal} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition shadow-md shadow-emerald-200">
-              <Plus size={16} />
-              New Count Sheet
-           </button>
+          <button onClick={loadData} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
+            <RefreshCw size={16} /> Refresh
+          </button>
+          <button onClick={openCountModal} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition shadow-md shadow-emerald-200">
+            <Plus size={16} /> New Count Sheet
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-         <div className="lg:col-span-8 space-y-4">
-            <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white px-2">Active Count Operations</h3>
-            {countSheets.map((sheet) => (
-              <div key={sheet.id} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-3xs group hover:border-emerald-300 transition-all cursor-pointer">
-                 <div className="flex flex-col md:flex-row justify-between gap-6">
-                    <div className="flex-1 space-y-4">
-                       <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-widest">{sheet.id}</span>
-                          <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tight ${
-                             sheet.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
-                             sheet.status === 'In Progress' ? 'bg-indigo-50 text-indigo-600 animate-pulse' :
-                             'bg-slate-100 text-slate-500'
-                          }`}>
-                             {sheet.status}
-                          </span>
-                          <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-850 text-slate-400 rounded-full text-[8px] font-black uppercase tracking-tight">{sheet.type}</span>
-                       </div>
-                       
-                       <div className="flex items-center gap-3">
-                          <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-slate-400 group-hover:text-emerald-500 transition-colors">
-                             <ClipboardCheck size={20} />
-                          </div>
-                          <div>
-                             <h4 className="text-base font-sans font-extrabold text-slate-900 dark:text-white leading-tight">{sheet.store}</h4>
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-tighter">Initiated on {sheet.date}</span>
-                          </div>
-                       </div>
-                    </div>
+      {error && <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl"><p className="text-xs font-bold text-rose-600 dark:text-rose-400">{error}</p></div>}
 
-                    <div className="md:w-64 space-y-4 md:border-l border-slate-100 dark:border-slate-800 md:pl-6 pt-3 md:pt-0">
-                       <div className="grid grid-cols-2 gap-4">
-                          <div>
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Item Count</span>
-                             <span className="text-xl font-black text-slate-900 dark:text-white leading-none">{sheet.items}</span>
-                          </div>
-                          <div>
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-1">Variance</span>
-                             <span className={`text-xl font-black leading-none ${sheet.variance === 'TBD' ? 'text-slate-300' : 'text-emerald-500'}`}>
-                                {sheet.variance}
-                             </span>
-                          </div>
-                       </div>
-                       <button
-                         onClick={() => { setSelectedSheet(sheet); setShowCountAnalysis(true); }}
-                         className="w-full bg-emerald-600 text-white py-2.5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-emerald-700 transition flex items-center justify-center gap-2 shadow-md shadow-emerald-500/20"
-                       >
-                          {sheet.status === 'In Progress' ? 'Resume Counting' : 'View Count Analysis'}
-                          <ArrowUpRight size={14} />
-                       </button>
-                    </div>
-                 </div>
-              </div>
-            ))}
-         </div>
-
-         <div className="lg:col-span-4 space-y-6">
-            <div className="bg-slate-900 border border-white/5 p-6 rounded-3xl space-y-6 text-white shadow-xl">
-               <h3 className="text-sm font-sans font-extrabold flex items-center gap-2">
-                  <Activity size={16} className="text-emerald-400" /> Audit Integrity Snapshot
-               </h3>
-               <div className="space-y-6">
-                  {[
-                    { label: 'Inventory Accuracy', val: 99.4, color: 'text-emerald-400', sub: 'Target: 99.5%' },
-                    { label: 'Variance Value (MTD)', val: '-$140', color: 'text-rose-400', sub: 'Last 3 audits' },
-                    { label: 'Last House Count', val: '2d ago', color: 'text-indigo-400', sub: 'Store: Kitchen' },
-                  ].map((s, i) => (
-                    <div key={i} className="flex justify-between items-end border-b border-white/5 pb-3">
-                       <div>
-                          <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest block mb-0.5">{s.label}</span>
-                          <span className={`text-2xl font-black ${s.color}`}>{s.val}{typeof s.val === 'number' ? '%' : ''}</span>
-                       </div>
-                       <span className="text-[8px] font-bold text-white/30 uppercase tracking-tight">{s.sub}</span>
-                    </div>
-                  ))}
-               </div>
-               <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex gap-3">
-                  <CheckCircle2 size={16} className="text-emerald-400" />
-                  <p className="text-[10px] text-white/60 font-medium leading-relaxed italic">
-                    "High integrity detected in physical stock-take. No recurring thematic variance found in high-value beverage lines."
-                  </p>
-               </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl space-y-4 shadow-3xs">
-               <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white">Scheduled Cycle Counts</h3>
-               <div className="space-y-3">
-                  {[
-                    { store: 'Bar Store South', date: 'Jun 02, 2026', scope: 'Spirits & Wine' },
-                    { store: 'Main Store', date: 'Jun 05, 2026', scope: 'Dry Goods' },
-                  ].map((c, i) => (
-                    <div key={i} className="p-3 bg-slate-50 dark:bg-slate-850 rounded-2xl flex justify-between items-center group cursor-pointer border border-transparent hover:border-emerald-100 transition">
-                       <div className="flex gap-3 items-center">
-                          <div className="w-8 h-8 rounded-full bg-white dark:bg-slate-800 flex items-center justify-center font-black text-xs text-emerald-500 shadow-3xs">
-                             <Calendar size={12} />
-                          </div>
-                          <div>
-                             <span className="block text-[10px] font-bold text-slate-900 dark:text-white leading-tight">{c.store}</span>
-                             <span className="text-[8px] text-slate-400 uppercase font-black tracking-widest">{c.scope}</span>
-                          </div>
-                       </div>
-                       <div className="text-right">
-                          <span className="text-[9px] font-bold text-slate-500">{c.date}</span>
-                       </div>
-                    </div>
-                  ))}
-               </div>
-               <button
-                 onClick={() => setShowCalendarModal(true)}
-                 className="w-full mt-2 flex items-center justify-center gap-2 text-emerald-600 font-black uppercase text-[10px] tracking-widest hover:underline transition"
-               >
-                  <FileBarChart size={14} /> Full Audit Calendar
-               </button>
-            </div>
-         </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div className="p-2 w-fit rounded-xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 mb-3"><ClipboardCheck size={18} /></div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Counts</p>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white">{stockCounts.length}</h3>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div className="p-2 w-fit rounded-xl bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 mb-3"><Activity size={18} /></div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">In Progress</p>
+          <h3 className="text-xl font-black text-slate-900 dark:text-white">{stockCounts.filter(s => s.status === 'In Progress').length}</h3>
+        </div>
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div className="p-2 w-fit rounded-xl bg-amber-50 dark:bg-amber-500/10 text-amber-600 mb-3"><AlertTriangle size={18} /></div>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">Total Variance</p>
+          <h3 className="text-xl font-black text-rose-600">${fmt(stockCounts.reduce((s, sc) => s + totalVariance(sc), 0))}</h3>
+        </div>
       </div>
 
+      {loading ? (
+        <div className="p-12 text-center text-slate-500 text-xs font-bold">Loading stock counts...</div>
+      ) : (
+        <DataTable columns={scColumns} data={stockCounts} rowKey={(row) => row.id} sortable filterable filterPlaceholder="Search stock counts..." filterKeys={['location_id', 'status', 'id']} emptyMessage="No stock counts found. Click New Count Sheet to start one." />
+      )}
+
       {/* New Count Sheet Modal */}
-      {showCountModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">New Count Sheet</h3>
-              <button onClick={() => setShowCountModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block">Store / Location</label>
-              <select value={selectedStore} onChange={e => { setSelectedStore(e.target.value); setCounts({}); }} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none">
-                {inventoryStores.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
-                <option value="Main Hotel Store">Main Hotel Store</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Items in {selectedStore} ({storeItems.length})</h4>
-              {storeItems.length === 0 && (
-                <p className="text-xs text-slate-400 italic">No items assigned to this location.</p>
-              )}
-              <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
-                {storeItems.map(item => (
+      <ModalSystem isOpen={showCountModal} onClose={() => setShowCountModal(false)} title="New Count Sheet" subtitle="Select store and enter physical counts" variant="form" size="xl" showFooter={false}>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block mb-2">Store / Location</label>
+            <select value={selectedStore} onChange={e => { setSelectedStore(e.target.value); setCounts({}); }} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+              {inventoryStores.map(s => <option key={s.id} value={s.name}>{s.name} ({s.type})</option>)}
+              <option value="Main Hotel Store">Main Hotel Store</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Items in {selectedStore} ({storeItems.length})</h4>
+            {storeItems.length === 0 && <p className="text-xs text-slate-400 italic">No items assigned to this location.</p>}
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-1">
+              {storeItems.map(item => {
+                const physicalCount = counts[item.id];
+                const variance = physicalCount !== undefined ? physicalCount - item.currentStock : 0;
+                return (
                   <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
                     <div className="min-w-0">
                       <span className="block text-xs font-bold text-slate-800 dark:text-slate-200 truncate">{item.name}</span>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight">System: {item.currentStock} {item.unit}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black text-slate-400 uppercase tracking-tight whitespace-nowrap">Physical:</span>
-                      <input
-                        type="number"
-                        min={0}
-                        value={counts[item.id] ?? ''}
-                        onChange={e => setCounts(prev => ({ ...prev, [item.id]: Number(e.target.value) }))}
-                        className="w-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-right outline-none focus:ring-1 focus:ring-emerald-500"
-                        placeholder={String(item.currentStock)}
-                      />
+                    <div className="flex items-center gap-3">
+                      {variance !== 0 && physicalCount !== undefined && <span className={`text-[9px] font-black ${variance > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{variance > 0 ? '+' : ''}{variance}</span>}
+                      <input type="number" min={0} value={counts[item.id] ?? ''} onChange={e => setCounts(prev => ({ ...prev, [item.id]: Number(e.target.value) }))} className="w-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2 py-1 text-xs font-bold text-right outline-none focus:ring-1 focus:ring-emerald-500" placeholder={String(item.currentStock)} />
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowCountModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Cancel</button>
-              <button onClick={handleApplyCount} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition">Apply Count & Adjust Stock</button>
+                );
+              })}
             </div>
           </div>
         </div>
-      )}
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
+          <button onClick={() => setShowCountModal(false)} className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition">Cancel</button>
+          <button onClick={handleCreateCount} className="px-6 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition">Create Count Sheet</button>
+        </div>
+      </ModalSystem>
 
-      {/* Count History Modal */}
-      {showHistoryModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <ListFilter size={16} className="text-emerald-500" /> Count History Ledger
-              </h3>
-              <button onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
-            <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {countSheets.map((sheet) => (
-                <div key={sheet.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      sheet.status === 'Completed' ? 'bg-emerald-500' :
-                      sheet.status === 'In Progress' ? 'bg-indigo-500' : 'bg-slate-400'
-                    }`} />
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-700 dark:text-slate-300">{sheet.id} • {sheet.store}</span>
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{sheet.type} • {sheet.date}</span>
+      {/* Stock Count Detail Modal */}
+      <ModalSystem isOpen={showDetail && !!selectedSC} onClose={() => setShowDetail(false)} title="Stock Count Detail" subtitle={`${selectedSC?.location_id} · ${selectedSC?.count_date}`} variant="info" size="lg" showFooter={false}>
+        {selectedSC && (
+          <>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-slate-50 dark:bg-slate-950 rounded-2xl p-4"><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Items</span><span className="text-lg font-black text-slate-900 dark:text-white">{selectedSC.stock_count_lines?.length || 0}</span></div>
+                <div className="bg-amber-50 dark:bg-amber-500/10 rounded-2xl p-4"><span className="text-[10px] font-black text-amber-400 uppercase tracking-widest block">Variance Value</span><span className="text-lg font-black text-amber-600">${fmt(totalVariance(selectedSC))}</span></div>
+                <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl p-4"><span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block">Status</span><span className="text-sm font-black text-indigo-600">{selectedSC.status}</span></div>
+              </div>
+              <div>
+                <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Count Lines</h4>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {(selectedSC.stock_count_lines || []).map((line) => (
+                    <div key={line.id} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
+                      <div>
+                        <p className="text-xs font-black text-slate-900 dark:text-white">{line.item_name || line.ingredient_id || '—'}</p>
+                        <p className="text-[9px] font-bold text-slate-400">Expected: {line.expected_quantity} {line.unit}{line.counted_quantity !== null && ` · Counted: ${line.counted_quantity} ${line.unit}`}</p>
+                      </div>
+                      {line.variance_quantity !== 0 && line.counted_quantity !== null && <span className={`text-xs font-black font-mono ${Number(line.variance_quantity) > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{Number(line.variance_quantity) > 0 ? '+' : ''}{line.variance_quantity}</span>}
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <span className={`block text-[10px] font-black ${sheet.status === 'In Progress' ? 'text-indigo-500' : 'text-emerald-500'}`}>{sheet.status}</span>
-                    <span className="text-[8px] font-black text-slate-400">{sheet.items} items • {sheet.variance} var</span>
-                  </div>
+                  ))}
+                  {(!selectedSC.stock_count_lines || selectedSC.stock_count_lines.length === 0) && <div className="p-6 text-center text-slate-500 text-xs font-bold">No count lines.</div>}
                 </div>
-              ))}
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowHistoryModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Count Analysis Modal */}
-      {showCountAnalysis && selectedSheet && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Count Analysis</h3>
-              <button onClick={() => setShowCountAnalysis(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
-            <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Count Sheet ID</span>
-                <span className="text-[10px] font-black text-slate-900 dark:text-white font-mono">{selectedSheet.id}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Store</span>
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{selectedSheet.store}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Type</span>
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{selectedSheet.type}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</span>
-                <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{selectedSheet.date}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</span>
-                <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tight ${
-                   selectedSheet.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' :
-                   selectedSheet.status === 'In Progress' ? 'bg-indigo-50 text-indigo-600' :
-                   'bg-slate-100 text-slate-500'
-                }`}>{selectedSheet.status}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Items Counted</span>
-                <span className="text-[10px] font-black text-slate-900 dark:text-white">{selectedSheet.items}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Variance</span>
-                <span className={`text-[10px] font-black ${selectedSheet.variance === 'TBD' ? 'text-slate-400' : 'text-emerald-500'}`}>{selectedSheet.variance}</span>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowCountAnalysis(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
+            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
+              {selectedSC.status !== 'Approved' && <button onClick={() => { handleApprove(selectedSC); setShowDetail(false); }} className="px-6 py-2.5 bg-emerald-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-700 transition">Approve & Post Adjustments</button>}
+              <button onClick={() => setShowDetail(false)} className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">Close</button>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Audit Calendar Modal */}
-      {showCalendarModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <CalendarDays size={16} className="text-emerald-500" /> Full Audit Calendar
-              </h3>
-              <button onClick={() => setShowCalendarModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
-            <div className="space-y-3">
-              {[
-                { store: 'Bar Store South', date: 'Jun 02, 2026', scope: 'Spirits & Wine', status: 'Scheduled' },
-                { store: 'Main Store', date: 'Jun 05, 2026', scope: 'Dry Goods', status: 'Scheduled' },
-                { store: 'Kitchen Pantry', date: 'Jun 08, 2026', scope: 'Perishables', status: 'Pending Approval' },
-                { store: 'Housekeeping Central', date: 'Jun 12, 2026', scope: 'Cleaning Supplies', status: 'Scheduled' },
-              ].map((c, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-xs ${
-                      c.status === 'Scheduled' ? 'bg-emerald-50 text-emerald-500' : 'bg-amber-50 text-amber-500'
-                    }`}>
-                      <Calendar size={12} />
-                    </div>
-                    <div>
-                      <span className="block text-[10px] font-bold text-slate-900 dark:text-white leading-tight">{c.store}</span>
-                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{c.scope}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-[10px] font-bold text-slate-700 dark:text-slate-300">{c.date}</span>
-                    <span className={`text-[8px] font-black uppercase tracking-tight ${
-                      c.status === 'Scheduled' ? 'text-emerald-500' : 'text-amber-500'
-                    }`}>{c.status}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-2xl border border-amber-100 dark:border-amber-900/30 flex items-center gap-3">
-              <AlertCircle size={16} className="text-amber-500 flex-shrink-0" />
-              <p className="text-[10px] font-medium text-slate-600 dark:text-slate-400">Next mandatory full-house count scheduled for end of quarter. All departmental sub-stores must reconcile by Jun 30.</p>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <button onClick={() => setShowCalendarModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </ModalSystem>
     </div>
   );
 };

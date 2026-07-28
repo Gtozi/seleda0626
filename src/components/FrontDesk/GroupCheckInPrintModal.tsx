@@ -1,5 +1,6 @@
 import React from 'react';
 import { Printer, X } from 'lucide-react';
+import { ModalSystem } from '../Shared/ModalSystem';
 
 interface GroupCheckInPrintModalProps {
   data: {
@@ -20,18 +21,15 @@ export default function GroupCheckInPrintModal({ data, onClose }: GroupCheckInPr
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 print:bg-white print:p-0">
-      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full flex flex-col print:shadow-none print:max-w-none print:h-full">
-        {/* Modal Header */}
-        <div className="flex justify-between items-center border-b border-slate-100 p-4 print:hidden">
-          <h3 className="font-sans font-bold text-slate-800 flex items-center gap-2">
-            <Printer size={16} /> Print Group Registration Card
-          </h3>
-          <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 transition cursor-pointer">
-            <X size={18} />
-          </button>
-        </div>
-
+    <ModalSystem
+      isOpen={true}
+      onClose={onClose}
+      title="Print Group Registration Card"
+      icon={<Printer size={20} className="text-indigo-600" />}
+      variant="info"
+      size="lg"
+      showFooter={false}
+    >
         {/* Printable Area */}
         <div className="p-8 space-y-6 flex-1 bg-white print:p-10 font-sans" id="printable-group-form-area">
           <div className="text-center space-y-1 mb-8 border-b-2 border-slate-900 pb-6">
@@ -104,7 +102,6 @@ export default function GroupCheckInPrintModal({ data, onClose }: GroupCheckInPr
             <Printer size={14} /> Send to Print Queue
           </button>
         </div>
-      </div>
-    </div>
+    </ModalSystem>
   );
 }

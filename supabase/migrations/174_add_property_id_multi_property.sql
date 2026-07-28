@@ -1,0 +1,36 @@
+-- ============================================================================
+-- Migration 174: Add property_id to ALL property-dependent tables
+-- ============================================================================
+-- This is a multi-property system. Many business tables were missing the
+-- property_id column, meaning data could not be scoped per property.
+--
+-- This migration (applied in two steps):
+--   Step 1: Adds property_id (uuid, nullable) to every property-dependent table
+--           Adds FK constraints to properties(id) ON DELETE SET NULL
+--           Creates indexes on property_id for query performance
+--   Step 2: Backfills existing rows with the first property ID
+--           (uses DISABLE TRIGGER USER to avoid broken trigger functions)
+--
+-- System/global tables (users, roles, permissions, organizations, backups,
+-- metrics, USALI, properties, property_hierarchy, property_settings,
+-- property_users, organizations, organization_settings, organization_users,
+-- user_sessions, mfa_secrets, api_keys, legal_page_templates,
+-- policy_page_metadata, consent_logs, pii_erasure_requests, pii_export_requests,
+-- setting_definitions, permissions, role_permissions, roles, user_roles,
+-- user_role_assignments, system_users, pages, page_versions, page_audit_log,
+-- page_preview_links, public_testimonials, media_assets, blocks, block_templates,
+-- competitors, job_runs, job_runs_enhanced, job_dependencies, job_execution_queue,
+-- reconciliation_batches, health_checks, health_alerts, health_alert_rules,
+-- historical_stats, metric_definitions, metric_history, reporting_snapshots,
+-- consolidated_audit_log, audit_retention_policies, rms_config, rms_audit_log,
+-- pos_outlets, reservation_series, loyalty_transactions, folios, forecast_entries,
+-- global_settings, backup_jobs, backup_restorations, backup_schedules,
+-- document_verifications, legal_review_records, usali_chart_of_accounts,
+-- usali_item_mappings, drill_down_links) are intentionally excluded.
+-- ============================================================================
+
+-- Step 1: Schema changes (columns + FK + indexes) — applied via apply_migration
+-- Step 2: Backfill existing rows — applied via apply_migration
+
+-- The full DO $$ blocks are executed directly against the database via
+-- the Supabase MCP apply_migration tool. See migration history for details.

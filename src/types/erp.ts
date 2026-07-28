@@ -15,12 +15,12 @@ export type RoomType = string; // Dynamic room types from room table
 export interface Room {
   id: string;
   number: string;
-  type: RoomType;
+  type: RoomType; // Display name derived from room_types table via room_type_id
   floor: number;
   status: RoomStatus;
   rate: number;
   features: string[];
-  roomTypeId?: string; // Foreign key to room_types table
+  roomTypeId: string; // Foreign key to room_types table (required after Step 2.4)
 }
 
 export interface RoomTypeDetail {
@@ -103,6 +103,7 @@ export type ReservationStatus =
   | 'CheckedIn' 
   | 'CheckedOut' 
   | 'Cancelled'
+  | 'NoShow'
   | 'Waitlisted';
 
 export type BookingChannel = 
@@ -120,8 +121,13 @@ export interface FolioCharge {
   description: string;
   date: string;
   isVoided?: boolean;
-  type?: 'Room' | 'F&B' | 'Extra' | 'Minibar' | 'Laundry' | 'Tax' | 'Discount' | 'Transfer' | 'Other';
+  type?: 'Room' | 'F&B' | 'Extra' | 'Minibar' | 'Laundry' | 'Tax' | 'Discount' | 'Transfer' | 'Other' | 'ServiceCharge';
   targetFolio?: 'A' | 'B';
+  // USALI tracking fields
+  usaliCode?: string;
+  usaliRevenueCode?: string;
+  usaliCostCode?: string;
+  department?: string;
 }
 
 export interface FolioPayment {
@@ -191,6 +197,7 @@ export interface Reservation {
   corporateAccountId?: string;
   bookingGroupId?: string; // Links multiple rooms booked together under one guest
   bookingType?: BookingType;
+  roomTypeId?: string; // Foreign key to room_types table (canonical after Step 2.4)
   // Dynamic folio routing for this reservation
   folioRoutingOverrides?: {
     chargeType: FolioCharge['type'];
@@ -679,7 +686,20 @@ export interface ERPStats {
   departuresTodayCount: number;
 }
 
-export type UserRole = 'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'procurement' | 'general_manager' | 'system_admin' | 'admin' | 'custom' | 'gm' | 'owner';
+export type UserRole = 'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'procurement' | 'sales' | 'operations' | 'general_manager' | 'system_admin' | 'admin' | 'custom' | 'gm' | 'owner' | 'pos';
+
+/**
+ * Base roles that are always granted full (superuser-equivalent) access,
+ * bypassing granular RBAC checks. Kept as a single source of truth and
+ * reused by client-side (`src/lib/permissions.ts`) and server-side
+ * (`src/server/authHelpers.ts`) permission checks to prevent drift between
+ * the two enforcement layers.
+ */
+export const FULL_ACCESS_ROLES: readonly UserRole[] = ['executive', 'general_manager', 'system_admin', 'admin', 'gm', 'owner'];
+
+export function isFullAccessRole(role: UserRole | string | undefined | null): boolean {
+  return !!role && (FULL_ACCESS_ROLES as readonly string[]).includes(role);
+}
 
 export interface PermissionMatrix {
   view: boolean;
@@ -809,6 +829,25 @@ export interface GlobalHotelSettings {
   maintenanceMode?: boolean;
   maintenanceMessage?: string;
   publicBookingEnabled?: boolean;
+  hotelLogo?: string;
+  bookingHeroTitle?: string;
+  bookingHeroDescription?: string;
+  bookingStep1Label?: string;
+  bookingStep2Label?: string;
+  bookingStep3Label?: string;
+  bookingRoomsSectionTitle?: string;
+  bookingPackagesSectionTitle?: string;
+  bookingGuestServicesSectionTitle?: string;
+  bookingYourRoomsTitle?: string;
+  bookingGuestDetailsTitle?: string;
+  bookingSummaryTitle?: string;
+  bookingHeaderSubtitle?: string;
+  bookingNoRoomsMessage?: string;
+  bookingNoRoomsSubtext?: string;
+  bookingTermsAgreement?: string;
+  bookingReadTermsText?: string;
+  bookingConfirmButtonText?: string;
+  bookingSecureBookingText?: string;
   moduleToggles?: Record<string, boolean>;
   allowedIps?: string[];
   backupFrequency?: 'daily' | 'weekly' | 'manual';
@@ -850,6 +889,7 @@ export interface User {
   avatarInitials: string;
   status?: 'Active' | 'Inactive' | 'Pending' | 'Suspended' | 'Locked';
   lastLogin?: string;
+  authUserId?: string; // UUID from auth.users table for POS and other auth-based references
 
   // Expanded RBAC & HR Fields
   employeeId?: string;
@@ -857,6 +897,7 @@ export interface User {
   mobileNumber?: string;
   department?: string;
   customRoleId?: string;
+  moduleAccess?: Record<string, { read: boolean; edit: boolean } | boolean>;
   
   // Security Settings
   securitySettings?: {
@@ -874,7 +915,7 @@ export interface User {
     propertyAccess: 'Single' | 'Multiple' | 'Corporate';
   };
 
-  allowedTabs?: ('frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'settings')[];
+  allowedTabs?: ('frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'operations' | 'sales' | 'settings')[];
   allowedSettings?: {
     editGlobalSettings?: boolean;
     adjustHotelTaxes?: boolean;
@@ -896,7 +937,7 @@ export function checkTabPermission(user: User | null, tab: string): boolean {
   if (user.allowedTabs) {
     return user.allowedTabs.includes(tab as any);
   }
-  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'system_admin' || user.role === 'admin' || user.role === 'gm' || user.role === 'owner') return true;
+  if (isFullAccessRole(user.role)) return true;
   return user.role === tab;
 }
 
@@ -909,7 +950,7 @@ export function checkSettingPermission(
     return !!user.allowedSettings[setting];
   }
   // Fallback for admin roles if setting is not explicitly defined
-  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'system_admin' || user.role === 'admin' || user.role === 'gm' || user.role === 'owner') {
+  if (isFullAccessRole(user.role)) {
     return true;
   }
   return false;

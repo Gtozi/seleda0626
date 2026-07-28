@@ -118,13 +118,16 @@ export interface FixedAsset {
 export interface SplitPayment {
   method: string;
   amount: number;
+  reference?: string;
+  bankAccountId?: string;
+  bankAccountName?: string;
 }
 
 export interface GlobalSaleTransaction {
   id: string;
   date: string;
   invoiceNumber: string;
-  module: 'F&B POS' | 'Gift Shop' | 'Front Desk Folio' | 'Other';
+  module: 'F&B POS' | 'Restaurant POS' | 'Bar POS' | 'Gift Shop' | 'Front Desk Folio' | 'Other';
   customerName: string;
   items: { productName: string; quantity: number; price: number }[];
   subtotal: number;
@@ -136,6 +139,7 @@ export interface GlobalSaleTransaction {
   splitPayments?: SplitPayment[];
   status: 'Completed' | 'Voided' | 'Pending';
   cashierName?: string;
+  receiptUrl?: string;
 }
 
 export interface ExpenseRequest {

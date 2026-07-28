@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Truck, 
   Search, 
@@ -22,6 +22,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { GRN } from '../../types/inventory';
 import { useERP } from '../../context/ERPContext';
+import { ModalSystem } from '../Shared/ModalSystem';
+import { createGRN, fetchGRNs, updateGRNDiscrepancy, type GRN as ProcGRN } from '../../services/procurementService';
 
 const ReceivingModule: React.FC = () => {
   const { inventoryItems, updateInventoryItem, recordStockMovement, suppliers } = useERP();
@@ -78,7 +80,7 @@ const ReceivingModule: React.FC = () => {
 
   const totalValue = items.reduce((sum, item) => sum + ((item.receivedQty || 0) * (item.unitCost || 0)), 0);
 
-  const handleReceiveSubmit = (e: React.FormEvent) => {
+  const handleReceiveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const grnIdNum = Math.floor(1000 + Math.random() * 9000);
     const grnNumber = `GRN-2026-00${grns.length + 1}`;
@@ -103,6 +105,24 @@ const ReceivingModule: React.FC = () => {
       }))
     };
     setGrns([grnFormatted, ...grns]);
+
+    // Save to DB via API (auto-creates AP bill draft)
+    try {
+      await createGRN({
+        number: grnNumber,
+        supplier_id: `S-00${Math.floor(1 + Math.random() * 5)}`,
+        supplier_name: supplierName,
+        purchase_order_id: purchaseOrderId,
+        delivery_note: deliveryNote,
+        invoice_number: invoiceNumber,
+        received_date: new Date().toISOString().split('T')[0],
+        items: items.map(item => ({ name: item.name, quantity: item.receivedQty, unitCost: item.unitCost })),
+        total_value: totalValue,
+      } as any);
+      loadDbGrns();
+    } catch (err: any) {
+      console.error('Failed to save GRN to DB:', err);
+    }
 
     // Update actual inventory stock for matched items
     items.forEach(item => {
@@ -194,6 +214,34 @@ const ReceivingModule: React.FC = () => {
       ]
     },
   ]);
+
+  const [dbGrns, setDbGrns] = useState<ProcGRN[]>([]);
+  const [showDiscrepancyModal, setShowDiscrepancyModal] = useState(false);
+  const [discrepancyGrnId, setDiscrepancyGrnId] = useState<string>('');
+  const [discrepancyStatus, setDiscrepancyStatus] = useState('Flagged');
+  const [discrepancyNotes, setDiscrepancyNotes] = useState('');
+
+  const loadDbGrns = useCallback(async () => {
+    try {
+      const data = await fetchGRNs();
+      setDbGrns(data);
+    } catch (err) {
+      console.error('Failed to load GRNs from DB:', err);
+    }
+  }, []);
+
+  useEffect(() => { loadDbGrns(); }, [loadDbGrns]);
+
+  const handleDiscrepancySubmit = async () => {
+    try {
+      await updateGRNDiscrepancy(discrepancyGrnId, discrepancyStatus, discrepancyNotes);
+      setShowDiscrepancyModal(false);
+      setDiscrepancyGrnId(''); setDiscrepancyStatus('Flagged'); setDiscrepancyNotes('');
+      loadDbGrns();
+    } catch (err: any) {
+      console.error('Failed to update discrepancy:', err);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -322,6 +370,51 @@ const ReceivingModule: React.FC = () => {
                   </div>
                ))}
             </div>
+
+            {/* DB-backed GRNs with AP link and discrepancy */}
+            {dbGrns.length > 0 && (
+              <div className="space-y-3 pt-4">
+                <h3 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                  <FileText size={14} className="text-emerald-500" /> DB Goods Receipts ({dbGrns.length})
+                </h3>
+                {dbGrns.map((grn) => (
+                  <div key={grn.id} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-2xl p-4 hover:border-emerald-300 transition-all">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono font-black text-slate-400 uppercase">{grn.number || grn.id.slice(0, 8)}</span>
+                        {grn.ap_bill_id && (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                            <FileText size={10} /> AP Bill Linked
+                          </span>
+                        )}
+                        {grn.discrepancy_status && grn.discrepancy_status !== 'None' && (
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${
+                            grn.discrepancy_status === 'Resolved' ? 'bg-emerald-50 text-emerald-600' :
+                            grn.discrepancy_status === 'Rejected' ? 'bg-rose-50 text-rose-600' :
+                            'bg-amber-50 text-amber-600'
+                          }`}>
+                            {grn.discrepancy_status}
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => { setDiscrepancyGrnId(grn.id); setShowDiscrepancyModal(true); }}
+                        className="text-[9px] font-black text-amber-500 hover:text-amber-600 uppercase tracking-widest"
+                      >
+                        Flag Discrepancy
+                      </button>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-black text-slate-900 dark:text-white">{grn.supplier_name || '—'}</p>
+                        <p className="text-[9px] font-bold text-slate-400">{grn.received_date} · {grn.invoice_number || 'No invoice'}</p>
+                      </div>
+                      <span className="text-sm font-black text-emerald-600">${Number(grn.total_value || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
          </div>
 
          <div className="lg:col-span-4 space-y-6">
@@ -378,37 +471,16 @@ const ReceivingModule: React.FC = () => {
          </div>
       </div>
 
-      <AnimatePresence>
-        {showReceiveModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-             <motion.div 
-               initial={{ opacity: 0 }}
-               animate={{ opacity: 1 }}
-               exit={{ opacity: 0 }}
-               onClick={() => setShowReceiveModal(false)}
-               className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
-             />
-             <motion.div 
-               initial={{ opacity: 0, scale: 0.95, y: 20 }}
-               animate={{ opacity: 1, scale: 1, y: 0 }}
-               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-               className="relative bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-2xl p-8 overflow-y-auto max-h-[90vh] shadow-2xl border border-slate-100 dark:border-slate-800 z-10"
-             >
-                <div className="flex items-center justify-between mb-6">
-                   <div className="flex items-center gap-3">
-                      <div className="p-2.5 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl text-emerald-600">
-                         <Truck size={20} />
-                      </div>
-                      <div>
-                         <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Receive & Validate Goods (GRN)</h3>
-                         <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">3-way verification workflow</p>
-                      </div>
-                   </div>
-                   <button onClick={() => setShowReceiveModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                      <X size={20} />
-                   </button>
-                </div>
-
+      <ModalSystem
+        isOpen={showReceiveModal}
+        onClose={() => setShowReceiveModal(false)}
+        title="Receive & Validate Goods (GRN)"
+        subtitle="3-way verification workflow"
+        icon={<Truck size={20} className="text-emerald-600" />}
+        variant="form"
+        size="xl"
+        showFooter={false}
+      >
                 <form onSubmit={handleReceiveSubmit} className="grid grid-cols-2 gap-5">
                    <div className="col-span-2 md:col-span-1 space-y-1.5">
                       <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Supplier Name</label>
@@ -574,21 +646,18 @@ const ReceivingModule: React.FC = () => {
                      Validate Delivery & Generate GRN
                    </button>
                 </form>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      </ModalSystem>
 
       {/* Pending Deliveries Modal */}
-      {showPendingModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-lg space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight flex items-center gap-2">
-                <ClipboardList size={16} className="text-amber-500" /> Pending Deliveries
-              </h3>
-              <button onClick={() => setShowPendingModal(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showPendingModal}
+        onClose={() => setShowPendingModal(false)}
+        title="Pending Deliveries"
+        icon={<ClipboardList size={20} className="text-amber-500" />}
+        variant="info"
+        size="lg"
+        showFooter={false}
+      >
             <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
               {[
                 { po: 'PO-5024', supplier: 'Global Foods Ltd', items: 'Dairy, Eggs, Bread', eta: 'Today, 14:00', status: 'In Transit' },
@@ -612,18 +681,17 @@ const ReceivingModule: React.FC = () => {
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setShowPendingModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
             </div>
-          </div>
-        </div>
-      )}
+      </ModalSystem>
 
       {/* GRN Detail Modal */}
-      {showGrnDetail && selectedGrn && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Goods Receipt Note</h3>
-              <button onClick={() => setShowGrnDetail(false)} className="text-slate-400 hover:text-slate-600 transition"><X size={18} /></button>
-            </div>
+      <ModalSystem
+        isOpen={showGrnDetail && !!selectedGrn}
+        onClose={() => setShowGrnDetail(false)}
+        title="Goods Receipt Note"
+        variant="info"
+        size="xl"
+        showFooter={false}
+      >
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">GRN Number</span>
@@ -675,9 +743,38 @@ const ReceivingModule: React.FC = () => {
               <button onClick={() => setShowGrnDetail(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
               <button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center gap-2"><Printer size={14} /> Print GRN</button>
             </div>
+      </ModalSystem>
+
+      {/* Discrepancy Modal */}
+      <ModalSystem
+        isOpen={showDiscrepancyModal}
+        onClose={() => setShowDiscrepancyModal(false)}
+        title="Log GRN Discrepancy"
+        subtitle="Flag received quantity mismatch for resolution"
+        variant="form"
+        size="md"
+        showFooter={false}
+      >
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block mb-2">Discrepancy Status</label>
+            <select value={discrepancyStatus} onChange={e => setDiscrepancyStatus(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500">
+              <option value="Flagged">Flagged</option>
+              <option value="Under Review">Under Review</option>
+              <option value="Resolved">Resolved</option>
+              <option value="Rejected">Rejected</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] uppercase font-black tracking-widest text-slate-400 block mb-2">Notes</label>
+            <textarea value={discrepancyNotes} onChange={e => setDiscrepancyNotes(e.target.value)} rows={3} className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-amber-500" placeholder="Describe the discrepancy (e.g., short delivery, damaged goods)" />
           </div>
         </div>
-      )}
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
+          <button onClick={() => setShowDiscrepancyModal(false)} className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition">Cancel</button>
+          <button onClick={handleDiscrepancySubmit} className="px-6 py-2.5 bg-amber-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-700 transition">Submit Discrepancy</button>
+        </div>
+      </ModalSystem>
     </div>
   );
 };
