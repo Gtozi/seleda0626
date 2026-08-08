@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.5
  */
@@ -265,7 +265,7 @@ export default function FolioPaymentAudit() {
         return 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/50';
       case 'Bank Transfer':
       case 'Cheque':
-        return 'bg-amber-50 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800/50';
+        return 'bg-indigo-50 dark:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800/50';
       default:
         return 'bg-slate-50 dark:bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-800/50';
     }
@@ -455,10 +455,10 @@ export default function FolioPaymentAudit() {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-3xs space-y-4" id="historical-pos-records">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm space-y-4 print-area" id="historical-pos-records">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
         <div>
           <span className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded uppercase tracking-wider font-extrabold">Core Ledgers</span>
           <h4 className="text-base font-sans font-black tracking-tight text-slate-900 dark:text-white uppercase mt-1">Boutique Shift Invoice Journal</h4>
@@ -496,7 +496,7 @@ export default function FolioPaymentAudit() {
                 case 'Credit Card':
                 case 'Debit Card': return 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800/40';
                 case 'Bank Transfer':
-                case 'Cheque': return 'bg-amber-50/50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800/40';
+                case 'Cheque': return 'bg-indigo-50/50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800/40';
                 default: return 'bg-slate-50/50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800/40';
               }
             };
@@ -506,7 +506,7 @@ export default function FolioPaymentAudit() {
                 case 'Credit Card':
                 case 'Debit Card': return 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/15 border-indigo-200 dark:border-indigo-800/50';
                 case 'Bank Transfer':
-                case 'Cheque': return 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/15 border-amber-200 dark:border-amber-800/50';
+                case 'Cheque': return 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/15 border-indigo-200 dark:border-indigo-800/50';
                 default: return 'text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-500/15 border-slate-200 dark:border-slate-800/50';
               }
             };
@@ -556,7 +556,7 @@ export default function FolioPaymentAudit() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-white">
           <Filter size={16} />
           <span>Filters</span>
@@ -667,7 +667,7 @@ export default function FolioPaymentAudit() {
 
       {/* Loading State */}
       {loading && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-12 text-center">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-12 text-center">
           <div className="animate-spin w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full mx-auto mb-4"></div>
           <p className="text-sm text-slate-500">Loading folio payments...</p>
         </div>
@@ -675,7 +675,7 @@ export default function FolioPaymentAudit() {
 
       {/* Error State */}
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-3xl p-6 flex items-center gap-3">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-6 flex items-center gap-3">
           <AlertCircle className="text-red-500" size={20} />
           <p className="text-sm text-red-700 dark:text-red-400">{error}</p>
         </div>
@@ -683,7 +683,7 @@ export default function FolioPaymentAudit() {
 
       {/* Payments Table */}
       {!loading && !error && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">

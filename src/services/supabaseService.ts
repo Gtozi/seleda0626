@@ -391,15 +391,15 @@ export const supabaseService = {
   // Guests Api
   fetchGuests: async (): Promise<Guest[]> => {
     try {
-      const { data, error } = await supabase.from('guests').select('*').order('name');
-      if (error) {
-        if (isTableMissingError(error)) {
-          logMissingTableWarning('guests', error);
-          return [];
-        }
-        throw new Error(`Fetch guests failed: ${error.message}`);
+      // Use the server API (supabaseAdmin) instead of the supabase client directly,
+      // to bypass RLS policies that block the anon key.
+      const response = await fetch('/api/guests', { credentials: 'include' });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Fetch guests failed: ${response.status}`);
       }
-      return (data || []).map(mapGuestFromDb);
+      const data = await response.json();
+      return (data.guests || []).map(mapGuestFromDb);
     } catch (e: any) {
       if (isTableMissingError(e)) {
         logMissingTableWarning('guests', e);

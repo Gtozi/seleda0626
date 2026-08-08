@@ -18,19 +18,19 @@ const AttendanceManagement = () => {
           { label: 'Avg. Check-in', value: '08:04 AM', icon: Clock, color: 'text-indigo-500' },
           { label: 'Location Sync', value: 'Active', icon: MapPin, color: 'text-blue-500' },
         ].map((stat, i) => (
-          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 rounded-xl shadow-sm">
             <stat.icon className={`mb-3 ${stat.color}`} size={20} />
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-            <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">{stat.value}</h3>
+            <p className="text-xs font-medium text-slate-500 leading-none mb-1">{stat.label}</p>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{stat.value}</h3>
           </div>
         ))}
       </div>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-[32px] overflow-hidden shadow-3xs">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
         <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
-           <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Today's Attendance Registry</h3>
+           <h3 className="text-sm font-bold text-slate-900 dark:text-white">Today's Attendance Registry</h3>
            <div className="flex gap-2">
-              <button className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-tight flex items-center gap-2">
+              <button className="px-4 py-2 bg-slate-50 dark:bg-slate-800 rounded-xl text-sm font-medium flex items-center gap-2">
                  <Calendar size={14} />
                  May 30, 2024
               </button>
@@ -39,29 +39,29 @@ const AttendanceManagement = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/50 dark:bg-slate-950/20">
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Employee</th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Department</th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Check-In</th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Check-Out</th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Overtime</th>
-              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-center">Status</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500">Employee</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500">Department</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500 text-center">Check-In</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500 text-center">Check-Out</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500 text-center">Overtime</th>
+              <th className="px-6 py-4 text-xs font-medium text-slate-500 text-center">Status</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
             {attendanceData.map((row, i) => (
               <tr key={i} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                 <td className="px-6 py-4">
-                  <span className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{row.name}</span>
+                  <span className="text-sm font-semibold text-slate-900 dark:text-white">{row.name}</span>
                 </td>
-                <td className="px-6 py-4 text-xs font-bold text-slate-500">{row.dept}</td>
-                <td className="px-6 py-4 text-center text-xs font-bold text-slate-900 dark:text-white">{row.checkIn}</td>
-                <td className="px-6 py-4 text-center text-xs font-bold text-slate-400 font-mono">{row.checkOut}</td>
+                <td className="px-6 py-4 text-sm font-medium text-slate-500">{row.dept}</td>
+                <td className="px-6 py-4 text-center text-sm font-medium text-slate-900 dark:text-white">{row.checkIn}</td>
+                <td className="px-6 py-4 text-center text-sm font-medium text-slate-400 font-mono">{row.checkOut}</td>
                 <td className="px-6 py-4 text-center">
-                   <span className="text-[10px] font-black text-indigo-500">{row.ot}</span>
+                   <span className="text-xs font-medium text-indigo-500">{row.ot}</span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="flex justify-center">
-                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-tighter ${
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium uppercase ${
                       row.status === 'Present' ? 'bg-emerald-50 text-emerald-600' : 
                       row.status === 'Late' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'
                     }`}>

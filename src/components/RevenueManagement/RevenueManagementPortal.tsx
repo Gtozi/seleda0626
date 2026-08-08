@@ -24,7 +24,8 @@ import {
   Users,
   Activity,
   LineChart,
-  PieChart
+  PieChart,
+  Package
 } from 'lucide-react';
 
 import RMSDashboard from './RMSDashboard';
@@ -34,8 +35,51 @@ import DemandForecasts from './DemandForecasts';
 import LOSRules from './LOSRules';
 import CorporateRates from './CorporateRates';
 import ChannelManager from './ChannelManager';
+import DynamicPricing from './DynamicPricing';
+import RateManagement from './RateManagement';
+import InventoryControls from './InventoryControls';
+import YieldManagement from './YieldManagement';
+import MarketSegmentation from './MarketSegmentation';
+import ChannelPerformance from './ChannelPerformance';
+import DistributionManagement from './DistributionManagement';
+import GroupEvaluation from './GroupEvaluation';
+import DisplacementAnalysis from './DisplacementAnalysis';
+import OverbookingManagement from './OverbookingManagement';
+import RestrictionsManagement from './RestrictionsManagement';
+import PackagePricing from './PackagePricing';
+import PromotionsAnalysis from './PromotionsAnalysis';
+import BusinessIntelligence from './BusinessIntelligence';
+import AIRecommendations from './AIRecommendations';
+import ScenarioPlanning from './ScenarioPlanning';
+import Reports from './Reports';
+import Configuration from './Configuration';
 
-type RMSModule = 'dashboard' | 'recommendations' | 'competitors' | 'forecasts' | 'los' | 'corporate' | 'channels';
+type RMSModule = 
+  | 'dashboard' 
+  | 'recommendations' 
+  | 'competitors' 
+  | 'forecasts' 
+  | 'los' 
+  | 'corporate' 
+  | 'channels'
+  | 'dynamic_pricing'
+  | 'rate_management'
+  | 'inventory_controls'
+  | 'yield_management'
+  | 'market_segmentation'
+  | 'channel_performance'
+  | 'distribution_management'
+  | 'group_evaluation'
+  | 'displacement_analysis'
+  | 'overbooking_management'
+  | 'restrictions_management'
+  | 'package_pricing'
+  | 'promotions_analysis'
+  | 'business_intelligence'
+  | 'ai_recommendations'
+  | 'scenario_planning'
+  | 'reports'
+  | 'configuration';
 
 const RevenueManagementPortal = ({ activeModule = 'dashboard' }: { activeModule?: string }) => {
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
@@ -131,6 +175,114 @@ const RevenueManagementPortal = ({ activeModule = 'dashboard' }: { activeModule?
             active={activeModule === 'channels'}
             module="channels"
           />
+          <ModuleButton
+            icon={<TrendingUp className="w-4 h-4" />}
+            label="Dynamic Pricing"
+            active={activeModule === 'dynamic_pricing'}
+            module="dynamic_pricing"
+          />
+          <ModuleButton
+            icon={<DollarSign className="w-4 h-4" />}
+            label="Rate Management"
+            active={activeModule === 'rate_management'}
+            module="rate_management"
+          />
+          <ModuleButton
+            icon={<Bed className="w-4 h-4" />}
+            label="Inventory"
+            active={activeModule === 'inventory_controls'}
+            module="inventory_controls"
+          />
+          <ModuleButton
+            icon={<Target className="w-4 h-4" />}
+            label="Yield Mgmt"
+            active={activeModule === 'yield_management'}
+            module="yield_management"
+          />
+          <ModuleButton
+            icon={<Users className="w-4 h-4" />}
+            label="Segments"
+            active={activeModule === 'market_segmentation'}
+            module="market_segmentation"
+          />
+          <ModuleButton
+            icon={<LineChart className="w-4 h-4" />}
+            label="Channel Perf"
+            active={activeModule === 'channel_performance'}
+            module="channel_performance"
+          />
+          <ModuleButton
+            icon={<PieChart className="w-4 h-4" />}
+            label="Distribution"
+            active={activeModule === 'distribution_management'}
+            module="distribution_management"
+          />
+          <ModuleButton
+            icon={<Users className="w-4 h-4" />}
+            label="Group Eval"
+            active={activeModule === 'group_evaluation'}
+            module="group_evaluation"
+          />
+          <ModuleButton
+            icon={<BarChart3 className="w-4 h-4" />}
+            label="Displacement"
+            active={activeModule === 'displacement_analysis'}
+            module="displacement_analysis"
+          />
+          <ModuleButton
+            icon={<AlertTriangle className="w-4 h-4" />}
+            label="Overbooking"
+            active={activeModule === 'overbooking_management'}
+            module="overbooking_management"
+          />
+          <ModuleButton
+            icon={<Calendar className="w-4 h-4" />}
+            label="Restrictions"
+            active={activeModule === 'restrictions_management'}
+            module="restrictions_management"
+          />
+          <ModuleButton
+            icon={<Package className="w-4 h-4" />}
+            label="Packages"
+            active={activeModule === 'package_pricing'}
+            module="package_pricing"
+          />
+          <ModuleButton
+            icon={<Activity className="w-4 h-4" />}
+            label="Promotions"
+            active={activeModule === 'promotions_analysis'}
+            module="promotions_analysis"
+          />
+          <ModuleButton
+            icon={<BarChart3 className="w-4 h-4" />}
+            label="BI"
+            active={activeModule === 'business_intelligence'}
+            module="business_intelligence"
+          />
+          <ModuleButton
+            icon={<Target className="w-4 h-4" />}
+            label="AI Recs"
+            active={activeModule === 'ai_recommendations'}
+            module="ai_recommendations"
+          />
+          <ModuleButton
+            icon={<Activity className="w-4 h-4" />}
+            label="Scenarios"
+            active={activeModule === 'scenario_planning'}
+            module="scenario_planning"
+          />
+          <ModuleButton
+            icon={<BarChart3 className="w-4 h-4" />}
+            label="Reports"
+            active={activeModule === 'reports'}
+            module="reports"
+          />
+          <ModuleButton
+            icon={<Settings className="w-4 h-4" />}
+            label="Config"
+            active={activeModule === 'configuration'}
+            module="configuration"
+          />
         </div>
       </div>
 
@@ -143,6 +295,24 @@ const RevenueManagementPortal = ({ activeModule = 'dashboard' }: { activeModule?
         {activeModule === 'los' && <LOSRules />}
         {activeModule === 'corporate' && <CorporateRates />}
         {activeModule === 'channels' && <ChannelManager />}
+        {activeModule === 'dynamic_pricing' && <DynamicPricing />}
+        {activeModule === 'rate_management' && <RateManagement />}
+        {activeModule === 'inventory_controls' && <InventoryControls />}
+        {activeModule === 'yield_management' && <YieldManagement />}
+        {activeModule === 'market_segmentation' && <MarketSegmentation />}
+        {activeModule === 'channel_performance' && <ChannelPerformance />}
+        {activeModule === 'distribution_management' && <DistributionManagement />}
+        {activeModule === 'group_evaluation' && <GroupEvaluation />}
+        {activeModule === 'displacement_analysis' && <DisplacementAnalysis />}
+        {activeModule === 'overbooking_management' && <OverbookingManagement />}
+        {activeModule === 'restrictions_management' && <RestrictionsManagement />}
+        {activeModule === 'package_pricing' && <PackagePricing />}
+        {activeModule === 'promotions_analysis' && <PromotionsAnalysis />}
+        {activeModule === 'business_intelligence' && <BusinessIntelligence />}
+        {activeModule === 'ai_recommendations' && <AIRecommendations />}
+        {activeModule === 'scenario_planning' && <ScenarioPlanning />}
+        {activeModule === 'reports' && <Reports />}
+        {activeModule === 'configuration' && <Configuration />}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -329,10 +329,10 @@ export default function DashboardModule({
     switch (status) {
       case 'Vacant Clean': return 'bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-800 border-emerald-200 hover:from-emerald-100 hover:to-emerald-150';
       case 'Vacant Dirty': return 'bg-gradient-to-br from-amber-50 to-amber-100 text-amber-800 border-amber-200 hover:from-amber-100 hover:to-amber-150';
-      case 'Occupied Clean': return 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-800 border-indigo-200 hover:from-indigo-100 hover:to-indigo-150';
+      case 'Occupied Clean': return 'bg-gradient-to-br from-indigo-50 to-indigo-100 text-indigo-800 border-indigo-200 hover:from-indigo-100 hover:to-indigo-200';
       case 'Occupied Dirty': return 'bg-gradient-to-br from-purple-50 to-purple-100 text-purple-800 border-purple-200 hover:from-purple-100 hover:to-purple-150';
       case 'Out of Order': return 'bg-gradient-to-br from-rose-50 to-rose-100 text-rose-800 border-rose-200 hover:from-rose-100 hover:to-rose-150';
-      default: return 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 border-slate-200 hover:from-slate-100 hover:to-slate-150';
+      default: return 'bg-gradient-to-br from-slate-50 to-slate-100 text-slate-800 border-slate-200 hover:from-slate-100 hover:to-slate-200';
     }
   };
 
@@ -376,8 +376,8 @@ export default function DashboardModule({
     <DashboardTemplate id="dashboard-module-container">
 
       {auditResult && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl text-xs flex items-center gap-3 animate-bounce">
-          <Sparkles size={16} className="text-amber-400 animate-spin" />
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs flex items-center gap-3 animate-bounce">
+          <Sparkles size={16} className="text-indigo-400 animate-spin" />
           <div>
             <strong>Automated Day End Completed:</strong> Posted {formatAmount(auditResult.revenuePosted)} in room tariffs. Operating date advances to <strong className="text-white font-bold">{auditResult.date}</strong>.
           </div>
@@ -388,7 +388,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4" id="stats-banner">
         
         {/* WIDGET 1: Arrivals Today */}
-        <div className="p-5 bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-900/30 dark:to-emerald-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-emerald-50/30 dark:from-slate-900/30 dark:to-emerald-900/20 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Arrivals Today</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -404,7 +404,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 2: Departures Today */}
-        <div className="p-5 bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Departures Today</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -420,7 +420,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 3: In-house Guests Count */}
-        <div className="p-5 bg-gradient-to-br from-white to-amber-50/30 dark:from-slate-900/30 dark:to-amber-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-indigo-50/30 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center justify-between shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 smooth-transition">
           <div>
             <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">In-house Guests</p>
             <h3 className="text-2xl font-sans font-black text-slate-900 dark:text-white tracking-tight mt-0.5">
@@ -430,13 +430,13 @@ export default function DashboardModule({
               Occupying {occupiedCount} rooms inside hotel
             </p>
           </div>
-          <div className="p-3 bg-gradient-to-br from-amber-50 to-amber-100 rounded-xl text-amber-600 border border-amber-200 shadow-inner">
+          <div className="p-3 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl text-indigo-600 border border-indigo-200 shadow-inner">
             <Users size={18} />
           </div>
         </div>
 
         {/* WIDGET 4: Occupancy % */}
-        <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 space-y-1.5 smooth-transition">
+        <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 hover:-translate-y-0.5 space-y-1.5 smooth-transition">
           <div className="flex justify-between items-center">
             <div>
               <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400">Occupancy %</p>
@@ -462,7 +462,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* WIDGET 5: Revenue Snapshot */}
-        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-900/20 text-slate-900 dark:text-slate-200 rounded-3xl p-5 shadow-lg dark:shadow-slate-900/20 border border-indigo-200 dark:border-indigo-700/50 flex flex-col justify-between space-y-4 hover:shadow-xl dark:hover:shadow-slate-900/30 transition-shadow duration-300 backdrop-blur-xl smooth-transition">
+        <div className="bg-gradient-to-br from-indigo-50 to-indigo-100 dark:from-indigo-900/30 dark:to-indigo-900/20 text-slate-900 dark:text-slate-200 rounded-xl p-5 shadow-lg dark:shadow-slate-900/20 border border-indigo-200 dark:border-indigo-700/50 flex flex-col justify-between space-y-4 hover:shadow-xl dark:hover:shadow-slate-900/30 transition-shadow duration-300 backdrop-blur-xl smooth-transition">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
               <span className="text-[10px] font-mono uppercase tracking-wider text-indigo-600 font-extrabold">Finance Engine Ledger</span>
@@ -500,7 +500,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 6: Guest Communication Hub */}
-        <div className="bg-gradient-to-br from-white to-indigo-50/20 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
+        <div className="bg-gradient-to-br from-white to-indigo-50/20 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-slate-400 font-bold block flex items-center gap-1">
@@ -601,7 +601,7 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 10: Overbooking Warnings */}
-        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
+        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3 smooth-transition">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-slate-400 font-bold block">Overbooking Warnings</h4>
@@ -655,7 +655,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 lg:gap-6">
 
         {/* WIDGET 11: Reservation Source Analytics */}
-        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 space-y-3 flex flex-col justify-between">
+        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 space-y-3 flex flex-col justify-between">
           <div>
             <h4 className="text-xs font-mono uppercase text-slate-400 font-bold">Source Revenue Analytics</h4>
             <p className="text-[10px] text-slate-500 font-sans">Reservations by incoming source channels.</p>
@@ -707,7 +707,7 @@ export default function DashboardModule({
         </div>
 
         {/* DEPARTURES CHECKLIST WIDGET */}
-        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
+        <div className="bg-gradient-to-br from-white to-rose-50/20 dark:from-slate-900/30 dark:to-rose-900/20 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-rose-600 font-extrabold flex items-center gap-1">
@@ -754,15 +754,15 @@ export default function DashboardModule({
         </div>
 
         {/* WIDGET 9: VIP Arrivals Spotlight */}
-        <div className="bg-gradient-to-br from-white to-amber-50/20 dark:from-slate-900/30 dark:to-amber-900/20 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
+        <div className="bg-gradient-to-br from-white to-indigo-50/20 dark:from-slate-900/30 dark:to-indigo-900/20 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-300 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-teal-700 font-extrabold flex items-center gap-1">
-                <Award size={13} className="text-amber-500 animate-pulse" /> VIP Priority Roster
+                <Award size={13} className="text-indigo-500 animate-pulse" /> VIP Priority Roster
               </h4>
               <p className="text-[10px] text-slate-500 font-sans">High priority concierge arrivals for today.</p>
             </div>
-            <span className="px-2 py-0.5 bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 font-mono text-3xs font-extrabold rounded-full border border-amber-300">
+            <span className="px-2 py-0.5 bg-gradient-to-r from-indigo-100 to-indigo-200 text-indigo-800 font-mono text-3xs font-extrabold rounded-full border border-indigo-300">
               {vipArrivals.length} High Profile
             </span>
           </div>
@@ -774,7 +774,7 @@ export default function DashboardModule({
               </div>
             ) : (
               vipArrivals.map(res => (
-                <div key={res.id} className="p-2 bg-gradient-to-tr from-amber-50/50 to-indigo-50/10 dark:from-amber-900/30 dark:to-indigo-900/20 border border-amber-100 dark:border-amber-700/50 rounded-xl space-y-1">
+                <div key={res.id} className="p-2 bg-gradient-to-tr from-indigo-50/50 to-indigo-50/10 dark:from-indigo-900/30 dark:to-indigo-900/20 border border-indigo-100 dark:border-indigo-700/50 rounded-xl space-y-1">
                   <div className="flex justify-between items-start">
                     <div>
                       <strong className="text-slate-800 text-xs block">{res.guestName}</strong>
@@ -782,12 +782,12 @@ export default function DashboardModule({
                         Category: {res.roomType} {res.roomNumber ? `| Code Room ${res.roomNumber}` : '| Room Req'}
                       </span>
                     </div>
-                    <span className="text-3xs font-mono px-1.5 py-0.2 rounded bg-amber-500 text-white font-extrabold italic uppercase">
+                    <span className="text-3xs font-mono px-1.5 py-0.2 rounded bg-indigo-500 text-white font-extrabold italic uppercase">
                       VIP Level
                     </span>
                   </div>
                   {res.notes && (
-                    <div className="p-1.5 bg-white text-[10px] text-amber-700 border border-amber-100 rounded italic font-sans truncate">
+                    <div className="p-1.5 bg-white text-[10px] text-indigo-700 border border-indigo-100 rounded italic font-sans truncate">
                       ★ {res.notes}
                     </div>
                   )}
@@ -803,7 +803,7 @@ export default function DashboardModule({
         </div>
 
         {/* NEW WIDGET: Airport Shuttle Requests (One Day Advance) */}
-        <div className="bg-gradient-to-br from-white to-indigo-50/20 border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3">
+        <div className="bg-gradient-to-br from-white to-indigo-50/20 border border-slate-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col justify-between space-y-3">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <div>
               <h4 className="text-xs font-mono uppercase text-indigo-700 font-extrabold flex items-center gap-1">
@@ -864,7 +864,7 @@ export default function DashboardModule({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         
         {/* WIDGET 12: Live Room Status Interactive Board (Takes 2 Columns) */}
-        <div className={`lg:col-span-2 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border ${filterArrivalsToday ? 'border-emerald-300/60 ring-2 ring-emerald-500/10 shadow-emerald-100/30' : 'border-slate-200 dark:border-slate-700'} rounded-3xl p-4 sm:p-6 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-500 space-y-4 sm:space-y-5`}>
+        <div className={`lg:col-span-2 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900/30 dark:to-slate-900/20 border ${filterArrivalsToday ? 'border-emerald-300/60 ring-2 ring-emerald-500/10 shadow-emerald-100/30' : 'border-slate-200 dark:border-slate-700'} rounded-xl p-4 sm:p-6 shadow-sm dark:shadow-slate-900/20 hover:shadow-md dark:hover:shadow-slate-900/30 transition-all duration-500 space-y-4 sm:space-y-5`}>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 border-b border-slate-100/80 pb-3 sm:pb-4">
             <div>
               <h3 className="text-xs sm:text-sm font-sans font-semibold text-slate-800 flex items-center gap-1.5">
@@ -930,10 +930,10 @@ export default function DashboardModule({
                   </div>
                   
                   {checkedInRes ? (
-                    <div className="truncate w-full text-[9px] sm:text-2xs font-sans font-bold text-slate-850 leading-tight">
+                    <div className="truncate w-full text-[9px] sm:text-2xs font-sans font-bold text-slate-800 leading-tight">
                       👤 {checkedInRes.guestName.split(' ')[1] || checkedInRes.guestName}
                       {checkedInRes.guestStatus === 'VIP' && (
-                        <span className="inline-block ml-1 text-[9px] sm:text-2xs text-amber-500 animate-pulse">★</span>
+                        <span className="inline-block ml-1 text-[9px] sm:text-2xs text-indigo-500 animate-pulse">★</span>
                       )}
                     </div>
                   ) : (
@@ -955,7 +955,7 @@ export default function DashboardModule({
         </div>
 
         {/* ARRIVALS CHECKLIST WIDGET SECTION */}
-        <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 flex flex-col justify-start transition-colors duration-300 pointer-events-auto">
+        <div className="bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 flex flex-col justify-start transition-colors duration-300 pointer-events-auto">
           <div className="border-b border-slate-100 pb-2.5 flex justify-between items-start gap-2">
             <div 
               className="cursor-pointer group flex flex-col"
@@ -964,7 +964,7 @@ export default function DashboardModule({
                 if (!filterArrivalsToday) setRoomFilter('all');
               }}
             >
-              <h3 className="text-sm font-sans font-semibold text-slate-850 flex items-center gap-1.5 group-hover:text-emerald-500 transition-colors">
+              <h3 className="text-sm font-sans font-semibold text-slate-800 flex items-center gap-1.5 group-hover:text-emerald-500 transition-colors">
                 <UserCheck className={filterArrivalsToday ? 'text-emerald-500 animate-pulse' : 'text-slate-400 group-hover:text-emerald-400'} size={15} /> Arrivals Today
               </h3>
               <p className="text-xs text-slate-400">Scheduled checks for {currentSystemDate}.</p>
@@ -982,7 +982,7 @@ export default function DashboardModule({
                   onClick={() => setAllocationMode('standard')}
                   className={`px-1.5 py-0.75 rounded-md font-bold transition-all uppercase cursor-pointer ${
                     allocationMode === 'standard'
-                      ? 'bg-white text-slate-800 shadow-3xs'
+                      ? 'bg-white text-slate-800 shadow-sm'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                 >
@@ -993,12 +993,12 @@ export default function DashboardModule({
                   onClick={() => setAllocationMode('predictive')}
                   className={`px-1.5 py-0.75 rounded-md font-bold transition-all uppercase cursor-pointer flex items-center gap-0.5 ${
                     allocationMode === 'predictive'
-                      ? 'bg-indigo-600 text-white shadow-3xs'
+                      ? 'bg-indigo-600 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-600'
                   }`}
                   title="Activate predictive pre-assignment based on CRM preferences and Housekeeping ready status"
                 >
-                  <Sparkles size={9} className="animate-pulse text-amber-300" /> AI Match
+                  <Sparkles size={9} className="animate-pulse text-indigo-300" /> AI Match
                 </button>
               </div>
             </div>
@@ -1015,10 +1015,10 @@ export default function DashboardModule({
             <div className="p-3 bg-gradient-to-br from-indigo-50/60 to-slate-50 dark:from-indigo-900/20 dark:to-slate-900/20 border border-indigo-100 dark:border-indigo-700/50 rounded-xl space-y-2">
               <div className="flex items-center justify-between text-2xs">
                 <div className="flex items-center gap-1 font-sans font-extrabold text-indigo-950">
-                  <Sparkles size={11} className="text-amber-500 animate-spin" style={{ animationDuration: '6s' }} />
+                  <Sparkles size={11} className="text-indigo-500 animate-spin" style={{ animationDuration: '6s' }} />
                   <span>PREDICTIVE ALLOCATION CORE</span>
                 </div>
-                <span className="text-[8px] font-mono text-slate-450 uppercase bg-indigo-150 px-1 py-0.25 rounded">
+                <span className="text-[8px] font-mono text-slate-450 uppercase bg-indigo-200 px-1 py-0.25 rounded">
                   Ready status sync
                 </span>
               </div>
@@ -1030,7 +1030,7 @@ export default function DashboardModule({
                 onClick={runBulkPredictiveAllocation}
                 className="w-full py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-sans text-3xs font-black uppercase rounded-lg shadow-2xs transition hover:scale-[1.01] flex items-center justify-center gap-1 cursor-pointer select-none"
               >
-                <Sparkles size={11} className="text-amber-300" /> Auto-Preassign Arriving Rooms
+                <Sparkles size={11} className="text-indigo-300" /> Auto-Preassign Arriving Rooms
               </button>
             </div>
           )}
@@ -1109,7 +1109,7 @@ export default function DashboardModule({
                             </span>
                           ))}
                           {bestClean.rec.pillowRequested && (
-                            <span className="bg-amber-100 text-amber-805 px-1 rounded text-[7.5px] font-semibold">
+                            <span className="bg-indigo-100 text-indigo-805 px-1 rounded text-[7.5px] font-semibold">
                               ⚡ Auto feathers pillow kit
                             </span>
                           )}
@@ -1199,7 +1199,7 @@ export default function DashboardModule({
                                 </span>
                               ))}
                               {assignedRec.actions.map((act: string, idx: number) => (
-                                <span key={idx} className="text-[7.5px] font-sans bg-amber-50 text-amber-700 border border-amber-100 rounded px-1 font-semibold">
+                                <span key={idx} className="text-[7.5px] font-sans bg-indigo-50 text-indigo-700 border border-indigo-100 rounded px-1 font-semibold">
                                   ⚡ {act}
                                 </span>
                               ))}
@@ -1218,7 +1218,7 @@ export default function DashboardModule({
 
                     <div className="flex items-center justify-between gap-1 pt-0.5 border-t border-slate-100 dark:border-slate-800/40">
                       {res.roomNumber ? (
-                        <div className="text-[10px] font-mono text-slate-600 dark:text-slate-350 block">
+                        <div className="text-[10px] font-mono text-slate-600 dark:text-slate-400 block">
                           Current Room: <span className="font-extrabold text-slate-805 dark:text-slate-100">Room {res.roomNumber}</span>
                         </div>
                       ) : (
@@ -1242,7 +1242,7 @@ export default function DashboardModule({
                             onClick={() => {
                               onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                             }}
-                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-3xs rounded-lg shadow-3xs font-black uppercase tracking-wide transition cursor-pointer select-none"
+                            className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-3xs rounded-lg shadow-sm font-black uppercase tracking-wide transition cursor-pointer select-none"
                           >
                             Check-In
                           </button>
@@ -1258,7 +1258,7 @@ export default function DashboardModule({
       </div>
 
       {/* LOWER ROW: IN-HOUSE ACTIVE GUEST TABLE (WIDGET 3 FULL LEDGER) */}
-      <div className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 transition-colors duration-300">
+      <div className="bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 rounded-xl p-5 shadow-sm dark:shadow-slate-900/20 space-y-4 transition-colors duration-300">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
             <h3 className="text-sm font-sans font-semibold text-slate-80s text-slate-800 dark:text-white flex items-center gap-1.5">
@@ -1271,7 +1271,7 @@ export default function DashboardModule({
             placeholder="Search active guest / room number..."
             value={guestSearch}
             onChange={(e) => setGuestSearch(e.target.value)}
-            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-650 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64"
+            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-mono text-slate-600 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500 w-64"
           />
         </div>
 
@@ -1295,7 +1295,7 @@ export default function DashboardModule({
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {inHouseGuests.map(res => (
                   <tr key={res.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors duration-200">
-                    <td className="py-2.5 px-3 font-mono font-bold text-slate-850 dark:text-slate-200">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-800 dark:text-slate-200">
                       {res.roomNumber ? `Suite ${res.roomNumber}` : 'Pending Block'}
                     </td>
                     <td className="py-2.5 px-3">
@@ -1306,7 +1306,7 @@ export default function DashboardModule({
                       <span className={`inline-block px-2 py-0.5 rounded-full font-mono text-3xs ${
                         res.guestStatus === 'VIP' ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/20 dark:text-amber-400 font-black border border-amber-200 dark:border-amber-900/30' :
                         res.guestStatus === 'Loyalty Member' ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/20 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/40' :
-                        'bg-slate-100 text-slate-650 bg-slate-100 dark:bg-slate-800 dark:text-slate-405 border border-slate-200 dark:border-slate-800'
+                        'bg-slate-100 text-slate-600 bg-slate-100 dark:bg-slate-800 dark:text-slate-405 border border-slate-200 dark:border-slate-800'
                       }`}>
                         {res.guestStatus}
                       </span>
@@ -1315,7 +1315,7 @@ export default function DashboardModule({
                       <span>{res.checkInDate} to {res.checkOutDate}</span>
                     </td>
                     <td className="py-2.5 px-3 whitespace-nowrap font-mono">
-                      <div className="text-slate-700 dark:text-slate-350">{formatAmount(res.rate)}/nt</div>
+                      <div className="text-slate-700 dark:text-slate-400">{formatAmount(res.rate)}/nt</div>
                       <div className="text-3xs text-indigo-650 font-bold block">Folio: {formatAmount(res.totalAmount || 0)}</div>
                     </td>
                     <td className="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
@@ -1373,7 +1373,7 @@ export default function DashboardModule({
               <span className="text-slate-400">Amenities Loaded:</span>
               <div className="flex flex-wrap gap-1">
                 {selectedRoom.features.map(f => (
-                  <span key={f} className="px-1.5 py-0.5 bg-slate-150 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-3xs rounded-md">
+                  <span key={f} className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-3xs rounded-md">
                     {f}
                   </span>
                 ))}
@@ -1417,7 +1417,7 @@ export default function DashboardModule({
         confirmLabel="Launch Audit"
         cancelLabel="Cancel Audit"
         confirmColor="slate"
-        icon={<Moon size={20} className="text-amber-600 animate-spin" />}
+        icon={<Moon size={20} className="text-indigo-600 animate-spin" />}
       >
         <div className="text-xs text-slate-600 dark:text-slate-400 space-y-2 leading-relaxed">
           <p>You are about to launch the automated Night End audit transactions for hotel operating day: <strong className="text-slate-800 dark:text-white">{currentSystemDate}</strong></p>

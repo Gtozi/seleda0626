@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.5
  *
@@ -6,15 +6,16 @@
  */
 
 import React, { useState } from 'react';
-import { 
-  Receipt, 
+import {
+  Receipt,
   FileText,
-  ChevronRight
+  History
 } from 'lucide-react';
 import CheckInOutModule from './CheckInOutModule';
 import FolioPaymentAudit from './FolioPaymentAudit';
+import FolioInvoicePaymentHistory from './FolioInvoicePaymentHistory';
 
-type FolioModule = 'ledger' | 'audit';
+type FolioModule = 'ledger' | 'audit' | 'history';
 
 export default function FolioPortal({
   initialFolioResId,
@@ -40,7 +41,7 @@ export default function FolioPortal({
         </div>
 
         {/* Module Navigation Tabs */}
-        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
           <button
             onClick={() => setActiveModule('ledger')}
             className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
@@ -63,6 +64,17 @@ export default function FolioPortal({
             <Receipt size={14} />
             Payment Audit
           </button>
+          <button
+            onClick={() => setActiveModule('history')}
+            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
+              activeModule === 'history'
+                ? 'bg-indigo-600 text-white shadow-md'
+                : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+            }`}
+          >
+            <History size={14} />
+            Invoice &amp; Payment History
+          </button>
         </div>
       </div>
 
@@ -77,6 +89,11 @@ export default function FolioPortal({
         {activeModule === 'audit' && (
           <div className="p-6">
             <FolioPaymentAudit />
+          </div>
+        )}
+        {activeModule === 'history' && (
+          <div className="p-6">
+            <FolioInvoicePaymentHistory />
           </div>
         )}
       </div>

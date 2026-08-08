@@ -14,7 +14,17 @@ import {
   Clock,
   DollarSign,
   Heart,
-  Box
+  Box,
+  Flame,
+  Radio,
+  ShieldAlert,
+  Package,
+  Factory,
+  Thermometer,
+  Gauge,
+  Bell,
+  FileCheck,
+  Calendar
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -32,27 +42,42 @@ import {
 } from 'recharts';
 
 const EngineeringDashboard: React.FC = () => {
-  // Mock Data
+  // Mock Data - Updated per specification
   const stats = [
     { label: 'Open Work Orders', value: 14, sub: '4 Emergency', color: 'bg-indigo-500', icon: ClipboardList },
     { label: 'Completed Today', value: 8, sub: '+2 from yesterday', color: 'bg-emerald-500', icon: CheckCircle2 },
-    { label: 'PM Due Today', value: 3, sub: '1 Overdue', color: 'bg-amber-500', icon: Wrench },
-    { label: 'Emergency Requests', value: 4, sub: 'Critical Action', color: 'bg-rose-500', icon: AlertTriangle },
-    { label: 'OOO Rooms', value: 2, sub: 'Out of Order', color: 'bg-rose-600', icon: AlertTriangle },
-    { label: 'OOS Rooms', value: 5, sub: 'Out of Service', color: 'bg-slate-500', icon: AlertTriangle },
-    { label: 'Asset Health', value: '94%', sub: 'Good', color: 'bg-blue-500', icon: Heart },
-    { label: 'Active Techs', value: 6, sub: 'In field', color: 'bg-indigo-400', icon: Users },
-    { label: 'Spare Parts Req.', value: 12, sub: 'Pending', color: 'bg-amber-600', icon: Box },
-    { label: 'Utility Cost', value: '$1,240', sub: 'Today', color: 'bg-purple-500', icon: DollarSign },
-    { label: 'Maintenance Cost', value: '$14,2k', sub: 'This Month', color: 'bg-emerald-600', icon: DollarSign },
-    { label: 'Downtime Hours', value: '20.2h', sub: 'Across Assets', color: 'bg-rose-400', icon: Clock },
+    { label: 'Overdue Work Orders', value: 3, sub: 'Requires attention', color: 'bg-rose-500', icon: AlertTriangle },
+    { label: 'Emergency Requests', value: 4, sub: 'Critical Action', color: 'bg-rose-600', icon: AlertTriangle },
+    { label: 'PM Due Today', value: 7, sub: '2 Overdue', color: 'bg-amber-500', icon: Wrench },
+    { label: 'Equipment Downtime', value: '20.2h', sub: 'Across Assets', color: 'bg-rose-400', icon: Clock },
+    { label: 'Room Out of Order', value: 2, sub: 'Maintenance', color: 'bg-rose-600', icon: AlertTriangle },
+    { label: 'Room Out of Service', value: 5, sub: 'Renovation', color: 'bg-slate-500', icon: AlertTriangle },
+    { label: 'Asset Availability', value: '94%', sub: 'Good', color: 'bg-blue-500', icon: Heart },
+    { label: 'Tech Utilization', value: '87%', sub: '6 Active', color: 'bg-indigo-400', icon: Users },
+    { label: 'Utility Consumption', value: '1,240', sub: 'Units Today', color: 'bg-purple-500', icon: Droplets },
+    { label: 'Energy Cost Trend', value: '+12%', sub: 'This Month', color: 'bg-emerald-600', icon: TrendingUp },
   ];
 
   const workOrderStatusData = [
-    { name: 'Pending', value: 5, color: '#94a3b8' },
-    { name: 'Assigned', value: 4, color: '#6366f1' },
-    { name: 'In Progress', value: 3, color: '#3b82f6' },
-    { name: 'Parts Req.', value: 2, color: '#f59e0b' },
+    { name: 'Draft', value: 2, color: '#94a3b8' },
+    { name: 'Submitted', value: 3, color: '#6366f1' },
+    { name: 'Approved', value: 2, color: '#3b82f6' },
+    { name: 'Assigned', value: 3, color: '#8b5cf6' },
+    { name: 'In Progress', value: 2, color: '#f59e0b' },
+    { name: 'Waiting Parts', value: 1, color: '#f97316' },
+    { name: 'Waiting Vendor', value: 1, color: '#ef4444' },
+  ];
+
+  // Alerts per specification
+  const alerts = [
+    { type: 'Critical Equipment Failure', message: 'Generator 01 - Overheating detected', time: '10:45 AM', icon: Flame, color: 'bg-rose-500' },
+    { type: 'Safety Incident', message: 'Chemical spill in maintenance bay', time: '09:30 AM', icon: ShieldAlert, color: 'bg-amber-500' },
+    { type: 'Fire System Fault', message: 'Zone B smoke detector malfunction', time: '08:15 AM', icon: Radio, color: 'bg-rose-600' },
+    { type: 'Generator Alarm', message: 'Fuel level below 20%', time: '07:00 AM', icon: Gauge, color: 'bg-amber-600' },
+    { type: 'HVAC Alarm', message: 'Chiller unit 2 pressure warning', time: '06:30 AM', icon: Thermometer, color: 'bg-amber-500' },
+    { type: 'Water Leak', message: 'Pipe leak in boiler room', time: 'Yesterday', icon: Droplets, color: 'bg-blue-500' },
+    { type: 'Low Spare Parts Stock', message: 'Motor filters - 3 units remaining', time: 'Yesterday', icon: Package, color: 'bg-amber-500' },
+    { type: 'Compliance Inspection Due', message: 'Elevator annual inspection overdue', time: '2 days ago', icon: FileCheck, color: 'bg-rose-500' },
   ];
 
   const productivityData = [
@@ -117,6 +142,35 @@ const EngineeringDashboard: React.FC = () => {
             </div>
           );
         })}
+      </div>
+
+      {/* Alerts Section */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl shadow-3xs p-5">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-2">
+            <Bell size={18} className="text-rose-500" />
+            <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white">Active Alerts</h3>
+            <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400 rounded-full text-[10px] font-black">{alerts.length}</span>
+          </div>
+          <button className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">View All</button>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+          {alerts.slice(0, 8).map((alert, i) => {
+            const Icon = alert.icon;
+            return (
+              <div key={i} className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-850 rounded-2xl border border-slate-100 dark:border-slate-800">
+                <div className={`p-2 rounded-xl ${alert.color} text-white shrink-0`}>
+                  <Icon size={12} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block">{alert.type}</span>
+                  <p className="text-[10px] font-bold text-slate-900 dark:text-white truncate">{alert.message}</p>
+                  <span className="text-[8px] text-slate-500 font-medium">{alert.time}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -201,8 +255,40 @@ const EngineeringDashboard: React.FC = () => {
                    ))}
                 </div>
              </div>
+
+             <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-3xs">
+                <h3 className="text-sm font-sans font-extrabold text-slate-900 dark:text-white mb-4">Preventive Maintenance Compliance</h3>
+                <div className="space-y-4">
+                   <div className="flex justify-between items-end mb-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Overall Compliance</span>
+                      <span className="text-xl font-black text-slate-900 dark:text-white leading-none">88%</span>
+                   </div>
+                   <div className="w-full h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-indigo-600 rounded-full" style={{ width: '88%' }} />
+                   </div>
+                  
+                  <div className="pt-4 space-y-3">
+                     {[
+                       { label: 'HVAC Servicing', due: 12, completed: 11 },
+                       { label: 'Generator Testing', due: 4, completed: 4 },
+                       { label: 'Elevator Inspection', due: 2, completed: 1 },
+                       { label: 'Fire Alarm Testing', due: 8, completed: 7 },
+                     ].map((pm, i) => (
+                       <div key={i} className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300">{pm.label}</span>
+                          <div className="flex items-center gap-2">
+                             <span className="text-[10px] font-black text-slate-400">{pm.completed}/{pm.due}</span>
+                             <div className="w-16 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${(pm.completed / pm.due) * 100}%` }} />
+                             </div>
+                          </div>
+                       </div>
+                     ))}
+                  </div>
+                </div>
+             </div>
+             </div>
           </div>
-        </div>
 
         {/* Utility Monitoring and Heat Map */}
         <div className="lg:col-span-4 space-y-6">

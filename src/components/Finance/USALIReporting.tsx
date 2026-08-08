@@ -112,7 +112,7 @@ export default function USALIReporting() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <input
               type="date"
               value={selectedDate}
@@ -121,7 +121,7 @@ export default function USALIReporting() {
             />
             <Calendar size={16} className="text-slate-400 mr-2" />
           </div>
-          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all">
+          <button className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all">
             <Download size={14} />
             Export
           </button>
@@ -132,7 +132,7 @@ export default function USALIReporting() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white">
+            <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center text-white">
               <TrendingUp size={24} />
             </div>
             <span className="text-xs font-mono text-green-500 font-bold">+12.5%</span>
@@ -145,7 +145,7 @@ export default function USALIReporting() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-red-500 rounded-xl flex items-center justify-center text-white">
+            <div className="w-12 h-12 bg-red-500 rounded-lg flex items-center justify-center text-white">
               <TrendingDown size={24} />
             </div>
             <span className="text-xs font-mono text-red-500 font-bold">+8.3%</span>
@@ -158,7 +158,7 @@ export default function USALIReporting() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white">
+            <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center text-white">
               <DollarSign size={24} />
             </div>
             <span className="text-xs font-mono text-blue-500 font-bold">+15.2%</span>
@@ -171,7 +171,7 @@ export default function USALIReporting() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <div className="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white">
+            <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center text-white">
               <PieChart size={24} />
             </div>
             <span className="text-xs font-mono text-purple-500 font-bold">+2.1%</span>
@@ -187,7 +187,7 @@ export default function USALIReporting() {
       <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl">
         <button
           onClick={() => setActiveTab('revenue')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${
             activeTab === 'revenue'
               ? 'bg-green-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -198,7 +198,7 @@ export default function USALIReporting() {
         </button>
         <button
           onClick={() => setActiveTab('cost')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${
             activeTab === 'cost'
               ? 'bg-red-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -209,7 +209,7 @@ export default function USALIReporting() {
         </button>
         <button
           onClick={() => setActiveTab('mappings')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${
+          className={`flex items-center gap-2 px-6 py-3 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${
             activeTab === 'mappings'
               ? 'bg-indigo-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
@@ -400,7 +400,7 @@ export default function USALIReporting() {
               Configure inventory item to USALI account code mappings for automatic revenue and cost tracking.
               This feature allows you to map specific menu items to their corresponding USALI accounts.
             </p>
-            <button className="mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all">
+            <button className="mt-6 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-black uppercase tracking-wider transition-all">
               Configure Mappings
             </button>
           </div>

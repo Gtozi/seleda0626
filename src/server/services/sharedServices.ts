@@ -62,7 +62,12 @@ export function getTypeAvailability(
   roomTypeId: string, checkInDate: string, checkOutDate: string,
   rooms: any[], reservations: any[], excludeReservationId?: string, requestedQuantity: number = 1
 ) {
-  const capacity = rooms.filter((r: any) => r.room_type_id === roomTypeId).length;
+  // Sellable capacity excludes rooms that are physically unavailable
+  // (Out of Order / Out of Service / Maintenance).
+  const UNSELLABLE_STATUSES = new Set(['Out of Order', 'Out of Service', 'Maintenance']);
+  const capacity = rooms.filter((r: any) =>
+    r.room_type_id === roomTypeId && !UNSELLABLE_STATUSES.has(r.status)
+  ).length;
   const booked = reservations.filter((res: any) =>
     res.id !== excludeReservationId &&
     res.room_type_id === roomTypeId &&
@@ -88,19 +93,36 @@ export function getRoomImageUrl(type: string): string {
 export function findAvailableRoomForReservation(
   res: any, rooms: any[], reservations: any[], excludeRoomNumbers: Set<string> = new Set()
 ): string | null {
+  // Only confirmed-consuming reservations block physical inventory;
+  // Cancelled/NoShow do not. Waitlisted bookings are overflow-tolerant
+  // except Direct Website public bookings.
+  const BLOCKING_STATUSES = new Set(['Confirmed', 'CheckedIn']);
   const unavailableRoomNumbers = new Set([
     ...reservations
       .filter((r: any) =>
         r.id !== res.id && r.room_number && r.room_type_id === res.room_type_id &&
+        (BLOCKING_STATUSES.has(r.status) ||
+         (r.status === 'Waitlisted' && r.channel === 'Direct Website')) &&
         rangesOverlap(res.check_in_date, res.check_out_date, r.check_in_date, r.check_out_date)
       )
       .map((r: any) => r.room_number),
     ...excludeRoomNumbers
   ]);
+  const UNSELLABLE_STATUSES = new Set(['Out of Order', 'Out of Service', 'Maintenance']);
   const candidates = rooms.filter((r: any) =>
-    r.room_type_id === res.room_type_id && !unavailableRoomNumbers.has(r.number)
+    r.room_type_id === res.room_type_id &&
+    !UNSELLABLE_STATUSES.has(r.status) &&
+    !unavailableRoomNumbers.has(r.number)
   );
-  return candidates.length > 0 ? candidates[0].number : null;
+  if (candidates.length === 0) return null;
+  // Prefer Vacant Clean, then by room number for deterministic assignment.
+  candidates.sort((a: any, b: any) => {
+    const aClean = a.status === 'Vacant Clean' ? 0 : 1;
+    const bClean = b.status === 'Vacant Clean' ? 0 : 1;
+    if (aClean !== bClean) return aClean - bClean;
+    return String(a.number).localeCompare(String(b.number), undefined, { numeric: true });
+  });
+  return candidates[0].number;
 }
 
 export function deriveLegacyPermissions(permissionCodes: string[]): { allowedTabs: AllowedTab[]; allowedSettings: Record<string, boolean> } {
@@ -134,6 +156,92 @@ export function deriveLegacyPermissions(permissionCodes: string[]): { allowedTab
 }
 
 export async function enrichUserWithDerivedPermissions(user: User): Promise<User> {
+  // Fallback mode: provide default permissions based on role
+  if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+    const roleToTab: Record<string, AllowedTab[]> = {
+      // Front Office
+      'frontoffice': ['frontoffice', 'settings'],
+      'front office manager': ['frontoffice', 'settings'],
+      'front_office_manager': ['frontoffice', 'settings'],
+      'fo_manager': ['frontoffice', 'settings'],
+      // Housekeeping
+      'housekeeping': ['housekeeping', 'settings'],
+      'housekeeping_manager': ['housekeeping', 'settings'],
+      'hk_manager': ['housekeeping', 'settings'],
+      // F&B
+      'f&b': ['f&b', 'settings'],
+      'fb_manager': ['f&b', 'settings'],
+      'f&b_manager': ['f&b', 'settings'],
+      'food_beverage_manager': ['f&b', 'settings'],
+      // Maintenance
+      'maintenance': ['maintenance', 'settings'],
+      'maintenance_manager': ['maintenance', 'settings'],
+      'eng_manager': ['maintenance', 'settings'],
+      'engineering_manager': ['maintenance', 'settings'],
+      // Inventory
+      'inventory': ['inventory', 'settings'],
+      'inventory_manager': ['inventory', 'settings'],
+      'stores_manager': ['inventory', 'settings'],
+      // Finance
+      'finance': ['finance', 'settings'],
+      'fin_manager': ['finance', 'settings'],
+      'finance_manager': ['finance', 'settings'],
+      'finance_controller': ['finance', 'settings'],
+      'finance_director': ['finance', 'settings'],
+      'cfo': ['finance', 'settings'],
+      'accountant': ['finance', 'settings'],
+      'auditor': ['finance', 'settings'],
+      'revenue_manager': ['finance', 'settings'],
+      'revenue': ['finance', 'settings'],
+      'guest': ['finance', 'settings'], // Accountant role
+      // HR
+      'hr': ['hr', 'settings'],
+      'hr_manager': ['hr', 'settings'],
+      'human_resources_manager': ['hr', 'settings'],
+      // Executive
+      'executive': ['executive', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'admin', 'procurement', 'operations', 'sales', 'settings'],
+      'general_manager': ['executive', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'admin', 'procurement', 'operations', 'sales', 'settings'],
+      'gm': ['executive', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'admin', 'procurement', 'operations', 'sales', 'settings'],
+      'owner': ['executive', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'admin', 'procurement', 'operations', 'sales', 'settings'],
+      // Admin
+      'admin': ['admin', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'executive', 'procurement', 'operations', 'sales', 'settings'],
+      'system_admin': ['admin', 'frontoffice', 'housekeeping', 'f&b', 'maintenance', 'inventory', 'finance', 'hr', 'executive', 'procurement', 'operations', 'sales', 'settings'],
+      // Procurement
+      'procurement': ['procurement', 'settings'],
+      'procurement_manager': ['procurement', 'settings'],
+      // Operations
+      'operations': ['operations', 'settings'],
+      'ops_manager': ['operations', 'settings'],
+      'operations_manager': ['operations', 'settings'],
+      // Sales
+      'sales': ['sales', 'settings'],
+      'sales_manager': ['sales', 'settings'],
+      'sales_director': ['sales', 'settings'],
+      // Concierge
+      'concierge': ['concierge', 'settings'],
+      'concierge_manager': ['concierge', 'settings'],
+      'guest_services_manager': ['concierge', 'settings'],
+      // Spa & Wellness
+      'spa': ['spa-wellness', 'settings'],
+      'spa_manager': ['spa-wellness', 'settings'],
+      'spa_director': ['spa-wellness', 'settings'],
+      'wellness_manager': ['spa-wellness', 'settings'],
+      // Banquet & Events
+      'banquet': ['frontoffice', 'settings'],
+      // Transportation
+      'transportation': ['operations', 'settings'],
+      // Security
+      'security_manager': ['operations', 'settings'],
+      // Member roles (guest-facing)
+      'member': ['settings'],
+    };
+    return { 
+      ...user, 
+      allowedTabs: roleToTab[user.role] || ['settings'], 
+      allowedSettings: { ...(user.allowedSettings || {}) } 
+    };
+  }
+
   // If user has a custom role, derive allowedTabs from the role's module_access + permissions
   if (user.customRoleId && hasSupabaseAdminConfig && supabaseAdmin) {
     try {
@@ -226,10 +334,73 @@ export async function enrichUserWithDerivedPermissions(user: User): Promise<User
     return { ...user, allowedTabs: ['executive', 'settings'] as AllowedTab[], allowedSettings: { ...(user.allowedSettings || {}) } };
   }
   const roleToTab: Record<string, AllowedTab[]> = {
-    'frontoffice': ['frontoffice'], 'housekeeping': ['housekeeping'],
-    'f&b': ['f&b'], 'maintenance': ['maintenance'],
-    'inventory': ['inventory'], 'finance': ['finance'],
-    'hr': ['hr'], 'procurement': ['procurement'], 'sales': ['sales'],
+    // Front Office
+    'frontoffice': ['frontoffice', 'settings'],
+    'front office manager': ['frontoffice', 'settings'],
+    'front_office_manager': ['frontoffice', 'settings'],
+    'fo_manager': ['frontoffice', 'settings'],
+    // Housekeeping
+    'housekeeping': ['housekeeping', 'settings'],
+    'housekeeping_manager': ['housekeeping', 'settings'],
+    'hk_manager': ['housekeeping', 'settings'],
+    // F&B
+    'f&b': ['f&b', 'settings'],
+    'fb_manager': ['f&b', 'settings'],
+    'f&b_manager': ['f&b', 'settings'],
+    'food_beverage_manager': ['f&b', 'settings'],
+    // Maintenance
+    'maintenance': ['maintenance', 'settings'],
+    'maintenance_manager': ['maintenance', 'settings'],
+    'eng_manager': ['maintenance', 'settings'],
+    'engineering_manager': ['maintenance', 'settings'],
+    // Inventory
+    'inventory': ['inventory', 'settings'],
+    'inventory_manager': ['inventory', 'settings'],
+    'stores_manager': ['inventory', 'settings'],
+    // Finance
+    'finance': ['finance', 'settings'],
+    'fin_manager': ['finance', 'settings'],
+    'finance_manager': ['finance', 'settings'],
+    'finance_controller': ['finance', 'settings'],
+    'finance_director': ['finance', 'settings'],
+    'cfo': ['finance', 'settings'],
+    'accountant': ['finance', 'settings'],
+    'auditor': ['finance', 'settings'],
+    'revenue_manager': ['finance', 'settings'],
+    'revenue': ['finance', 'settings'],
+    'guest': ['finance', 'settings'], // Accountant role
+    // HR
+    'hr': ['hr', 'settings'],
+    'hr_manager': ['hr', 'settings'],
+    'human_resources_manager': ['hr', 'settings'],
+    // Procurement
+    'procurement': ['procurement', 'settings'],
+    'procurement_manager': ['procurement', 'settings'],
+    // Operations
+    'operations': ['operations', 'settings'],
+    'ops_manager': ['operations', 'settings'],
+    'operations_manager': ['operations', 'settings'],
+    // Sales
+    'sales': ['sales', 'settings'],
+    'sales_manager': ['sales', 'settings'],
+    'sales_director': ['sales', 'settings'],
+    // Concierge
+    'concierge': ['concierge', 'settings'],
+    'concierge_manager': ['concierge', 'settings'],
+    'guest_services_manager': ['concierge', 'settings'],
+    // Spa & Wellness
+    'spa': ['spa-wellness', 'settings'],
+    'spa_manager': ['spa-wellness', 'settings'],
+    'spa_director': ['spa-wellness', 'settings'],
+    'wellness_manager': ['spa-wellness', 'settings'],
+    // Banquet & Events
+    'banquet': ['frontoffice', 'settings'],
+    // Transportation
+    'transportation': ['operations', 'settings'],
+    // Security
+    'security_manager': ['operations', 'settings'],
+    // Member roles (guest-facing)
+    'member': ['settings'],
   };
   if (roleToTab[user.role]) {
     return { ...user, allowedTabs: roleToTab[user.role], allowedSettings: { ...(user.allowedSettings || {}) } };
@@ -339,3 +510,75 @@ export function mapSystemUserFromDb(db: any): User {
 }
 
 export { hasSupabaseAdminConfig, supabaseAdmin };
+
+// ─── Public booking helpers ──────────────────────────────────────────────
+
+/**
+ * Auto-assign rooms for public booking reservations.
+ * Extracted from server.ts (Phase 1 of route-driven migration).
+ * Best-effort: persists room assignments but does not fail the booking on error.
+ */
+export async function autoAssignRoomsForPublicBookings(
+  reservationIds: string[],
+  supabaseClient: any,
+  checkIn?: string,
+  checkOut?: string
+): Promise<Record<string, string>> {
+  let roomsList: any[];
+  let reservationsList: any[];
+
+  if (checkIn && checkOut) {
+    const { data: overlapping } = await supabaseClient.from('reservations')
+      .select('*')
+      .lte('check_in_date', checkOut)
+      .gte('check_out_date', checkIn);
+    const { data: requested } = await supabaseClient.from('reservations')
+      .select('*')
+      .in('id', reservationIds);
+    const merged = new Map<string, any>();
+    for (const r of (overlapping || [])) merged.set(r.id, r);
+    for (const r of (requested || [])) merged.set(r.id, r);
+    reservationsList = Array.from(merged.values());
+    const { data: rooms } = await supabaseClient.from('rooms').select('*');
+    roomsList = rooms || [];
+  } else {
+    const [{ data: rooms }, { data: reservations }] = await Promise.all([
+      supabaseClient.from('rooms').select('*'),
+      supabaseClient.from('reservations').select('*').in('id', reservationIds)
+    ]);
+    roomsList = rooms || [];
+    reservationsList = reservations || [];
+  }
+  const assignedRooms: Record<string, string> = {};
+  const assignedRoomNumbers = new Set<string>();
+
+  for (const id of reservationIds) {
+    const res = reservationsList.find((r: any) => r.id === id);
+    if (!res) continue;
+
+    if (res.room_number) {
+      assignedRooms[id] = res.room_number;
+      assignedRoomNumbers.add(res.room_number);
+      continue;
+    }
+
+    const roomNumber = findAvailableRoomForReservation(res, roomsList, reservationsList, assignedRoomNumbers);
+    if (roomNumber) {
+      assignedRooms[id] = roomNumber;
+      assignedRoomNumbers.add(roomNumber);
+    }
+  }
+
+  for (const [id, roomNumber] of Object.entries(assignedRooms)) {
+    try {
+      const { error } = await supabaseClient.from('reservations').update({ room_number: roomNumber }).eq('id', id);
+      if (error) {
+        console.error(`Failed to assign room ${roomNumber} to reservation ${id}:`, error);
+      }
+    } catch (e) {
+      console.error(`Error assigning room to reservation ${id}:`, e);
+    }
+  }
+
+  return assignedRooms;
+}

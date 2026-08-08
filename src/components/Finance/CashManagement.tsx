@@ -108,7 +108,7 @@ const CashManagement = () => {
           { label: 'Monthly Velocity', value: 'High', sub: 'Audit Level: Active', icon: RefreshCcw, color: 'text-amber-600' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
-            <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -125,7 +125,7 @@ const CashManagement = () => {
                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-tight">Financial Institution Linkages</h3>
                <button 
                  onClick={() => setShowAddModal(true)}
-                 className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition"
+                 className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition"
                >
                   <Plus size={14} />
                   Link Account
@@ -162,7 +162,7 @@ const CashManagement = () => {
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Functional Balance</span>
                             <span className="text-2xl font-black text-slate-900 dark:text-white font-mono">{formatAmount(acc.balance || 0)}</span>
                          </div>
-                         <button className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-xl hover:text-indigo-600 transition-colors">
+                         <button className="p-2 bg-slate-50 dark:bg-slate-800 text-slate-400 rounded-lg hover:text-indigo-600 transition-colors">
                             <Download size={18} />
                          </button>
                       </div>

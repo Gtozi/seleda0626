@@ -12,7 +12,16 @@ import {
   Briefcase,
   ChevronRight,
   Bell,
-  Search
+  Search,
+  Building2,
+  UserCheck,
+  DollarSign,
+  TrendingUp,
+  Heart,
+  MessageSquare,
+  FolderOpen,
+  FileText,
+  Settings
 } from 'lucide-react';
 import HRDashboard from './HRDashboard';
 import EmployeeDirectory from './EmployeeDirectory';
@@ -22,8 +31,22 @@ import LeaveManagement from './LeaveManagement';
 import PerformanceManagement from './PerformanceManagement';
 import TrainingDevelopment from './TrainingDevelopment';
 import RecruitmentFlow from './RecruitmentFlow';
-import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
-import { StandardHRReports } from './StandardHRReports';
+import OrganizationManagement from './OrganizationManagement';
+import EmployeeSelfService from './EmployeeSelfService';
+import ManagerSelfService from './ManagerSelfService';
+import ShiftRostering from './ShiftRostering';
+import TimeOvertime from './TimeOvertime';
+import CompensationBenefits from './CompensationBenefits';
+import CareerSuccession from './CareerSuccession';
+import HealthSafety from './HealthSafety';
+import EmployeeRelations from './EmployeeRelations';
+import DocumentManagement from './DocumentManagement';
+import WorkflowApprovals from './WorkflowApprovals';
+import ReportsAnalytics from './ReportsAnalytics';
+import HRConfiguration from './HRConfiguration';
+import Onboarding from './Onboarding';
+import ApplicantTracking from './ApplicantTracking';
+import LearningDevelopment from './LearningDevelopment';
 
 const HumanResourcesPortal = ({ activeModule = 'dashboard' }: { activeModule?: string }) => {
 
@@ -31,15 +54,29 @@ const HumanResourcesPortal = ({ activeModule = 'dashboard' }: { activeModule?: s
     <div className="flex flex-col h-full font-sans">
       <div className="flex-1 min-w-0 px-1">
         {activeModule === 'dashboard' && <HRDashboard />}
+        {activeModule === 'organization' && <OrganizationManagement />}
         {activeModule === 'employees' && <EmployeeDirectory />}
-        {activeModule === 'attendance' && <AttendanceManagement />}
-        {activeModule === 'payroll' && <PayrollEngine />}
-        {activeModule === 'leave' && <LeaveManagement />}
-        {activeModule === 'performance' && <PerformanceManagement />}
-        {activeModule === 'training' && <TrainingDevelopment />}
         {activeModule === 'recruitment' && <RecruitmentFlow />}
-        {activeModule === 'reports' && <DepartmentReportsModule departmentName="HR" />}
-        {activeModule === 'standard-reports' && <StandardHRReports />}
+        {activeModule === 'ats' && <ApplicantTracking />}
+        {activeModule === 'onboarding' && <Onboarding />}
+        {activeModule === 'ess' && <EmployeeSelfService />}
+        {activeModule === 'mss' && <ManagerSelfService />}
+        {activeModule === 'attendance' && <AttendanceManagement />}
+        {activeModule === 'shifts' && <ShiftRostering />}
+        {activeModule === 'leave' && <LeaveManagement />}
+        {activeModule === 'overtime' && <TimeOvertime />}
+        {activeModule === 'payroll' && <PayrollEngine />}
+        {activeModule === 'compensation' && <CompensationBenefits />}
+        {activeModule === 'performance' && <PerformanceManagement />}
+        {activeModule === 'learning' && <LearningDevelopment />}
+        {activeModule === 'training' && <TrainingDevelopment />}
+        {activeModule === 'career' && <CareerSuccession />}
+        {activeModule === 'health' && <HealthSafety />}
+        {activeModule === 'relations' && <EmployeeRelations />}
+        {activeModule === 'documents' && <DocumentManagement />}
+        {activeModule === 'workflow' && <WorkflowApprovals />}
+        {activeModule === 'analytics' && <ReportsAnalytics />}
+        {activeModule === 'configuration' && <HRConfiguration />}
       </div>
     </div>
   );

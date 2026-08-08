@@ -72,11 +72,22 @@ interface GuestSegment {
 const BusinessIntelligenceDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
-  const [kpis, setKpis] = useState<KPI[]>([]);
+  
+  // Default KPIs with zero values
+  const defaultKpis: KPI[] = [
+    { label: 'Total Revenue', value: 0, change: 0, changeType: 'positive', icon: 'DollarSign', format: 'currency' },
+    { label: 'Occupancy Rate', value: 0, change: 0, changeType: 'positive', icon: 'Users', format: 'percentage' },
+    { label: 'Average ADR', value: 0, change: 0, changeType: 'positive', icon: 'TrendingUp', format: 'currency' },
+    { label: 'RevPAR', value: 0, change: 0, changeType: 'positive', icon: 'BarChart3', format: 'currency' },
+  ];
+  
+  const [kpis, setKpis] = useState<KPI[]>(defaultKpis);
   const [revenueData, setRevenueData] = useState<RevenueData[]>([]);
   const [occupancyData, setOccupancyData] = useState<OccupancyData[]>([]);
   const [channelPerformance, setChannelPerformance] = useState<ChannelPerformance[]>([]);
   const [guestSegments, setGuestSegments] = useState<GuestSegment[]>([]);
+  const [showChannelFilter, setShowChannelFilter] = useState(false);
+  const [showSegmentFilter, setShowSegmentFilter] = useState(false);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -84,11 +95,16 @@ const BusinessIntelligenceDashboard = () => {
       const res = await fetch(`/api/front-office/bi/dashboard?range=${dateRange}`);
       if (res.ok) {
         const data = await res.json();
-        setKpis(data.kpis);
-        setRevenueData(data.revenue);
-        setOccupancyData(data.occupancy);
-        setChannelPerformance(data.channels);
-        setGuestSegments(data.segments);
+        // Use API data if available, otherwise keep default zero values
+        if (data.kpis && data.kpis.length > 0) {
+          setKpis(data.kpis);
+        }
+        setRevenueData(data.revenue || []);
+        setOccupancyData(data.occupancy || []);
+        setChannelPerformance(data.channels || []);
+        setGuestSegments(data.segments || []);
+      } else {
+        console.error('BI Dashboard endpoint returned:', res.status);
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
@@ -139,6 +155,33 @@ const BusinessIntelligenceDashboard = () => {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const res = await fetch(`/api/front-office/bi/dashboard/export?range=${dateRange}&format=csv`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `bi-dashboard-${dateRange}-${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      }
+    } catch (error) {
+      console.error('Failed to export dashboard data:', error);
+    }
+  };
+
+  const handleChannelFilter = () => {
+    setShowChannelFilter(!showChannelFilter);
+  };
+
+  const handleSegmentFilter = () => {
+    setShowSegmentFilter(!showSegmentFilter);
+  };
+
   return (
     <div className="p-6 space-y-6 bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen">
       {/* Header */}
@@ -166,14 +209,25 @@ const BusinessIntelligenceDashboard = () => {
             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
             Refresh
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg">
+          <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg">
             <Download size={16} />
             Export
           </button>
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+          <span className="ml-3 text-gray-600">Loading dashboard data...</span>
+        </div>
+      )}
+
+      {/* Dashboard Content */}
+      {!loading && (
+        <>
+          {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {kpis.map((kpi, index) => (
           <div 
@@ -333,7 +387,7 @@ const BusinessIntelligenceDashboard = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold text-slate-900">Channel Performance</h3>
-          <button className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
+          <button onClick={handleChannelFilter} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
             <Filter size={16} />
             Filter
           </button>
@@ -393,7 +447,7 @@ const BusinessIntelligenceDashboard = () => {
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <h3 className="font-semibold text-slate-900">Guest Segments</h3>
-          <button className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
+          <button onClick={handleSegmentFilter} className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700">
             <Filter size={16} />
             Filter
           </button>
@@ -431,6 +485,48 @@ const BusinessIntelligenceDashboard = () => {
         </div>
       </div>
 
+      {/* Channel Filter Modal */}
+      {showChannelFilter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Filter Channels</h3>
+            <div className="space-y-3 mb-4">
+              {['Direct', 'Booking.com', 'Expedia', 'Airbnb', 'Other'].map(channel => (
+                <label key={channel} className="flex items-center gap-2">
+                  <input type="checkbox" defaultChecked className="rounded" />
+                  <span>{channel}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowChannelFilter(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={() => setShowChannelFilter(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Segment Filter Modal */}
+      {showSegmentFilter && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Filter Guest Segments</h3>
+            <div className="space-y-3 mb-4">
+              {['Leisure', 'Business', 'Groups', 'VIP'].map(segment => (
+                <label key={segment} className="flex items-center gap-2">
+                  <input type="checkbox" defaultChecked className="rounded" />
+                  <span>{segment}</span>
+                </label>
+              ))}
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowSegmentFilter(false)} className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+              <button onClick={() => setShowSegmentFilter(false)} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Insights */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 animate-in fade-in slide-in-from-bottom-4">
         <div className="flex items-start gap-4">
@@ -459,7 +555,8 @@ const BusinessIntelligenceDashboard = () => {
             </ul>
           </div>
         </div>
-      </div>
+      </>
+      )}
     </div>
   );
 };

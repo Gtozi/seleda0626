@@ -52,7 +52,7 @@ function ReportDetail({ reportId, reportTitle, data, onBack }: {
         Back to Reports
       </button>
 
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm print-area">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-tight">{reportTitle}</h3>

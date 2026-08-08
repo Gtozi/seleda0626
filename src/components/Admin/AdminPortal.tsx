@@ -1,7 +1,7 @@
 import React from 'react';
 import { resolveAdminModule } from './adminModules';
 
-const AdminPortal = ({ activeModule = 'user_security' }: { activeModule?: string }) => {
+const AdminPortal = ({ activeModule = 'executive_dashboard' }: { activeModule?: string }) => {
   const config = resolveAdminModule(activeModule);
   const Component = config.component;
   return <Component />;

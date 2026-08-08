@@ -692,7 +692,7 @@ const ReceivingModule: React.FC = () => {
         size="xl"
         showFooter={false}
       >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 print-area">
               <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-100 dark:border-slate-800">
                 <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest">GRN Number</span>
                 <span className="block text-sm font-black text-slate-900 dark:text-white font-mono">{selectedGrn.number}</span>
@@ -739,7 +739,7 @@ const ReceivingModule: React.FC = () => {
               <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Total Receipt Value</span>
               <span className="text-lg font-black text-emerald-600">${selectedGrn.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 no-print">
               <button onClick={() => setShowGrnDetail(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
               <button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center gap-2"><Printer size={14} /> Print GRN</button>
             </div>

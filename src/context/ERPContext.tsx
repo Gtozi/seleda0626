@@ -36,6 +36,8 @@ export interface ERPContextType {
   rooms: Room[];
   roomTypes: RoomTypeDetail[];
   guests: Guest[];
+  guestsLoading: boolean;
+  guestsError: string | null;
   reservations: Reservation[];
   groupBookings: GroupBooking[];
   corporateAccounts: CorporateAccount[];
@@ -67,15 +69,16 @@ export interface ERPContextType {
   addSaleTransaction: (transaction: Omit<GlobalSaleTransaction, 'id'>) => string;
   updateSaleTransactionStatus: (id: string, status: 'Completed' | 'Voided' | 'Pending') => void;
   addReservation: (reservation: Omit<Reservation, 'id'>) => string;
-  updateReservation: (id: string, updates: Partial<Reservation>) => void;
+  updateReservation: (id: string, updates: Partial<Reservation>) => Promise<void>;
   updateReservationStatus: (id: string, status: ReservationStatus) => void;
   updateDepositStatus: (id: string, isPaid: boolean) => void;
-  assignRoomToReservation: (id: string, roomNumber: string) => void;
+  assignRoomToReservation: (id: string, roomNumber: string) => Promise<void>;
   changeRoom: (id: string, newRoomNumber: string) => Promise<void>;
   promoteFromWaitlist: (id: string) => void;
   autoAssignRoom: (reservationId: string, excludeRoomNumbers?: Set<string>) => string | null;
   checkInReservation: (id: string, roomNumber?: string) => Promise<void>;
   checkInGroupBooking: (groupId: string) => Promise<void>;
+  checkOutGroupBooking: (groupId: string) => Promise<void>;
   checkOutReservation: (id: string) => void;
   cancelReservation: (id: string, reason?: string) => Promise<void>;
   markNoShow: (id: string) => Promise<void>;
@@ -379,7 +382,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
       }
     }
     try {
-      const response = await fetch(`/api/reservations/${id}/check-in`, {
+      const response = await fetch(`/api/${id}/check-in`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -391,7 +394,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
         return;
       }
       reservation.updateReservationStatus(id, 'CheckedIn');
-      reservation.updateReservation(id, { roomNumber });
+      await reservation.updateReservation(id, { roomNumber });
       reservation.setRoomStatus(roomNumber, 'Occupied Clean');
     } catch (error) {
       system.logAudit(`Check-in network error for reservation ${id}: ${String(error)}`);
@@ -426,7 +429,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
         }
       }
       try {
-        const response = await fetch(`/api/reservations/${res.id}/check-in`, {
+        const response = await fetch(`/api/${res.id}/check-in`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
@@ -438,7 +441,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
           continue;
         }
         reservation.updateReservationStatus(res.id, 'CheckedIn');
-        reservation.updateReservation(res.id, { roomNumber });
+        await reservation.updateReservation(res.id, { roomNumber });
         reservation.setRoomStatus(roomNumber, 'Occupied Clean');
       } catch (error) {
         system.logAudit(`Group check-in network error for reservation ${res.id}: ${String(error)}`);
@@ -510,6 +513,29 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     }
   }, [reservation, system, guest]);
 
+  const checkOutGroupBookingCb = useCallback(async (groupId: string) => {
+    const group = reservation.groupBookings.find(g => g.id === groupId);
+    if (!group) return;
+    const groupReservations = reservation.reservations.filter(
+      r => (r.groupBookingId === groupId || r.bookingGroupId === groupId) && r.status === 'CheckedIn'
+    );
+    if (groupReservations.length === 0) {
+      system.logAudit(`Group check-out skipped for ${groupId}: no checked-in reservations found.`);
+      return;
+    }
+    let checkedOutCount = 0;
+    for (const res of groupReservations) {
+      try {
+        await checkOutReservationCb(res.id);
+        checkedOutCount++;
+      } catch (error) {
+        system.logAudit(`Group check-out failed for reservation ${res.id}: ${String(error)}`);
+      }
+    }
+    await reservation.updateGroupBookingStatus(groupId, 'Completed');
+    system.logAudit(`Group booking ${groupId} (${group.groupName}) checked out. ${checkedOutCount} of ${groupReservations.length} reservation(s) processed.`);
+  }, [reservation, system, checkOutReservationCb]);
+
   const cancelReservationCb = useCallback(async (id: string, reason?: string) => {
     const res = reservation.reservations.find(r => r.id === id);
     if (!res) {
@@ -517,7 +543,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
       return;
     }
     try {
-      const response = await fetch(`/api/reservations/${id}/cancel`, {
+      const response = await fetch(`/api/${id}/cancel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -550,7 +576,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
       return;
     }
     try {
-      const response = await fetch(`/api/reservations/${id}/no-show`, {
+      const response = await fetch(`/api/${id}/no-show`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -610,6 +636,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     autoAssignRoom,
     checkInReservation: checkInReservationCb,
     checkInGroupBooking: checkInGroupBookingCb,
+    checkOutGroupBooking: checkOutGroupBookingCb,
     checkOutReservation: checkOutReservationCb,
     cancelReservation: cancelReservationCb,
     markNoShow: markNoShowCb,
@@ -620,7 +647,7 @@ const ERPContextWrapper: React.FC<{ children: React.ReactNode }> = ({ children }
     riskCompliance, runNightAudit, refreshAllData,
     approveAdminChangeCb, formatAmountCb, formatTaxesAndFeesCb,
     autoAssignRoom, checkInReservationCb, checkInGroupBookingCb,
-    checkOutReservationCb, cancelReservationCb, markNoShowCb, requestEarlyCheckOutCb, requestLateCheckOutCb,
+    checkOutGroupBookingCb, checkOutReservationCb, cancelReservationCb, markNoShowCb, requestEarlyCheckOutCb, requestLateCheckOutCb,
   ]);
 
   return (

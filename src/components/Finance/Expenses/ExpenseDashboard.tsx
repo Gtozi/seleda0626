@@ -60,7 +60,7 @@ const ExpenseDashboard = () => {
         {kpis.map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
             <div className="flex justify-between items-start mb-4">
-              <div className={`p-2 rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color}`}>
+              <div className={`p-2 rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color}`}>
                 <stat.icon size={18} />
               </div>
               <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black ${stat.isUp ? 'text-emerald-500 bg-emerald-50' : 'text-rose-500 bg-rose-50'}`}>
@@ -82,7 +82,7 @@ const ExpenseDashboard = () => {
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Strategic Expense Velocity</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Operational Spend vs Budget Allocation</p>
             </div>
-            <select className="bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-[10px] font-black uppercase tracking-tight text-slate-600 px-4 py-2">
+            <select className="bg-slate-50 dark:bg-slate-800 border-none rounded-lg text-[10px] font-black uppercase tracking-tight text-slate-600 px-4 py-2">
               <option>Last 6 Months</option>
               <option>Full Year</option>
             </select>
@@ -137,7 +137,7 @@ const ExpenseDashboard = () => {
           </div>
           <div className="space-y-3 mt-6">
             {categoryData.slice(0, 3).map((cat, i) => (
-              <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/20 p-2 rounded-xl">
+              <div key={i} className="flex justify-between items-center bg-slate-50 dark:bg-slate-950/20 p-2 rounded-lg">
                  <div className="flex items-center gap-2">
                     <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: COLORS[i] }} />
                     <span className="text-[10px] font-black text-slate-500 uppercase tracking-tight">{cat.name}</span>

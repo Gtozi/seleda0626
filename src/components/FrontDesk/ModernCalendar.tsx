@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -102,7 +102,10 @@ export default function ModernCalendar({
   };
 
   // Distribute unassigned reservations (group bookings without specific rooms) across
-  // available rooms of the same type so they all appear in the calendar grid
+  // available rooms of the same type so they all appear in the calendar grid.
+  // NOTE: This is a display-only mapping — it does NOT reflect a real room
+  // assignment. Callers that render these blocks must visually mark them as
+  // unassigned (dashed border + badge) so staff don't mistake them for real holds.
   const unassignedRoomMap = useMemo(() => {
     const map = new Map<string, string>();
     const roomsByType = new Map<string, Room[]>();
@@ -124,6 +127,13 @@ export default function ModernCalendar({
 
     return map;
   }, [rooms, reservations]);
+
+  // True when a reservation is being shown on a room column purely via the
+  // display-only unassignedRoomMap (i.e. it has no real roomNumber). These
+  // blocks are pseudo-placements and must be visually distinguished.
+  const isPseudoAssigned = (res: Reservation): boolean => {
+    return !res.roomNumber && unassignedRoomMap.has(res.id);
+  };
 
   // Generate date range based on view mode
   const dateRange = useMemo(() => {
@@ -376,12 +386,12 @@ export default function ModernCalendar({
   const gridCols = viewMode === 'day' ? 'grid-cols-2' : viewMode === 'week' ? 'grid-cols-8' : 'grid-cols-8';
 
   return (
-    <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-lg space-y-6">
+    <div className="bg-white border border-slate-200/80 rounded-xl p-6 shadow-lg space-y-6">
       {/* Header Controls */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h3 className="text-lg font-sans font-black text-slate-900 tracking-tight flex items-center gap-2">
-            <CalendarIcon className="text-amber-500" size={20} />
+            <CalendarIcon className="text-indigo-500" size={20} />
             Rooms Outlook Timeline
           </h3>
           <p className="text-xs text-slate-500 font-sans mt-1">
@@ -435,9 +445,9 @@ export default function ModernCalendar({
           </div>
 
           {/* Date Display */}
-          <div className="flex items-center gap-2 bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200 rounded-xl px-4 py-2">
-            <CalendarIcon size={14} className="text-amber-600" />
-            <span className="text-sm font-bold text-amber-900 font-sans">
+          <div className="flex items-center gap-2 bg-gradient-to-r from-indigo-50 to-indigo-100 border border-indigo-200 rounded-xl px-4 py-2">
+            <CalendarIcon size={14} className="text-indigo-600" />
+            <span className="text-sm font-bold text-indigo-900 font-sans">
               {format(selectedDate, viewMode === 'month' ? 'MMMM yyyy' : 'MMMM d, yyyy')}
             </span>
           </div>
@@ -496,13 +506,13 @@ export default function ModernCalendar({
                 <div
                   key={idx}
                   className={`py-3 px-2 text-center border-r border-slate-200 last:border-r-0 ${
-                    isToday ? 'bg-amber-100' : ''
+                    isToday ? 'bg-indigo-100' : ''
                   } ${!isCurrentMonth && viewMode === 'month' ? 'opacity-50' : ''}`}
                 >
                   <div className="text-xs font-bold font-sans text-slate-700 dark:text-slate-300">
                     {format(date, 'EEE')}
                   </div>
-                  <div className={`text-sm font-black font-sans ${isToday ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-slate-200'}`}>
+                  <div className={`text-sm font-black font-sans ${isToday ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-900 dark:text-slate-200'}`}>
                     {format(date, 'd')}
                   </div>
                   {viewMode === 'month' && (
@@ -589,7 +599,7 @@ export default function ModernCalendar({
                         <div
                           key={idx}
                           className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1.5 flex items-center justify-center ${
-                            isToday ? 'bg-amber-50/30' : ''
+                            isToday ? 'bg-indigo-50/30' : ''
                           }`}
                         >
                           <div className="w-full h-full border border-slate-100 dark:border-slate-700/40 rounded-lg bg-gradient-to-br from-emerald-50/50 to-emerald-100/30 dark:from-emerald-900/20 dark:to-emerald-800/10 flex items-center justify-center">
@@ -618,7 +628,7 @@ export default function ModernCalendar({
                           key={idx}
                           style={{ gridColumn: `span ${block.span}` }}
                           className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1.5 flex items-center justify-center ${
-                            isToday ? 'bg-amber-50/30' : ''
+                            isToday ? 'bg-indigo-50/30' : ''
                           }`}
                         >
                           <motion.div
@@ -630,14 +640,19 @@ export default function ModernCalendar({
                             className={`w-full h-full border rounded-xl p-2 cursor-pointer shadow-sm transition-all duration-200 ${getStatusColor(reservation.status)} ${(() => {
                               const gid = getGroupId(reservation);
                               return gid ? `border-l-4 ${getGroupStyle(gid).border}` : '';
-                            })()}`}
-                            title={`${reservation.guestName} - ${reservation.status} (${block.span} night${block.span > 1 ? 's' : ''})`}
+                            })()} ${isPseudoAssigned(reservation) ? 'border-dashed border-2 opacity-70' : ''}`}
+                            title={`${reservation.guestName} - ${reservation.status} (${block.span} night${block.span > 1 ? 's' : ''})${isPseudoAssigned(reservation) ? ' [UNASSIGNED — display only]' : ''}`}
                           >
                             {(() => {
                               const gid = getGroupId(reservation);
                               const groupStyle = gid ? getGroupStyle(gid) : null;
                               return (
                                 <>
+                                  {isPseudoAssigned(reservation) && (
+                                    <div className="flex items-center gap-0.5 mb-0.5 px-1 py-0.5 rounded text-[7px] font-mono font-bold uppercase bg-slate-200/80 text-slate-600 w-fit">
+                                      <span>UNASSIGNED</span>
+                                    </div>
+                                  )}
                                   {gid && groupStyle && (
                                     <div className={`flex items-center gap-1 mb-1 px-1 py-0.5 rounded text-[8px] font-mono font-bold uppercase ${groupStyle.bg} ${groupStyle.text} w-fit`}>
                                       <Users size={8} />
@@ -666,7 +681,7 @@ export default function ModernCalendar({
                       <div
                         key={`overlap-${idx}`}
                         className={`border-r border-slate-100 last:border-r-0 min-h-[60px] p-1 flex flex-col gap-1 justify-center ${
-                          isToday ? 'bg-amber-50/30' : ''
+                          isToday ? 'bg-indigo-50/30' : ''
                         }`}
                       >
                         {activeBlocks.map(block => {
@@ -682,14 +697,19 @@ export default function ModernCalendar({
                               className={`w-full border rounded-lg px-1.5 py-1 cursor-pointer shadow-sm transition-all duration-200 ${getStatusColor(reservation.status)} ${(() => {
                                 const gid = getGroupId(reservation);
                                 return gid ? `border-l-2 ${getGroupStyle(gid).border}` : '';
-                              })()}`}
-                              title={`${reservation.guestName} - ${reservation.status}`}
+                              })()} ${isPseudoAssigned(reservation) ? 'border-dashed border-2 opacity-70' : ''}`}
+                              title={`${reservation.guestName} - ${reservation.status}${isPseudoAssigned(reservation) ? ' [UNASSIGNED — display only]' : ''}`}
                             >
                               {(() => {
                                 const gid = getGroupId(reservation);
                                 const groupStyle = gid ? getGroupStyle(gid) : null;
                                 return (
                                   <>
+                                    {isPseudoAssigned(reservation) && (
+                                      <div className="flex items-center gap-0.5 mb-0.5 px-1 py-0 rounded text-[6px] font-mono font-bold uppercase bg-slate-200/80 text-slate-600 w-fit">
+                                        <span>UNASSIGNED</span>
+                                      </div>
+                                    )}
                                     {gid && groupStyle && (
                                       <div className={`flex items-center gap-1 mb-0.5 px-1 py-0 rounded text-[7px] font-mono font-bold uppercase ${groupStyle.bg} ${groupStyle.text} w-fit`}>
                                         <Users size={7} />

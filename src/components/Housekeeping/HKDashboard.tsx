@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useERP } from '../../context/ERPContext';
 import { 
   Layers, 
@@ -12,12 +12,11 @@ import {
   Wrench, 
   User, 
   Sparkles,
-  TrendingUp,
   AlertTriangle,
   ShoppingBag,
   Info,
-  Plus,
-  Activity
+  Activity,
+  Package
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -34,23 +33,10 @@ import {
 } from 'recharts';
 import { DashboardTemplate, ChartCard, KpiGrid, type KpiTile } from '../Shared/DashboardTemplate';
 
-interface SuppliesRequest {
-  id: string;
-  item: string;
-  quantity: number;
-  requestedBy: string;
-  urgency: 'Routine' | 'Urgent' | 'Emergency';
-  status: 'Pending' | 'Approved' | 'Delivered';
-  requestedAt: string;
-}
-
 export default function HKDashboard() {
   const { 
     rooms, 
-    notifications, 
-    clearNotification, 
-    addNotification,
-    formatAmount
+    notifications
   } = useERP();
 
   // Metrics Data
@@ -111,22 +97,23 @@ export default function HKDashboard() {
   }, [notifications]);
 
   const roomKpis: KpiTile[] = [
-    { label: 'Total Rooms', value: String(hkStats.total), icon: Layers, colorClass: 'text-slate-500', bgClass: 'bg-slate-50 dark:bg-slate-800' },
-    { label: 'Occupied', value: String(hkStats.occupied), icon: User, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
-    { label: 'Vacant', value: String(hkStats.vacant), icon: Sparkles, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
-    { label: 'Dirty', value: String(hkStats.dirty), icon: Clock, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
-    { label: 'Clean', value: String(hkStats.clean), icon: CheckCheck, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Rooms Ready', value: String(hkStats.clean), icon: CheckCheck, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Dirty Rooms', value: String(hkStats.dirty), icon: Clock, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
+    { label: 'Clean Rooms', value: String(hkStats.clean), icon: Sparkles, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
     { label: 'Inspected', value: String(hkStats.inspected), icon: Activity, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
+    { label: 'Occupied', value: String(hkStats.occupied), icon: User, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
+    { label: 'Vacant', value: String(hkStats.vacant), icon: Layers, colorClass: 'text-slate-500', bgClass: 'bg-slate-50 dark:bg-slate-800' },
     { label: 'Out of Order', value: String(hkStats.ooo), icon: Wrench, colorClass: 'text-slate-500', bgClass: 'bg-slate-50 dark:bg-slate-800' },
+    { label: 'Out of Service', value: String(hkStats.maintenance), icon: AlertTriangle, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
   ];
 
   const operationalKpis: KpiTile[] = [
-    { label: 'Maintenance', value: String(hkStats.maintenance), sub: 'Under repair', icon: Wrench, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
-    { label: 'Laundry Process', value: String(hkStats.laundryInProgress), sub: 'Items in cycle', icon: Clock, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
-    { label: 'Laundry Ready', value: String(hkStats.laundryReady), sub: 'Ready for issue', icon: CheckCheck, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Cleaning Progress', value: '78%', sub: 'Daily completion', icon: Activity, colorClass: 'text-emerald-500', bgClass: 'bg-emerald-50 dark:bg-emerald-500/10' },
+    { label: 'Avg Clean Time', value: '24m', sub: 'Per room', icon: Clock, colorClass: 'text-blue-500', bgClass: 'bg-blue-50 dark:bg-blue-500/10' },
+    { label: 'Guest Requests', value: String(hkStats.tasksDue), sub: 'Outstanding', icon: Info, colorClass: 'text-amber-500', bgClass: 'bg-amber-50 dark:bg-amber-500/10' },
+    { label: 'Open Maintenance', value: String(hkStats.maintenance), sub: 'Awaiting access', icon: Wrench, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
     { label: 'Linen Stock', value: `${hkStats.linenStockLevel}%`, sub: 'Average levels', icon: ShoppingBag, colorClass: 'text-indigo-500', bgClass: 'bg-indigo-50 dark:bg-indigo-500/10' },
-    { label: 'Tasks Due', value: String(hkStats.tasksDue), sub: 'Scheduled today', icon: Activity, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
-    { label: 'Lost & Found', value: String(hkStats.lostFoundPending), sub: 'Pending claim', icon: Info, colorClass: 'text-rose-500', bgClass: 'bg-rose-50 dark:bg-rose-500/10' },
+    { label: 'Minibar Pending', value: '8', sub: 'Restock needed', icon: Package, colorClass: 'text-purple-500', bgClass: 'bg-purple-50 dark:bg-purple-500/10' },
   ];
 
   return (
@@ -206,15 +193,22 @@ export default function HKDashboard() {
 
           <div className="divide-y divide-slate-150 dark:divide-slate-800/80 max-h-48 overflow-y-auto pr-1 flex-1 mt-2">
             {[
-              { id: 'ALT-01', type: 'Delay', msg: 'Room 304 cleaning exceeds SLA (45m elapsed)', priority: 'High' },
-              { id: 'ALT-02', type: 'VIP', msg: 'VIP Penthouse 502 pending arrival in 30min', priority: 'Critical' },
-              { id: 'ALT-03', type: 'Shortage', msg: 'Linen shortage reported on Floor 4', priority: 'Medium' },
+              { id: 'ALT-01', type: 'VIP', msg: 'VIP Arrival Rooms Pending - Room 502 due in 30min', priority: 'Critical' },
+              { id: 'ALT-02', type: 'Early', msg: 'Early Arrival Priority - Room 305 checking in early', priority: 'High' },
+              { id: 'ALT-03', type: 'Delay', msg: 'Late Check-out Delay - Room 204 checkout delayed 2 hours', priority: 'Medium' },
+              { id: 'ALT-04', type: 'Inspection', msg: 'Failed Inspection - Room 102 failed bathroom inspection', priority: 'High' },
+              { id: 'ALT-05', type: 'Shortage', msg: 'Linen Shortage - Bath towels low on Floor 3', priority: 'Medium' },
+              { id: 'ALT-06', type: 'Minibar', msg: 'Minibar Pending - 8 rooms need minibar restock', priority: 'Low' },
+              { id: 'ALT-07', type: 'Deep Clean', msg: 'Deep Cleaning Due - Room 401 quarterly cleaning overdue', priority: 'Medium' },
+              { id: 'ALT-08', type: 'Maintenance', msg: 'Maintenance Awaiting Access - Room 306 ready for engineering', priority: 'High' },
               ...housekeepingAlerts.map(n => ({ id: n.id, type: 'Guest', msg: n.message, priority: 'High' }))
             ].map(alert => (
               <div key={alert.id} className="py-2.5 space-y-1.5">
                 <div className="flex justify-between items-center text-[8px] font-mono">
                   <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase ${
-                    alert.priority === 'Critical' ? 'bg-red-500 text-white' : 'bg-amber-500/10 text-amber-700'
+                    alert.priority === 'Critical' ? 'bg-red-500 text-white' : 
+                    alert.priority === 'High' ? 'bg-orange-500 text-white' : 
+                    'bg-amber-500/10 text-amber-700'
                   }`}>{alert.type} ALERT</span>
                   <span className="text-slate-400 font-bold">LIVE</span>
                 </div>

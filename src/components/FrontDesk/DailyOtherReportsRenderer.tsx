@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -138,7 +138,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>Pre-Arrival Audits Complete:</strong> Room allocations verified dynamically. Cross-checked against housekeeping room readiness boards. Housekeeping notified to expedite Twin checkout rooms.
         </div>
       </div>
@@ -165,7 +165,7 @@ export function DailyOtherReportsRenderer({
             <strong className="text-base font-sans font-black text-slate-600 block mt-1">$0</strong>
             <p className="text-[8px] text-slate-400 font-mono mt-0.5">No data</p>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850 rounded-xl">
+          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl">
             <span className="text-[9px] uppercase tracking-wider font-mono text-slate-400 block font-bold">Express Checkout Usage</span>
             <strong className="text-base font-sans font-black text-slate-600 block mt-1">0%</strong>
             <p className="text-[8px] font-mono text-slate-400">No data</p>
@@ -174,10 +174,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Scheduled Departure Manifest</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Room</th>
                   <th className="py-2.5 px-3">Guest Name</th>
                   <th className="py-2.5 px-2 text-center">Checkout Window</th>
@@ -187,7 +187,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {reservations.filter(r => isDateInSelectedRange(r.checkOutDate) && (r.status === 'CheckedIn' || r.status === 'CheckedOut')).length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No departures scheduled for the selected period.</td></tr>
                 ) : (
@@ -218,7 +218,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
           <strong>Housekeeping Note:</strong> Room readiness data will populate from housekeeping system once available.
         </div>
       </div>
@@ -245,7 +245,7 @@ export function DailyOtherReportsRenderer({
             <strong className="text-base font-sans font-black text-slate-900 dark:text-white block mt-1">0 elite guests</strong>
             <p className="text-[8px] text-slate-400 font-mono mt-0.5">No data</p>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850 rounded-xl">
+          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl">
             <span className="text-[9px] uppercase tracking-wider font-mono text-slate-400 block font-bold">Average Stay Length</span>
             <strong className="text-base font-sans font-black text-slate-600 block mt-1">0 Nights</strong>
             <p className="text-[8px] font-mono text-slate-400">No data</p>
@@ -254,10 +254,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">In-House Stay Master Manifest</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Room</th>
                   <th className="py-2.5 px-3">Primary Guest</th>
                   <th className="py-2.5 px-2 text-center">Room Type</th>
@@ -267,7 +267,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Ledger Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {reservations.filter(r => r.status === 'CheckedIn').length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No in-house guests for the selected period.</td></tr>
                 ) : (
@@ -294,7 +294,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>PCI Compliance Audit:</strong> Physical card credentials stored in encrypted gateway logs. Incident check returned 0 active alarms. Guest registries fully synced to local police travel audit boards.
         </div>
       </div>
@@ -330,10 +330,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Elite VIP guest service manifest</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Level</th>
                   <th className="py-2.5 px-3">Guest Name</th>
                   <th className="py-2.5 px-2 text-center">Room/Suite</th>
@@ -343,7 +343,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Folio</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {reservations.filter(r => r.isVIP && (r.status === 'CheckedIn' || (r.status === 'Confirmed' && isDateInSelectedRange(r.checkInDate)))).length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No VIP guests scheduled for the selected period.</td></tr>
                 ) : (
@@ -373,7 +373,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
           <strong>VIP Guest Note:</strong> VIP guest data will populate from reservation system once available.
         </div>
       </div>
@@ -409,10 +409,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Inventory availability statistics by room class</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Room Type / Bed Layout</th>
                   <th className="py-2.5 px-2 text-center">Total Inventory</th>
                   <th className="py-2.5 px-2 text-center text-slate-450 font-bold">Vacant Clean</th>
@@ -422,7 +422,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Available To Sell Today</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {(() => {
                   const grouped = new Map<string, any[]>();
                   rooms.forEach(r => {
@@ -456,7 +456,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>Direct Sales Strategy:</strong> Desk agent walk-ins should be directed towards the Executive Suite premium upsell as only 1 bed remains unassigned for standard rates.
         </div>
       </div>
@@ -492,10 +492,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Housekeeping physical report vs Front-Desk digital log</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Room</th>
                   <th className="py-2.5 px-3">Housekeeper Physical Report</th>
                   <th className="py-2.5 px-2 text-center">PMS Front Desk Digit</th>
@@ -504,7 +504,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Corrective Action Taken</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 <tr>
                   <td className="py-2.5 px-3 font-bold text-slate-400" colSpan={6}>No room status audit data available. Data will populate from housekeeping system.</td>
                 </tr>
@@ -513,7 +513,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/10 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 bg-slate-50/10 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
           <strong>Audit Note:</strong> Room status audit data will populate from housekeeping system once available.
         </div>
       </div>
@@ -540,7 +540,7 @@ export function DailyOtherReportsRenderer({
             <strong className="text-base font-sans font-black text-slate-600 block mt-1">0 Rooms</strong>
             <p className="text-[8px] text-slate-400 font-mono mt-0.5">No data</p>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-850 rounded-xl">
+          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-100 dark:border-slate-800 rounded-xl">
             <span className="text-[9px] uppercase tracking-wider font-mono text-slate-400 block font-bold">Revenue Recovery %</span>
             <strong className="text-base font-sans font-black text-slate-600 block mt-1">0%</strong>
             <p className="text-[8px] font-mono text-slate-400">No data</p>
@@ -549,10 +549,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Missed guest arrival release manifest</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-805 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-800">
+                <tr className="bg-slate-50 dark:bg-slate-805 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-800">
                   <th className="py-2.5 px-3">Booking Reference</th>
                   <th className="py-2.5 px-3">Guest Profile Name</th>
                   <th className="py-2.5 px-2 text-center font-bold">Original Bed type</th>
@@ -562,7 +562,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Inventory status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {reservations.filter(r => r.status === 'NoShow' && isDateInSelectedRange(r.checkInDate)).length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No no-shows recorded for the selected period.</td></tr>
                 ) : (
@@ -586,7 +586,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-400 leading-normal">
           <strong>Overnight Release SLA:</strong> Guaranteed bookings are checked until configured release time. After this window, the front desk auto-charges the credit card, sets status to No-Show, and returns room keys to ready vacant listings.
         </div>
       </div>
@@ -598,10 +598,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Pre-noon arrivals log</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Room</th>
                 <th className="py-2.5 px-3">Guest Name</th>
                 <th className="py-2.5 px-2 text-center">Actual Arrival time</th>
@@ -611,7 +611,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Payment reference</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {reservations.filter(r => r.checkInDate === selectedDate && r.status === 'CheckedIn').length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-4 px-3 text-center text-slate-400">No early check-ins recorded for this date</td>
@@ -644,10 +644,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Afternoon extended departures log</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Room</th>
                 <th className="py-2.5 px-3">Guest Name</th>
                 <th className="py-2.5 px-2 text-center">PMS standard checkout</th>
@@ -657,7 +657,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Authorized desk Auditor</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {reservations.filter(r => r.checkOutDate === selectedDate && r.status === 'CheckedIn').length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-4 px-3 text-center text-slate-400">No late check-outs recorded for this date</td>
@@ -690,10 +690,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Housekeeping safe custody log</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Item ID</th>
                 <th className="py-2.5 px-3">Recovered Item Description</th>
                 <th className="py-2.5 px-2 text-center">Room/Area Found</th>
@@ -703,14 +703,14 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Claim status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-bold text-slate-400" colSpan={7}>No lost & found data available. Data will populate from housekeeping system.</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>Security Protocol:</strong> Items are kept for a maximum of 90 days. Unclaimed valuables are forwarded to central management reserves.
         </div>
       </div>
@@ -722,10 +722,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Unresolved & closed Guest complaints</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Case Ref</th>
                 <th className="py-2.5 px-3">Room / Guest Name</th>
                 <th className="py-2.5 px-2 text-center">Complaint description</th>
@@ -735,7 +735,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Complaint Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {(selectedDailyMetrics.openComplaintsCount || 0) === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-4 px-3 text-center text-slate-400">No complaints recorded for this date</td>
@@ -748,7 +748,7 @@ export function DailyOtherReportsRenderer({
             </tbody>
           </table>
         </div>
-        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 bg-slate-50/20 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs text-slate-600 dark:text-slate-400 leading-normal">
           <strong>SLA Notification:</strong> Total active unresolved complaints: <strong>{selectedDailyMetrics.openComplaintsCount || 0} cases</strong>. Complaint data will populate from guest feedback system once available.
         </div>
       </div>
@@ -779,7 +779,7 @@ export function DailyOtherReportsRenderer({
             <strong className="text-base font-sans font-black text-slate-900 dark:text-white block mt-1">0%</strong>
             <p className="text-[8px] text-slate-400 font-mono mt-0.5">No data</p>
           </div>
-          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-150 dark:border-slate-900 rounded-xl font-sans">
+          <div className="p-3 bg-slate-50 dark:bg-slate-950/20 border border-slate-200 dark:border-slate-900 rounded-xl font-sans">
             <span className="text-[9px] uppercase tracking-wider font-mono text-slate-400 block font-bold">Average room tariff booked</span>
             <strong className="text-base font-sans font-black text-slate-600 dark:text-slate-300 block mt-1">$0.00 / night</strong>
             <p className="text-[8px] font-mono text-slate-400">No data</p>
@@ -787,10 +787,10 @@ export function DailyOtherReportsRenderer({
         </div>
 
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Pickup books registered today</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Booking ID</th>
                 <th className="py-2.5 px-3">Guest Profile</th>
                 <th className="py-2.5 px-2 text-center">Channel Source</th>
@@ -800,7 +800,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Total Net Value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {reservations.filter(r => r.checkInDate === selectedDate).length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-4 px-3 text-center text-slate-400">No bookings registered for this date</td>
@@ -830,20 +830,20 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Next 90 Days occupancy projections</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Stay Period / month</th>
                 <th className="py-2.5 px-3 text-center">Rooms Blocked Under contract</th>
                 <th className="py-2.5 px-2 text-center text-slate-450">Projected occupancy %</th>
                 <th className="py-2.5 px-2 text-center">Direct Portal reservations</th>
                 <th className="py-2.5 px-2 text-center text-slate-450 font-bold">OTA Portion</th>
-                <th className="py-2.5 px-2 text-center text-slate-905">Confirmed Room Nights</th>
+                <th className="py-2.5 px-2 text-center text-slate-900">Confirmed Room Nights</th>
                 <th className="py-2.5 px-3 text-right">RevPar Estimate today</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">No data</td>
                 <td className="py-2.5 px-3 text-center">0 room nights</td>
@@ -868,10 +868,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Uncancelled check-out departures removed today</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Booking ID</th>
                 <th className="py-2.5 px-3">Guest Name</th>
                 <th className="py-2.5 px-2 text-center">Original Channel</th>
@@ -881,7 +881,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Reason for cancellation</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {reservations.filter(r => r.status === 'Cancelled' && isDateInSelectedRange(r.cancelledAt || r.checkInDate)).length === 0 ? (
                 <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No cancellations recorded for the selected period.</td></tr>
               ) : (
@@ -917,10 +917,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Tour group and corporate alliance blocks</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Group Alliance Code</th>
                 <th className="py-2.5 px-3">Corporate Corporate Client Name</th>
                 <th className="py-2.5 px-2 text-center">Allocated Room Block</th>
@@ -930,7 +930,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Block status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {(() => {
                 const groups = new Map<string, any[]>();
                 reservations.filter(r => r.bookingGroupId || r.groupBookingId).forEach(r => {
@@ -976,10 +976,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Contracted commercial partner accounts</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Company Debtor Profile Name</th>
                 <th className="py-2.5 px-3">Corporate Corporate Tariff Code</th>
                 <th className="py-2.5 px-2 text-center">Active Bookings count</th>
@@ -989,7 +989,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Partner status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {corporateAccounts.length === 0 ? (
                 <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No corporate accounts configured.</td></tr>
               ) : (
@@ -1027,10 +1027,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Overnight General Ledger trial balances</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">G/L Chart of accounts code</th>
                 <th className="py-2.5 px-3">Account category description</th>
                 <th className="py-2.5 px-2 text-center">Yesterday ending balance</th>
@@ -1040,7 +1040,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Audit verification rating</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">GL-1010-ROOM</td>
                 <td className="py-2.5 px-3 font-sans">Hotel Room Postings Revenue</td>
@@ -1080,10 +1080,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Primary Operational Departmental earnings today</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Operational Department Name</th>
                 <th className="py-2.5 px-3 text-right">Cashier direct drops</th>
                 <th className="py-2.5 px-2 text-right">Credit and Debit Card settlements</th>
@@ -1093,7 +1093,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Target Variance achievement</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">A. Front Desk Rooms Sales</td>
                 <td className="py-2.5 px-3 text-right">$0.00</td>
@@ -1133,10 +1133,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Auditor drawer handoffs and safe envelopes</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Cashier Desk Operator</th>
                 <th className="py-2.5 px-3">Active Shift slot</th>
                 <th className="py-2.5 px-2 text-center">Opening Drawer Float</th>
@@ -1146,7 +1146,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Physical Cashier Variance</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">No data</td>
                 <td className="py-2.5 px-3">Shift-A</td>
@@ -1177,10 +1177,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Automated bank gateway settlements</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Merchant Terminal ID</th>
                 <th className="py-2.5 px-3">Card Company Issuer</th>
                 <th className="py-2.5 px-2 text-center">Batch Settlement ID</th>
@@ -1190,7 +1190,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right text-slate-450 font-bold">Net Bank Deposit value</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-bold text-slate-900 dark:text-white">No data</td>
                 <td className="py-2.5 px-3 font-sans font-bold">No data</td>
@@ -1221,10 +1221,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Unbilled invoices transferred to corporate accounts</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Company Debtor Profile name</th>
                 <th className="py-2.5 px-3 text-center">Debtor ID code</th>
                 <th className="py-2.5 px-2 text-center">Folio Voucher Ref</th>
@@ -1234,7 +1234,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Payment Aging Category</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               {corporateAccounts.slice(0, 3).map((corp, index) => (
                 <tr key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-855/45">
                   <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
@@ -1258,10 +1258,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Internal non-revenue postings & operations vouchers</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3">Voucher Ref</th>
                 <th className="py-2.5 px-3">House Department Account</th>
                 <th className="py-2.5 px-2 text-center">Suite Number</th>
@@ -1271,7 +1271,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right">Business justification Audit</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr>
                 <td className="py-2.5 px-3 font-bold text-slate-400">No data</td>
                 <td className="py-2.5 px-3 font-bold text-slate-400">No data</td>
@@ -1293,10 +1293,10 @@ export function DailyOtherReportsRenderer({
     return (
       <div className="space-y-4 text-xs animate-fade-in font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Historical operational metrics closing table</span>
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2.5 px-3 text-left">Operating Close Date</th>
                 <th className="py-2.5 px-3 text-center">Total Physical Inventory</th>
                 <th className="py-2.5 px-2 text-center">Occupied Rooms count</th>
@@ -1307,7 +1307,7 @@ export function DailyOtherReportsRenderer({
                 <th className="py-2.5 px-3 text-right text-slate-450 font-bold">RevPAR Output</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
               <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-855/45 font-bold">
                 <td className="py-2.5 px-3 text-left">{selectedDate}</td>
                 <td className="py-2.5 px-3 text-center">{rooms.length || 0} Rooms</td>
@@ -1389,10 +1389,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Adjustment Detail Log</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Date</th>
                   <th className="py-2.5 px-3">Reservation</th>
                   <th className="py-2.5 px-3">Guest Name</th>
@@ -1402,7 +1402,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Impact</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {allAdjustments.length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No adjustments or voids recorded for the selected period.</td></tr>
                 ) : (
@@ -1429,7 +1429,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-300 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-900/40 rounded-xl text-3xs font-mono text-slate-600 dark:text-slate-300 leading-normal">
           <strong>Audit Control:</strong> Each voided charge or discount must carry an approved reason code in the folio narrative. Unexplained adjustments require Front Office Manager sign-off.
         </div>
       </div>
@@ -1512,10 +1512,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Tax Posting Detail</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Date</th>
                   <th className="py-2.5 px-3">Reservation</th>
                   <th className="py-2.5 px-3">Guest Name</th>
@@ -1525,7 +1525,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Tax Amount</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {taxRows.length === 0 ? (
                   <tr><td colSpan={7} className="py-6 text-center text-slate-400 italic font-sans">No tax postings found for the selected period.</td></tr>
                 ) : (
@@ -1619,10 +1619,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Per-User Activity Reconciliation</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">User Name</th>
                   <th className="py-2.5 px-2 text-center">Role / Dept</th>
                   <th className="py-2.5 px-2 text-center">Action Count</th>
@@ -1630,7 +1630,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Last Activity</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {userActions.length === 0 ? (
                   <tr><td colSpan={5} className="py-6 text-center text-slate-400 italic font-sans">No user activity logged for the selected period.</td></tr>
                 ) : (
@@ -1649,7 +1649,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>Audit Discipline:</strong> User reconciliation confirms that every financial posting is attributable to a named system user. Any gaps between cashier drawer totals and user-posted payments must be investigated before the night audit is signed off.
         </div>
       </div>
@@ -1719,10 +1719,10 @@ export function DailyOtherReportsRenderer({
 
         <div className="space-y-2 font-mono">
           <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block">Active Notes & Communication Log</span>
-          <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+          <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
             <table className="w-full text-3xs text-left border-collapse">
               <thead>
-                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+                <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                   <th className="py-2.5 px-3">Source</th>
                   <th className="py-2.5 px-3">Guest Name</th>
                   <th className="py-2.5 px-2 text-center">Room</th>
@@ -1731,7 +1731,7 @@ export function DailyOtherReportsRenderer({
                   <th className="py-2.5 px-3 text-right">Date</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                 {noteRows.length === 0 ? (
                   <tr><td colSpan={6} className="py-6 text-center text-slate-400 italic font-sans">No notes or special requests found for the selected period.</td></tr>
                 ) : (
@@ -1761,7 +1761,7 @@ export function DailyOtherReportsRenderer({
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-150 dark:border-slate-850 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
+        <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl text-3xs font-mono text-slate-500 leading-normal">
           <strong>Handover Protocol:</strong> Reservation notes are cleared upon guest checkout. Guest profile notes persist across stays. Special requests must be actioned within 30 minutes of arrival check-in.
         </div>
       </div>
@@ -1770,7 +1770,7 @@ export function DailyOtherReportsRenderer({
 
   // Fallback if no specific template is matched
   return (
-    <div className="p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl flex flex-col items-center justify-center space-y-2 text-center">
+    <div className="p-6 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center space-y-2 text-center">
       <AlertTriangle className="text-slate-500" size={24} />
       <span className="text-xs font-mono font-bold text-slate-800 dark:text-slate-200 uppercase tracking-widest">Detail Matrix Pending Verification</span>
       <p className="text-[10px] text-slate-400 max-w-sm">

@@ -3,16 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   CheckCircle2, 
-  Clock, 
-  AlertTriangle, 
   Search, 
   Plus, 
-  User, 
   Calendar,
-  Filter,
   CheckCircle
 } from 'lucide-react';
 import { HKTask, TaskStatus, TaskPriority } from './HousekeepingPortal';
@@ -21,53 +17,71 @@ export default function TaskManagementModule() {
   const [tasks, setTasks] = useState<HKTask[]>([
     { 
       id: 'TSK-101', 
-      type: 'Deep Cleaning', 
-      location: 'Penthouse 501', 
+      type: 'Checkout Cleaning', 
+      category: 'Automatic',
+      location: 'Room 101', 
       assignedTo: 'Staff Member A', 
-priority: 'High', 
-dueDate: '2026-05-30', 
-status: 'In Progress', 
-progress: 65 
-},
-{ 
-id: 'TSK-102', 
-type: 'Public Area Cleaning', 
-location: 'Main Lobby', 
-assignedTo: 'Staff Member B', 
-priority: 'Medium', 
-dueDate: '2026-05-30', 
-status: 'Pending', 
-progress: 0 
-},
-{ 
-id: 'TSK-103', 
-type: 'Garden Cleaning', 
-location: 'West Terrace', 
-assignedTo: 'Staff Member C', 
-priority: 'Low', 
-dueDate: '2026-05-30', 
-status: 'Completed', 
-progress: 100 
-},
+      priority: 'High', 
+      dueDate: '2026-05-30', 
+      status: 'In Progress', 
+      progress: 65 
+    },
     { 
-      id: 'TSK-104', 
-      type: 'Pest Control', 
-      location: 'Kitchen Storage', 
-      priority: 'Critical', 
+      id: 'TSK-102', 
+      type: 'Stayover Service', 
+      category: 'Automatic',
+      location: 'Room 304', 
+      assignedTo: 'Staff Member B', 
+      priority: 'Medium', 
       dueDate: '2026-05-30', 
       status: 'Pending', 
       progress: 0 
     },
+    { 
+      id: 'TSK-103', 
+      type: 'VIP Preparation', 
+      category: 'Automatic',
+      location: 'Penthouse 502', 
+      assignedTo: 'Staff Member C', 
+      priority: 'Critical', 
+      dueDate: '2026-05-30', 
+      status: 'In Progress', 
+      progress: 40 
+    },
+    { 
+      id: 'TSK-104', 
+      type: 'Special Cleaning', 
+      category: 'Manual',
+      location: 'Room 401', 
+      assignedTo: 'Staff Member D', 
+      priority: 'Medium', 
+      dueDate: '2026-05-30', 
+      status: 'Pending', 
+      progress: 0 
+    },
+    { 
+      id: 'TSK-105', 
+      type: 'Emergency Cleaning', 
+      category: 'Manual',
+      location: 'Room 205', 
+      assignedTo: 'Staff Member A', 
+      priority: 'Critical', 
+      dueDate: '2026-05-30', 
+      status: 'Completed', 
+      progress: 100 
+    },
   ]);
 
   const [filter, setFilter] = useState<TaskStatus | 'All'>('All');
+  const [categoryFilter, setCategoryFilter] = useState<'All' | 'Automatic' | 'Manual'>('All');
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredTasks = tasks.filter(task => {
     const matchesFilter = filter === 'All' || task.status === filter;
+    const matchesCategory = categoryFilter === 'All' || task.category === categoryFilter;
     const matchesSearch = task.location.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           task.type.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesFilter && matchesSearch;
+    return matchesFilter && matchesCategory && matchesSearch;
   });
 
   const getPriorityColor = (priority: TaskPriority) => {
@@ -121,6 +135,22 @@ progress: 100
           ))}
         </div>
 
+        <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl gap-1">
+          {(['All', 'Automatic', 'Manual'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setCategoryFilter(f)}
+              className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                categoryFilter === f 
+                ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' 
+                : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
         <div className="flex items-center gap-2 flex-1 max-w-md">
           <div className="relative w-full">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -146,7 +176,14 @@ progress: 100
             </div>
 
             <div className="space-y-1 mb-4">
-              <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase leading-tight">{task.type}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase leading-tight">{task.type}</h3>
+                <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                  task.category === 'Automatic' ? 'bg-emerald-500 text-white' : 'bg-amber-500 text-white'
+                }`}>
+                  {task.category}
+                </span>
+              </div>
               <p className="text-[11px] text-slate-500 font-bold">{task.location}</p>
             </div>
 

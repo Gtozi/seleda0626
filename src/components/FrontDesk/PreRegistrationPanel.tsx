@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import {
   ClipboardList, CheckCircle2, Download, Car, Globe, ShieldCheck,
   Sparkles, Clock, AlertTriangle, UserCheck, X
@@ -43,7 +43,7 @@ export default function PreRegistrationPanel({
           <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
             <ClipboardList size={16} className="text-indigo-500" /> Pre-Registration Submissions
             {pendingCount > 0 && (
-              <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full text-[9px] font-bold">{pendingCount} pending</span>
+              <span className="px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full text-[9px] font-bold">{pendingCount} pending</span>
             )}
           </h3>
           <p className="text-[10px] text-slate-400 font-mono mt-0.5">Guests who submitted check-in details online before arrival</p>
@@ -60,7 +60,7 @@ export default function PreRegistrationPanel({
       {loading ? (
         <div className="text-center py-12 text-xs text-slate-400 italic">Loading pre-registrations...</div>
       ) : preRegistrations.length === 0 ? (
-        <div className="text-center py-16 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+        <div className="text-center py-16 bg-slate-50 rounded-xl border border-dashed border-slate-200">
           <ClipboardList size={28} className="mx-auto text-slate-300 mb-2" />
           <p className="text-xs text-slate-400 font-mono">No pre-registrations found</p>
           <p className="text-[10px] text-slate-300 mt-1">Guests who complete the pre-registration form on the public booking portal will appear here.</p>
@@ -69,10 +69,10 @@ export default function PreRegistrationPanel({
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {preRegistrations.map((pr: any) => (
             <div key={pr.id} onClick={() => { setSelected(pr); setReviewNotes(pr.review_notes || ''); }}
-              className={`bg-white border rounded-2xl p-4 space-y-3 cursor-pointer hover:shadow-md transition-all ${pr.status === 'pending' ? 'border-amber-200' : pr.status === 'imported' ? 'border-emerald-200' : pr.status === 'rejected' ? 'border-rose-200' : 'border-slate-200'}`}>
+              className={`bg-white border rounded-xl p-4 space-y-3 cursor-pointer hover:shadow-md transition-all ${pr.status === 'pending' ? 'border-indigo-200' : pr.status === 'imported' ? 'border-emerald-200' : pr.status === 'rejected' ? 'border-rose-200' : 'border-slate-200'}`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-[10px] ${pr.status === 'pending' ? 'bg-amber-500' : pr.status === 'imported' ? 'bg-emerald-500' : pr.status === 'rejected' ? 'bg-rose-500' : 'bg-slate-400'}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-[10px] ${pr.status === 'pending' ? 'bg-indigo-500' : pr.status === 'imported' ? 'bg-emerald-500' : pr.status === 'rejected' ? 'bg-rose-500' : 'bg-slate-400'}`}>
                     {pr.guest_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '??'}
                   </div>
                   <div>
@@ -80,7 +80,7 @@ export default function PreRegistrationPanel({
                     <div className="text-[10px] text-slate-400 font-mono">{pr.guest_email}</div>
                   </div>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${pr.status === 'pending' ? 'bg-amber-100 text-amber-700' : pr.status === 'imported' ? 'bg-emerald-100 text-emerald-700' : pr.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{pr.status}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold uppercase ${pr.status === 'pending' ? 'bg-indigo-100 text-indigo-700' : pr.status === 'imported' ? 'bg-emerald-100 text-emerald-700' : pr.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{pr.status}</span>
               </div>
               <div className="space-y-1 text-[10px] text-slate-500 font-mono">
                 <div className="flex justify-between"><span>Reservation:</span><span className="font-bold text-slate-700">{pr.reservation_id}</span></div>
@@ -111,7 +111,7 @@ export default function PreRegistrationPanel({
                 <div className="font-bold text-slate-800 text-sm">{selected.guest_name}</div>
                 <div className="text-[10px] text-slate-400 font-mono">{selected.guest_email} · {selected.guest_phone || 'N/A'}</div>
               </div>
-              <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase ${selected.status === 'pending' ? 'bg-amber-100 text-amber-700' : selected.status === 'imported' ? 'bg-emerald-100 text-emerald-700' : selected.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{selected.status}</span>
+              <span className={`px-2 py-1 rounded-full text-[9px] font-bold uppercase ${selected.status === 'pending' ? 'bg-indigo-100 text-indigo-700' : selected.status === 'imported' ? 'bg-emerald-100 text-emerald-700' : selected.status === 'rejected' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-600'}`}>{selected.status}</span>
             </div>
 
             {/* Identification */}
@@ -158,7 +158,7 @@ export default function PreRegistrationPanel({
 
             {/* Special Requests */}
             {selected.special_requests && (
-              <div className="bg-amber-50/50 rounded-xl p-4 space-y-1">
+              <div className="bg-indigo-50/50 rounded-xl p-4 space-y-1">
                 <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Special Requests</h4>
                 <p className="text-slate-700 italic">{selected.special_requests}</p>
               </div>

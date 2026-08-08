@@ -12,6 +12,8 @@ import { guestGroupRelationshipService } from '../services/guestGroupRelationshi
 
 export interface GuestContextType {
   guests: Guest[];
+  guestsLoading: boolean;
+  guestsError: string | null;
   guestFeedbacks: any[];
   guestGroupRelationships: GuestGroupRelationship[];
   
@@ -76,17 +78,26 @@ export const useGuest = () => {
 export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { logAudit, addNotification } = useSystem();
   const [guests, setGuests] = useState<Guest[]>(initialGuests);
+  // Start in loading state when Supabase is configured — the mount effect will fetch,
+  // so the UI shows "Loading..." immediately instead of flashing "No guests" first.
+  const [guestsLoading, setGuestsLoading] = useState<boolean>(supabaseService.isConfigured());
+  const [guestsError, setGuestsError] = useState<string | null>(null);
   const [guestFeedbacks, setGuestFeedbacks] = useState<any[]>([]);
   const [guestGroupRelationships, setGuestGroupRelationships] = useState<GuestGroupRelationship[]>([]);
   const [guestCommunications, setGuestCommunications] = useState<GuestCommunication[]>([]);
 
   const refreshData = useCallback(async () => {
     if (!supabaseService.isConfigured()) return;
+    setGuestsLoading(true);
+    setGuestsError(null);
     try {
       const data = await supabaseService.fetchGuests();
-      if (data && data.length > 0) setGuests(data);
+      setGuests(data || []);
     } catch (error) {
       console.error('Failed to fetch guests:', error);
+      setGuestsError(error instanceof Error ? error.message : 'Failed to load guests');
+    } finally {
+      setGuestsLoading(false);
     }
   }, []);
 
@@ -149,20 +160,23 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, [addNotification]);
 
   // Hierarchical guest management functions
-  const findMatchingGuest = useCallback((criteria: { 
-    lastName?: string; 
-    email?: string; 
+  const findMatchingGuest = useCallback((criteria: {
+    lastName?: string;
+    email?: string;
     passportNumber?: string;
     name?: string;
   }): Guest | undefined => {
+    const norm = (s?: string) => (s ?? '').trim().toLowerCase();
+    const cEmail = norm(criteria.email);
+    const cPassport = norm(criteria.passportNumber);
+    const cLastName = norm(criteria.lastName);
+    const cName = norm(criteria.name);
     return guests.find(g => {
-      const emailMatch = criteria.email && g.email.toLowerCase() === criteria.email.toLowerCase();
-      const passportMatch = criteria.passportNumber && g.passportNumber && 
-        g.passportNumber.toLowerCase() === criteria.passportNumber.toLowerCase();
-      const lastNameMatch = criteria.lastName && g.lastName && 
-        g.lastName.toLowerCase() === criteria.lastName.toLowerCase();
-      const nameMatch = criteria.name && g.name.toLowerCase() === criteria.name.toLowerCase();
-      // Strict dedup: Passport number exact match OR (Last Name + Email match)
+      const emailMatch = !!cEmail && norm(g.email) === cEmail;
+      const passportMatch = !!cPassport && !!g.passportNumber && norm(g.passportNumber) === cPassport;
+      const lastNameMatch = !!cLastName && !!g.lastName && norm(g.lastName) === cLastName;
+      const nameMatch = !!cName && norm(g.name) === cName;
+      // Strict dedup: Passport number exact match OR (Last Name + Email match) OR exact full name
       return passportMatch || (lastNameMatch && emailMatch) || nameMatch;
     });
   }, [guests]);
@@ -356,6 +370,8 @@ export const GuestProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const value = {
     guests,
+    guestsLoading,
+    guestsError,
     guestFeedbacks,
     guestGroupRelationships,
     addGuest,

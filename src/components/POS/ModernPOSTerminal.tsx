@@ -948,7 +948,7 @@ export default function ModernPOSTerminal({ outlet }: ModernPOSTerminalProps) {
       {/* Invoice Print Modal */}
       {invoicePrintData && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto print-area">
             <div className="p-4 border-b border-slate-200 flex justify-between items-center">
               <h3 className="text-lg font-bold text-slate-900">Receipt</h3>
               <button

@@ -164,6 +164,23 @@ BEGIN
       v_total_qty, p_check_in, p_check_out,
       0, 'Pending'
     );
+
+    -- Also create group_profile record
+    INSERT INTO group_profiles (
+      id, code, name, type, status,
+      contact_name, contact_email, contact_phone,
+      notes
+    ) VALUES (
+      v_group_id,
+      v_group_id,
+      COALESCE(p_group_name, p_guest_name),
+      'Group',
+      'Active',
+      p_guest_name,
+      p_guest_email,
+      COALESCE(p_guest_phone, ''),
+      'Group booking created via create_booking_atomic'
+    );
   END IF;
 
   -- ── Insert reservations per item × qty, split by room moves per night ────────────────────────
@@ -192,13 +209,14 @@ BEGIN
           INSERT INTO guests (
             id, name, email, phone, nationality, status,
             loyalty_points, special_requests, notes, total_spend, preferences,
-            is_primary_contact
+            is_primary_contact, parent_group_id
           ) VALUES (
             v_room_guest_id, v_room_guest_name, v_room_guest_email,
             COALESCE(p_guest_phone, ''), COALESCE(p_guest_nationality, ''),
             'Regular', 0, COALESCE(p_special_requests, ''),
             'Direct website group booking — Room ' || v_room_index, 0, '{}'::jsonb,
-            v_room_index = 1
+            v_room_index = 1,
+            v_group_id
           );
 
           v_guest_ids := v_guest_ids || v_room_guest_id;

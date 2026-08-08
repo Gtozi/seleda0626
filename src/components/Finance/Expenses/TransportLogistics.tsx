@@ -56,7 +56,7 @@ const TransportLogistics = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {stats.map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
-            <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -76,7 +76,7 @@ const TransportLogistics = () => {
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Logistics Expenditure Flow</h3>
               <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Daily aggregated transport & freight costs</p>
             </div>
-            <div className="flex bg-slate-50 dark:bg-slate-800 p-1 rounded-xl">
+            <div className="flex bg-slate-50 dark:bg-slate-800 p-1 rounded-lg">
                <button className="px-3 py-1 bg-white dark:bg-slate-700 shadow-sm rounded-lg text-[10px] font-black uppercase">Direct</button>
                <button className="px-3 py-1 text-slate-400 text-[10px] font-black uppercase">Allocated</button>
             </div>
@@ -123,7 +123,7 @@ const TransportLogistics = () => {
         <div className="lg:col-span-12">
            <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Active Transport Expense Log</h3>
-              <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-tight flex items-center gap-2">
+              <button className="bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-tight flex items-center gap-2">
                  <Plus size={14} />
                  New Entry
               </button>

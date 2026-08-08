@@ -30,7 +30,7 @@ import {
 } from '../../services/fixedAssetsService';
 
 const FixedAssets = () => {
-  const [activeTab, setActiveTab] = useState<'register' | 'depreciation' | 'disposal'>('register');
+  const [activeTab, setActiveTab] = useState<'register' | 'depreciation' | 'disposal' | 'transfers' | 'revaluation' | 'verification' | 'warranty'>('register');
   const [selectedAsset, setSelectedAsset] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,15 +138,15 @@ const FixedAssets = () => {
         <div className="flex items-center gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input type="text" placeholder="Search assets..." className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold w-64" />
+            <input type="text" placeholder="Search assets..." className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold w-64" />
           </div>
-          <button className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
+          <button className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
             <Filter size={14} />
           </button>
         </div>
         <button
           onClick={() => setShowNewAsset(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition"
+          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition"
         >
           <Plus size={14} /> Add Asset
         </button>
@@ -160,7 +160,7 @@ const FixedAssets = () => {
           { label: 'Depreciation Expense', value: '$0', sub: 'This month', icon: Calculator, color: 'text-rose-500' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-            <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
               <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -257,24 +257,24 @@ const FixedAssets = () => {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <select className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold">
+          <select className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold">
             <option>All Assets</option>
             <option>Real Estate</option>
             <option>Vehicles</option>
             <option>IT Equipment</option>
             <option>Furniture & Fixtures</option>
           </select>
-          <select className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold">
+          <select className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold">
             <option>2024</option>
             <option>2023</option>
             <option>2022</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] font-black uppercase hover:bg-slate-50 transition">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-lg text-[10px] font-black uppercase hover:bg-slate-50 transition">
             <Calculator size={14} /> Run Depreciation
           </button>
-          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+          <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
             <Download size={14} /> Export Schedule
           </button>
         </div>
@@ -350,7 +350,7 @@ const FixedAssets = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Select Asset to Dispose</label>
-                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
+                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
                   {assets.map(asset => (
                     <option key={asset.id} value={asset.id}>{asset.asset_code} - {asset.asset_name}</option>
                   ))}
@@ -358,22 +358,22 @@ const FixedAssets = () => {
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Disposal Date</label>
-                <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" />
+                <input type="date" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Sale Proceeds</label>
-                <input type="number" placeholder="0.00" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" />
+                <input type="number" placeholder="0.00" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white" />
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Disposal Costs</label>
-                <input type="number" placeholder="0.00" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white" />
+                <input type="number" placeholder="0.00" className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white" />
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Reason for Disposal</label>
-                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
+                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
                   <option>Sold</option>
                   <option>Obsolete</option>
                   <option>Damaged</option>
@@ -445,27 +445,206 @@ const FixedAssets = () => {
     </div>
   );
 
+  const renderTransfers = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Asset Transfers</h3>
+        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+          <Plus size={14} /> New Transfer
+        </button>
+      </div>
+      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
+            <tr>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Asset</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">From</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">To</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { asset: 'FA-003 Delivery Van', from: 'Front Office', to: 'F&B Division', date: '2024-05-15', status: 'Completed' },
+              { asset: 'FA-007 Server Rack', from: 'IT Dept', to: 'Finance Dept', date: '2024-05-20', status: 'Completed' },
+              { asset: 'FA-012 Conference Table', from: 'Banquet Hall', to: 'Executive Office', date: '2024-06-01', status: 'Pending' },
+            ].map((t, i) => (
+              <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
+                <td className="px-4 py-3 text-xs font-bold text-slate-900 dark:text-white">{t.asset}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{t.from}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{t.to}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{t.date}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${t.status === 'Completed' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{t.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderRevaluation = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Asset Revaluation</h3>
+        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+          <Plus size={14} /> New Revaluation
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { asset: 'FA-001 Main Building', original: 5200000, revalued: 5800000, change: '+11.5%', date: '2024-04-01' },
+          { asset: 'FA-004 Kitchen Equipment', original: 180000, revalued: 165000, change: '-8.3%', date: '2024-03-15' },
+          { asset: 'FA-006 Land Parcel', original: 1200000, revalued: 1450000, change: '+20.8%', date: '2024-05-10' },
+        ].map((r, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl">
+            <p className="text-xs font-black text-slate-900 dark:text-white mb-1">{r.asset}</p>
+            <p className="text-[9px] text-slate-400 font-bold uppercase mb-3">{r.date}</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[8px] font-black text-slate-400 uppercase">Original</p>
+                <p className="text-sm font-bold text-slate-600 dark:text-slate-400">${r.original.toLocaleString()}</p>
+              </div>
+              <div className="text-center">
+                <ArrowRight size={14} className="text-slate-300" />
+              </div>
+              <div className="text-right">
+                <p className="text-[8px] font-black text-slate-400 uppercase">Revalued</p>
+                <p className="text-sm font-bold text-slate-900 dark:text-white">${r.revalued.toLocaleString()}</p>
+              </div>
+            </div>
+            <div className={`mt-3 text-xs font-black ${r.change.startsWith('+') ? 'text-emerald-600' : 'text-rose-600'}`}>{r.change}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderVerification = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Asset Verification</h3>
+        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+          <Plus size={14} /> New Verification
+        </button>
+      </div>
+      <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-50 dark:bg-slate-950/20 border-b border-slate-100 dark:border-slate-800">
+            <tr>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Asset</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Location</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Verified By</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Date</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Condition</th>
+              <th className="px-4 py-3 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { asset: 'FA-001 Main Building', loc: 'Main Site', by: 'James B.', date: '2024-05-01', cond: 'Excellent', status: 'Verified' },
+              { asset: 'FA-003 Delivery Van', loc: 'Parking Lot B', by: 'Sarah T.', date: '2024-05-05', cond: 'Good', status: 'Verified' },
+              { asset: 'FA-007 Server Rack', loc: 'IT Room', by: 'Mike K.', date: '2024-05-10', cond: 'Good', status: 'Verified' },
+              { asset: 'FA-012 Conference Table', loc: 'Banquet Hall', by: 'Lisa M.', date: '2024-06-01', cond: 'Fair', status: 'Pending' },
+            ].map((v, i) => (
+              <tr key={i} className="border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800">
+                <td className="px-4 py-3 text-xs font-bold text-slate-900 dark:text-white">{v.asset}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{v.loc}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{v.by}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{v.date}</td>
+                <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">{v.cond}</td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${v.status === 'Verified' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{v.status}</span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderWarranty = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Asset Warranties</h3>
+        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+          <Plus size={14} /> Add Warranty
+        </button>
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[
+          { asset: 'FA-007 Server Rack', provider: 'Dell Technologies', start: '2023-01-15', end: '2026-01-15', status: 'Active' },
+          { asset: 'FA-003 Delivery Van', provider: 'Toyota Ethiopia', start: '2022-06-01', end: '2025-06-01', status: 'Active' },
+          { asset: 'FA-010 HVAC System', provider: 'Climate Control Co.', start: '2021-09-01', end: '2024-09-01', status: 'Expiring Soon' },
+          { asset: 'FA-005 Elevator System', provider: 'Otis Elevators', start: '2020-03-01', end: '2024-03-01', status: 'Expired' },
+          { asset: 'FA-008 Security System', provider: 'SecureTech Ltd.', start: '2023-08-01', end: '2026-08-01', status: 'Active' },
+          { asset: 'FA-011 Generator', provider: 'Caterpillar', start: '2022-11-01', end: '2025-11-01', status: 'Active' },
+        ].map((w, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-black text-slate-900 dark:text-white">{w.asset}</p>
+              <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${w.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : w.status === 'Expiring Soon' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600'}`}>{w.status}</span>
+            </div>
+            <p className="text-[9px] text-slate-400 font-bold uppercase mb-2">Provider: {w.provider}</p>
+            <div className="flex items-center justify-between text-[9px] text-slate-500">
+              <span>Start: {w.start}</span>
+              <span>End: {w.end}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit">
           <button 
             onClick={() => setActiveTab('register')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'register' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'register' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Asset Register
           </button>
           <button 
             onClick={() => setActiveTab('depreciation')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'depreciation' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'depreciation' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Depreciation
           </button>
           <button 
             onClick={() => setActiveTab('disposal')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'disposal' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'disposal' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Disposal
+          </button>
+          <button
+            onClick={() => setActiveTab('transfers')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'transfers' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Transfers
+          </button>
+          <button
+            onClick={() => setActiveTab('revaluation')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'revaluation' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Revaluation
+          </button>
+          <button
+            onClick={() => setActiveTab('verification')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'verification' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Verification
+          </button>
+          <button
+            onClick={() => setActiveTab('warranty')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'warranty' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Warranty
           </button>
         </div>
         <div className="flex items-center gap-2">
@@ -483,6 +662,10 @@ const FixedAssets = () => {
       {activeTab === 'register' && renderRegister()}
       {activeTab === 'depreciation' && renderDepreciation()}
       {activeTab === 'disposal' && renderDisposal()}
+      {activeTab === 'transfers' && renderTransfers()}
+      {activeTab === 'revaluation' && renderRevaluation()}
+      {activeTab === 'verification' && renderVerification()}
+      {activeTab === 'warranty' && renderWarranty()}
 
       <ModalSystem
         isOpen={showNewAsset}
@@ -501,7 +684,7 @@ const FixedAssets = () => {
                     type="text"
                     value={newAssetForm.assetCode}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, assetCode: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="FA-001"
                   />
                 </div>
@@ -512,7 +695,7 @@ const FixedAssets = () => {
                     type="text"
                     value={newAssetForm.assetName}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, assetName: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Main Building"
                   />
                 </div>
@@ -524,7 +707,7 @@ const FixedAssets = () => {
                   <select
                     value={newAssetForm.assetCategory}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, assetCategory: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Select category</option>
                     <option value="Real Estate">Real Estate</option>
@@ -542,7 +725,7 @@ const FixedAssets = () => {
                     type="text"
                     value={newAssetForm.location}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, location: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Main Building, Floor 1"
                   />
                 </div>
@@ -553,7 +736,7 @@ const FixedAssets = () => {
                 <textarea
                   value={newAssetForm.description}
                   onChange={(e) => setNewAssetForm({ ...newAssetForm, description: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                   rows={2}
                   placeholder="Asset description..."
                 />
@@ -566,7 +749,7 @@ const FixedAssets = () => {
                     type="date"
                     value={newAssetForm.purchaseDate}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, purchaseDate: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
@@ -576,7 +759,7 @@ const FixedAssets = () => {
                     type="number"
                     value={newAssetForm.purchaseCost}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, purchaseCost: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
@@ -589,7 +772,7 @@ const FixedAssets = () => {
                     type="number"
                     value={newAssetForm.salvageValue}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, salvageValue: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
@@ -600,7 +783,7 @@ const FixedAssets = () => {
                     type="number"
                     value={newAssetForm.usefulLifeYears}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, usefulLifeYears: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="5"
                   />
                 </div>
@@ -610,7 +793,7 @@ const FixedAssets = () => {
                   <select
                     value={newAssetForm.depreciationMethod}
                     onChange={(e) => setNewAssetForm({ ...newAssetForm, depreciationMethod: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="Straight Line">Straight Line</option>
                     <option value="Reducing Balance">Reducing Balance</option>

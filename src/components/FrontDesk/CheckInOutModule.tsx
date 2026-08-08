@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -373,7 +373,7 @@ export default function CheckInOutModule({
     const fetchFolio = async () => {
       try {
         const token = localStorage.getItem('auth_token');
-        const response = await fetch(`/api/reservations/${selectedFolioResId}/folio`, {
+        const response = await fetch(`/api/${selectedFolioResId}/folio`, {
           headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
         });
         if (response.ok && !cancelled) {
@@ -710,7 +710,7 @@ export default function CheckInOutModule({
                   { name: '🍳 Food & Beverage', key: 'F&B', color: 'bg-emerald-55/75 text-emerald-950 border-emerald-200' },
                   { name: '👕 Laundry', key: 'Laundry', color: 'bg-purple-55/70 text-purple-900 border-purple-200' },
                   { name: '🚗 Transfers', key: 'Transfer', color: 'bg-teal-55/70 text-teal-900 border-teal-200' },
-                  { name: '🏷️ Incidentals & Extra', key: 'Extra', color: 'bg-amber-55/70 text-amber-900 border-amber-200' },
+                  { name: '🏷️ Incidentals & Extra', key: 'Extra', color: 'bg-indigo-55/70 text-indigo-900 border-indigo-200' },
                 ].map((type) => {
                   const isChecked = activeGroupChargeTypes.includes(type.key);
                   return (
@@ -1646,7 +1646,7 @@ export default function CheckInOutModule({
                       <div className="space-y-1 text-2xs text-slate-600 font-sans">
                         <div className="flex justify-between">
                           <span className="text-slate-400 font-mono">Company:</span>
-                          <span className="font-bold text-slate-850 text-right">
+                          <span className="font-bold text-slate-800 text-right">
                             {groupType === 'corporate' ? selectedCorpDetails?.companyName : selectedGroupDetails?.groupName}
                           </span>
                         </div>
@@ -1819,7 +1819,7 @@ export default function CheckInOutModule({
                         <div className="p-3 border border-indigo-100 bg-indigo-50/25 rounded-lg flex items-start gap-2 text-indigo-950 text-xs leading-relaxed font-sans">
                           <Briefcase size={14} className="text-indigo-600 shrink-0 mt-0.5" />
                           <div>
-                            <strong>Automated Routing Engine Engaged ({activeProfile.name}):</strong> Corporate-sponsored charges (<strong>{activeProfile.primaryTypes.join(', ')}</strong>) automatically split into <span className="bg-indigo-100 text-indigo-900 px-1.5 py-0.5 rounded font-semibold text-xs">Corporate Folio</span>. Guest incidentals (<strong>{activeProfile.secondaryTypes.join(', ')}</strong>) route to <span className="bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-semibold text-xs">Individual Folio</span>.
+                            <strong>Automated Routing Engine Engaged ({activeProfile.name}):</strong> Corporate-sponsored charges (<strong>{activeProfile.primaryTypes.join(', ')}</strong>) automatically split into <span className="bg-indigo-100 text-indigo-900 px-1.5 py-0.5 rounded font-semibold text-xs">Corporate Folio</span>. Guest incidentals (<strong>{activeProfile.secondaryTypes.join(', ')}</strong>) route to <span className="bg-indigo-100 text-indigo-900 px-1.5 py-0.5 rounded font-semibold text-xs">Individual Folio</span>.
                           </div>
                         </div>
                         <div className="p-2 border border-slate-100 bg-slate-50 rounded-lg flex items-center gap-1.5 text-slate-500 text-xs font-sans">
@@ -1870,18 +1870,18 @@ export default function CheckInOutModule({
                         onClick={() => setActiveFolioLedgerTab('folio-b')}
                         className={`px-3 py-2.5 border-b-2 text-xs uppercase tracking-wider transition-all duration-200 font-semibold flex items-center gap-1.5 cursor-pointer ${
                           activeFolioLedgerTab === 'folio-b'
-                            ? 'border-amber-600 text-amber-700 font-bold'
-                            : 'border-transparent text-slate-400 hover:text-amber-600/80'
+                            ? 'border-indigo-600 text-indigo-700 font-bold'
+                            : 'border-transparent text-slate-400 hover:text-indigo-600/80'
                         }`}
                       >
                         <User size={12} /> Individual Folio
-                        <span className="px-2 py-0.5 bg-amber-50 border border-amber-100 text-xs text-amber-700 font-sans font-semibold rounded-full">{chargesB.length}</span>
+                        <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-100 text-xs text-indigo-700 font-sans font-semibold rounded-full">{chargesB.length}</span>
                       </button>
                     </>
                   </div>
 
                   {/* ACTIVE TAB LEDGER GRAPHICS SHEET */}
-                  <div className="p-6 border border-slate-200 bg-gradient-to-br from-slate-50 to-white rounded-2xl space-y-5 font-mono text-xs text-slate-600 leading-normal shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
+                  <div className="p-6 border border-slate-200 bg-gradient-to-br from-slate-50 to-white rounded-xl space-y-5 font-mono text-xs text-slate-600 leading-normal shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-300">
                     <div className="flex justify-between font-sans items-start">
                       <div>
                         <h4 className="font-bold text-slate-800 text-sm">{hotelNameVal}</h4>
@@ -1899,7 +1899,7 @@ export default function CheckInOutModule({
                           activeFolioLedgerTab === 'folio-a' 
                             ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
                             : activeFolioLedgerTab === 'folio-b' 
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200' 
+                              ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' 
                               : 'bg-slate-100 text-slate-700 border border-slate-200'
                         }`}>
                           {activeFolioLedgerTab === 'folio-a' && <Briefcase size={12} />}
@@ -2022,7 +2022,7 @@ export default function CheckInOutModule({
                                   : charge.type === 'F&B'
                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                     : charge.type === 'Minibar'
-                                      ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                      ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                                       : 'bg-slate-100 text-slate-600 border border-slate-200'
                               }`}>
                                 {charge.type || 'Other'}
@@ -2048,7 +2048,7 @@ export default function CheckInOutModule({
                                     onClick={() => editFolioCharge(currentFolioRes.id, charge.id, { targetFolio: 'B' })}
                                     className={`px-3 py-1.5 text-xs font-sans font-semibold transition-all duration-200 rounded-md cursor-pointer ml-0.5 ${
                                       getChargeFolio(charge, activeProfile, billingMode, activeGroupChargeTypes) === 'B'
-                                        ? 'bg-amber-600 text-white font-bold shadow-sm'
+                                        ? 'bg-indigo-600 text-white font-bold shadow-sm'
                                         : 'bg-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                     }`}
                                     title="Route custom charge directly to Individual Folio (Guest checkout card/cash liability)"
@@ -2062,7 +2062,7 @@ export default function CheckInOutModule({
                                 <span className={`px-2.5 py-1 rounded-lg text-xs font-sans font-semibold uppercase ${
                                   getChargeFolio(charge, activeProfile, billingMode, activeGroupChargeTypes) === 'A'
                                     ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                                    : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
                                 }`}>
                                   {getChargeFolio(charge, activeProfile, billingMode, activeGroupChargeTypes) === 'A' ? 'Corporate' : 'Individual'}
                                 </span>
@@ -2097,7 +2097,7 @@ export default function CheckInOutModule({
                                   <button onClick={() => { voidFolioCharge(currentFolioRes.id, charge.id); setMoveChargeId(null); setEditChargeId(null); }} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all duration-200" title="Void Charge">
                                     <Ban size={14} />
                                   </button>
-                                  <button onClick={() => { setMoveChargeId(moveChargeId === charge.id ? null : charge.id); setEditChargeId(null); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all duration-200" title="Move Charge to Another Folio">
+                                  <button onClick={() => { setMoveChargeId(moveChargeId === charge.id ? null : charge.id); setEditChargeId(null); }} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all duration-200" title="Move Charge to Another Folio">
                                     <CornerUpRight size={14} />
                                   </button>
                                 </div>
@@ -2119,11 +2119,11 @@ export default function CheckInOutModule({
 
                         {moveChargeId && (
                           <tr>
-                            <td colSpan={5} className="py-3 bg-amber-50">
+                            <td colSpan={5} className="py-3 bg-indigo-50">
                                <div className="flex items-center gap-3 justify-end px-4">
-                                 <span className="text-amber-800 text-xs font-sans font-semibold">Move Selected Charge to Another Guest Folio:</span>
+                                 <span className="text-indigo-800 text-xs font-sans font-semibold">Move Selected Charge to Another Guest Folio:</span>
                                  <select 
-                                   className="text-xs px-3 py-2 border border-amber-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all duration-200"
+                                   className="text-xs px-3 py-2 border border-indigo-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
                                    onChange={async (e) => {
                                      if (e.target.value) {
                                        await moveFolioCharge(currentFolioRes.id, e.target.value, moveChargeId);

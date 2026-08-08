@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { authenticate, requirePermission } from '../middleware/auth';
 import { hasSupabaseAdminConfig, supabaseAdmin } from '../supabaseAdmin';
 import { cacheService } from '../services/cacheService';
@@ -1415,5 +1416,211 @@ function calculateCarbonFootprint(electricity: any[], gas: any[]): number {
   // Simplified carbon footprint calculation
   return (electricityKwh * 0.00042) + (gasUnits * 0.0053);
 }
+
+// =====================
+// Engineering & Maintenance API
+// =====================
+router.get('/assets', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('fixed_assets').select('*').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/assets', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { assetCode, assetName, assetCategory, description, location, purchaseDate, purchaseCost, salvageValue, usefulLifeYears, depreciationMethod, serialNumber, manufacturer, modelNumber, warrantyStart, warrantyEnd, warrantyProvider, criticality, parentAssetId } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('fixed_assets')
+      .insert({
+        asset_code: assetCode, asset_name: assetName, asset_category: assetCategory, description,
+        location, purchase_date: purchaseDate, purchase_cost: purchaseCost || 0,
+        salvage_value: salvageValue || 0, useful_life_years: usefulLifeYears,
+        depreciation_method: depreciationMethod || 'Straight Line',
+        net_book_value: (purchaseCost || 0) - (salvageValue || 0),
+        serial_number: serialNumber, manufacturer, model_number: modelNumber,
+        warranty_start: warrantyStart, warranty_end: warrantyEnd, warranty_provider: warrantyProvider,
+        criticality: criticality || 'Medium', parent_asset_id: parentAssetId,
+        status: 'Active',
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, asset: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/assets/:id', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { status, ...updates } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = { ...updates, updated_at: new Date().toISOString() };
+    if (status) updateData.status = status;
+    const { data, error } = await supabaseAdmin.from('fixed_assets').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, asset: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.delete('/assets/:id', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('fixed_assets').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// PM Schedules
+router.get('/pm-schedules', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('pm_schedules')
+      .select('*, fixed_assets(asset_name, asset_code, location)').order('next_due_date', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/pm-schedules', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { scheduleName, assetId, frequency, intervalDays, nextDueDate, checklistTemplate, assignedTechnician, priority } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('pm_schedules')
+      .insert({
+        schedule_name: scheduleName, asset_id: assetId, frequency: frequency || 'Monthly',
+        interval_days: intervalDays || 30, next_due_date: nextDueDate,
+        checklist_template: checklistTemplate || [], assigned_technician: assignedTechnician,
+        priority: priority || 'Medium', status: 'Active',
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, schedule: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/pm-schedules/:id', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { status, nextDueDate, lastCompletedDate } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (status) updateData.status = status;
+    if (nextDueDate) updateData.next_due_date = nextDueDate;
+    if (lastCompletedDate) updateData.last_completed_date = lastCompletedDate;
+    const { data, error } = await supabaseAdmin.from('pm_schedules').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, schedule: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Generate PM work orders
+router.post('/generate-pm-work-orders', authenticate, requirePermission('engineering:write'), async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.rpc('generate_pm_work_orders', { p_date: new Date().toISOString().split('T')[0] });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, generated: data || [] });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Work Orders
+router.get('/work-orders', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('work_orders')
+      .select('*, fixed_assets(asset_name, asset_code, location)').order('created_date', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/work-orders', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { title, description, assetId, type, priority, assignedTo, roomNumber, scheduledDate, checklist } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const woId = crypto.randomUUID();
+    const woNumber = `WO-${Date.now().toString().slice(-6)}`;
+    const { data, error } = await supabaseAdmin.from('work_orders')
+      .insert({
+        id: woId, wo_number: woNumber, asset_id: assetId, title, description,
+        type: type || 'Corrective', priority: priority || 'Medium', status: 'Open',
+        assigned_to: assignedTo, room_number: roomNumber, scheduled_date: scheduledDate,
+        checklist: checklist || [], created_by: req.user!.id,
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, workOrder: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/work-orders/:id', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { status, completedChecklist, sparePartsUsed, laborHours, actualCost, notes, startedAt } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = {};
+    if (status) updateData.status = status;
+    if (completedChecklist) updateData.completed_checklist = completedChecklist;
+    if (sparePartsUsed) updateData.spare_parts_used = sparePartsUsed;
+    if (laborHours !== undefined) updateData.labor_hours = laborHours;
+    if (actualCost !== undefined) updateData.actual_cost = actualCost;
+    if (notes !== undefined) updateData.notes = notes;
+    if (startedAt) updateData.started_at = startedAt;
+    if (status === 'Completed') updateData.completed_at = new Date().toISOString();
+
+    const { data, error } = await supabaseAdmin.from('work_orders').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    // If completed and has room number, auto-release OOO/OOS room
+    if (status === 'Completed' && data.room_number) {
+      const { error: releaseError } = await supabaseAdmin.rpc('release_ooo_room', { p_wo_id: req.params.id });
+      if (releaseError) console.error('OOO release failed:', releaseError.message);
+    }
+
+    return res.json({ success: true, workOrder: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Spare Parts
+router.get('/spare-parts', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('spare_parts').select('*').order('part_name', { ascending: true });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/spare-parts', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { partNumber, partName, category, manufacturer, unit, minStock, maxStock, currentStock, unitCost, location, reorderQty } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('spare_parts')
+      .insert({
+        part_number: partNumber, part_name: partName, category, manufacturer,
+        unit: unit || 'pcs', min_stock: minStock || 5, max_stock: maxStock || 50,
+        current_stock: currentStock || 0, unit_cost: unitCost || 0, location,
+        reorder_qty: reorderQty || 10,
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, sparePart: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/spare-parts/:id', authenticate, requirePermission('engineering:write'), async (req, res) => {
+  const { currentStock, minStock, maxStock, reorderQty } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = { updated_at: new Date().toISOString() };
+    if (currentStock !== undefined) updateData.current_stock = currentStock;
+    if (minStock !== undefined) updateData.min_stock = minStock;
+    if (maxStock !== undefined) updateData.max_stock = maxStock;
+    if (reorderQty !== undefined) updateData.reorder_qty = reorderQty;
+    const { data, error } = await supabaseAdmin.from('spare_parts').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, sparePart: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
 
 export default router;

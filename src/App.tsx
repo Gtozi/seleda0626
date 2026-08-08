@@ -7,54 +7,146 @@ import React, { useState } from 'react';
 import { Routes, Route, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { useERP } from './context/ERPContext';
 import { AppProviders } from './context/AppProviders';
-import FrontDeskPortal from './components/FrontDesk/FrontDeskPortal';
 import BookingPage from './components/BookingPage';
 import LoginPage from './components/LoginPage';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import AccountSettingsModule from './components/Settings/AccountSettingsModule';
 import CheckInPrintModal from './components/FrontDesk/CheckInPrintModal';
 import GroupCheckInPrintModal from './components/FrontDesk/GroupCheckInPrintModal';
-import HousekeepingPortal, { type HKTab } from './components/Housekeeping/HousekeepingPortal';
-import FoodBeveragePortal from './components/FoodBeverage/FoodBeveragePortal';
-import EngineeringPortal from './components/Engineering/EngineeringPortal';
-import InventoryPortal from './components/Inventory/InventoryPortal';
-import FinancePortal from './components/Finance/FinancePortal';
-import HumanResourcesPortal from './components/HumanResources/HumanResourcesPortal';
-import AdminPortal from './components/Admin/AdminPortal';
-import UnifiedPortal from './components/Admin/UnifiedPortal';
 import { CORE_ADMIN_MODULES } from './components/Admin/adminModules';
-import ProcurementPortal from './components/Procurement/ProcurementPortal';
-import SalesPortal from './components/Sales/SalesPortal';
 import GuestMobilePortal from './components/GuestMobilePortal';
+import GuestPortal from './components/GuestPortal/GuestPortal';
+import PublicPortal from './components/PublicPortal/PublicPortal';
 import POSPortal from './components/POS/POSPortal';
 import POSLoginPage from './components/POS/POSLoginPage';
 import KitchenDisplayModule from './components/FoodBeverage/KitchenDisplayModule';
 import KDSInstanceManagement from './components/FoodBeverage/KDSInstanceManagement';
+import { SideNavigation } from './components/Shared/SideNavigation';
+import { ErpLayout, ErpIndexRedirect } from './components/Shared/ErpLayout';
+import { DepartmentRoute } from './components/Shared/DepartmentRoute';
+import { DepartmentSwitcher } from './components/Shared/DepartmentSwitcher';
+import { DEPARTMENT_BY_KEY, DEPARTMENT_BY_SEGMENT, getDefaultErpPath, type DepartmentKey } from './config/departments';
 import { User } from './types/erp';
 import { supabase } from './lib/supabase';
 import { logout, verifySession } from './lib/auth';
-import { canAccessTab } from './lib/permissions';
 import {
-  Bell,
   LogOut,
   Users,
   Calendar,
-  Coins,
-  Activity,
-  X,
-  Sparkles,
-  ShieldAlert,
   Lock,
   Settings,
   Moon,
   Sun,
-  Package,
   LayoutDashboard,
   FileBarChart,
   AlertCircle,
-  TrendingUp
+  Grid3x3,
+  DoorOpen,
+  Home,
+  BedDouble,
+  Crown,
+  Key,
+  Shield,
+  FileText,
+  MessageSquare,
+  CreditCard,
+  Car,
+  Utensils,
+  Wrench,
+  Package,
+  DollarSign,
+  ShoppingCart,
+  TrendingUp,
+  Building2,
+  ClipboardList,
+  ClipboardCheck,
+  Receipt,
+  Wallet,
+  PiggyBank,
+  Banknote,
+  Scale,
+  Target,
+  Boxes,
+  Building,
+  Landmark,
+  Gavel,
+  FolderOpen,
+  CheckSquare,
+  BarChart3,
+  PieChart,
+  BookOpen,
+  Brain,
+  Compass,
+  Eye,
+  Activity,
+  Leaf,
+  Trophy,
+  LineChart,
+  Database,
+  SlidersHorizontal,
+  Moon as MoonIcon,
+  Bell as BellIcon,
+  SprayCan,
+  Brush,
+  Search,
+  Truck,
+  Wine,
+  ChefHat,
+  Store,
+  HandPlatter,
+  PartyPopper,
+  Mail,
+  Tag,
+  Calculator,
+  Layers,
+  Network,
+  Briefcase,
+  IdCard,
+  UserPlus,
+  UserCheck,
+  CalendarDays,
+  Clock,
+  CalendarOff,
+  Gift,
+  GraduationCap,
+  HeartPulse,
+  Handshake,
+  FolderArchive,
+  Workflow,
+  Fingerprint,
+  Cctv,
+  Footprints,
+  Siren,
+  Flame,
+  AlertTriangle,
+  LifeBuoy,
+  HardHat,
+  ShieldCheck,
+  KeySquare,
+  Route as RouteIcon,
+  MapPin,
+  Gauge,
+  Fuel,
+  HardDrive,
+  HardDriveDownload,
+  Plane,
+  Bus,
+  Star,
+  Command,
+  CheckCircle2,
+  ArrowRightLeft,
+  Heart,
+  Award,
+  Ticket,
+  Megaphone,
+  ListChecks,
+  FileCheck,
+  Sparkles,
+  Droplets,
+  Scissors,
+  Dumbbell,
+  ShoppingBag,
+  type LucideIcon
 } from 'lucide-react';
-import { changePassword } from './lib/auth';
 
 function POSLoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: any) => void }) {
   return <POSLoginPage onLoginSuccess={onLoginSuccess} />;
@@ -62,93 +154,6 @@ function POSLoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: any) => void
 
 function LoginRoute({ onLoginSuccess }: { onLoginSuccess: (user: User, forcePasswordChange?: boolean) => void }) {
   return <LoginPage onLoginSuccess={onLoginSuccess} />;
-}
-
-function ForcedPasswordChangeScreen({ user, onSuccess }: { user: User; onSuccess: () => void }) {
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-
-    if (!newPassword || newPassword.length < 8) {
-      setError('New password must be at least 8 characters');
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    setIsLoading(true);
-    const result = await changePassword('', newPassword);
-    setIsLoading(false);
-
-    if (!result.success) {
-      setError(result.error || 'Failed to change password');
-      return;
-    }
-
-    onSuccess();
-  };
-
-  return (
-    <div className="flex-1 w-full flex items-center justify-center p-4 bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 min-h-[calc(100vh-57px)]">
-      <div className="w-full max-w-md bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xl p-8">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white shadow-lg">
-            <Lock size={24} />
-          </div>
-          <div>
-            <h2 className="text-xl font-serif font-bold text-slate-800 dark:text-slate-100">Password Change Required</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400">Welcome, {user.name}. You must set a new password before continuing.</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {error && (
-            <div className="p-3 bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 rounded-xl flex items-center gap-2.5 text-sm">
-              <AlertCircle size={16} className="flex-shrink-0" />
-              {error}
-            </div>
-          )}
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono uppercase text-slate-400 font-bold">New Password</label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="At least 8 characters with mixed case, digits, and special chars"
-              required
-              autoFocus
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-mono uppercase text-slate-400 font-bold">Confirm New Password</label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Re-type new password"
-              required
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-1 focus:ring-indigo-500 outline-none transition dark:text-slate-200"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white rounded-xl font-semibold text-sm hover:from-indigo-700 hover:to-indigo-800 transition disabled:opacity-50 flex items-center justify-center gap-2"
-          >
-            {isLoading ? 'Changing...' : 'Set New Password'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
 }
 
 function MasterHotelERP() {
@@ -181,11 +186,42 @@ function MasterHotelERP() {
   const [posUser, setPosUser] = useState<any>(null);
   const [, setPosSessionChecked] = useState(false);
 
-  // ERP Sidebar/Page department selector (First front office completes requested screens)
-  const [activeDept, setActiveDept] = useState<'frontoffice' | 'housekeeping' | 'f&b' | 'maintenance' | 'inventory' | 'finance' | 'hr' | 'executive' | 'admin' | 'procurement' | 'operations' | 'sales' | 'settings'>('frontoffice');
+  // Active department + tab — derived from the URL (Phase 3 route-driven navigation)
+  const erpPathMatch = React.useMemo(() => {
+    const match = location.pathname.match(/^\/erp\/([^/]+)(?:\/([^/]+))?/);
+    if (!match) return null;
+    const dept = DEPARTMENT_BY_SEGMENT[match[1]];
+    if (!dept) return null;
+    return { dept, tabId: match[2] || dept.defaultTab };
+  }, [location.pathname]);
 
-  // Auto-hide top nav — hidden by default, revealed on mouse hover at top of screen
-  const [navVisible, setNavVisible] = useState(false);
+  const activeDept: DepartmentKey = erpPathMatch?.dept.key ?? 'frontoffice';
+  const activeTab = erpPathMatch?.tabId ?? 'dashboard';
+
+  // Accent class for the active department — applied to the side nav so its
+  // active items / avatar adopt the same accent color as the portal content.
+  // Only departments whose portal wraps content in an `accent-*` class need an
+  // entry here; others fall back to the default indigo scheme.
+  const DEPT_ACCENT_CLASS: Partial<Record<DepartmentKey, string>> = {
+    frontoffice: 'accent-operations',
+  };
+  const activeAccentClass = DEPT_ACCENT_CLASS[activeDept] ?? '';
+
+  // Side navigation collapsed state
+  const [navCollapsed, setNavCollapsed] = useState(false);
+
+  // Auto-hide header - only visible on mouse hover at top of screen
+  const [headerVisible, setHeaderVisible] = useState(false);
+  React.useEffect(() => {
+    const handleScroll = () => {
+      // Hide when scrolled down, only show via mouse hover
+      if (window.scrollY > 10) {
+        setHeaderVisible(false);
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const { systemUsers, syncUserProfile } = useERP();
 
@@ -210,11 +246,9 @@ function MasterHotelERP() {
           username: user.username,
           status: user.status,
         });
-        // Set initial department based on user's allowed access
-        const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
-          ? user.allowedTabs[0] 
-          : 'frontoffice';
-        setActiveDept(initialDept);
+        // Phase 3: department is now URL-driven — no setActiveDept needed.
+        // If the user is on /erp (index), ErpIndexRedirect will redirect to
+        // their default department based on their role.
       }
       setSessionChecked(true);
     });
@@ -309,31 +343,14 @@ function MasterHotelERP() {
       navigate('/erp'); // Navigate to trigger the forced password screen
       return;
     }
-    
-    // Set initial department based on user's allowed access
-    // Default to first allowed tab, or frontoffice if not specified
-    const initialDept = user.allowedTabs && user.allowedTabs.length > 0 
-      ? user.allowedTabs[0] 
-      : 'frontoffice';
-    setActiveDept(initialDept);
-    
-    // Navigate to ERP after successful login
-    navigate('/erp');
+
+    // Phase 3: navigate to the user's default department (URL-driven)
+    navigate(getDefaultErpPath(user));
 
     // Re-fetch all ERP data now that the user is authenticated.
     // Sub-contexts fired their initial refreshData() on mount while
     // unauthenticated, so those calls returned 401 and left state empty.
     refreshAllData();
-  };
-
-  const handleDeptChange = (dept: typeof activeDept) => {
-    // 'settings' is handled separately as a modal, not a department
-    // Check if user has access to the requested department
-    if (!canAccessTab(currentUser, dept)) {
-      console.warn(`Access denied: User does not have permission to access ${dept}`);
-      return;
-    }
-    setActiveDept(dept);
   };
 
   const handleLogout = async () => {
@@ -352,16 +369,7 @@ function MasterHotelERP() {
     navigate('/pos/login');
   };
 
-  // Department sub-screen toggles
-  const [hkDir, setHkDir] = useState<HKTab>('dashboard');
-  const [fbDir, setFbDir] = useState('executive-dashboard');
-  const [engDir, setEngDir] = useState('dashboard');
-  const [invDir, setInvDir] = useState('dashboard');
-  const [finDir, setFinDir] = useState('dashboard');
-  const [hrDir, setHrDir] = useState('dashboard');
-  const [adminDir, setAdminDir] = useState('user_security');
-  const [procDir, setProcDir] = useState('dashboard');
-  const [frontDir, setFrontDir] = useState<'dashboard' | 'reservations' | 'folio' | 'crm' | 'reports' | 'giftshop' | 'inventory' | 'standard-reports'>('dashboard');
+  // Phase 3: *Dir state removed — tab is now derived from the URL (activeTab)
 
   // Notification panel toggle on ERP
   const [showNotifications, setShowNotifications] = useState(false);
@@ -380,658 +388,588 @@ function MasterHotelERP() {
     return typeof access === 'boolean' ? access : access?.read === true;
   };
 
-  // Sub-module ID mappings per department (subNavId → module_access key)
-  const deptSubModuleMap: Record<string, Record<string, string>> = {
-    frontoffice: { 'dashboard': 'fo_dashboard', 'reservations': 'fo_reservations', 'folio': 'fo_folio', 'crm': 'fo_crm', 'reports': 'fo_reports', 'inventory': 'fo_inventory', 'standard-reports': 'fo_standard_reports' },
-    housekeeping: { 'dashboard': 'hk_dashboard', 'rooms': 'hk_rooms', 'tasks': 'hk_tasks', 'laundry': 'hk_laundry', 'inventory': 'hk_inventory', 'amenities': 'hk_amenities', 'lostfound': 'hk_lostfound', 'staff': 'hk_staff', 'reports': 'hk_reports', 'standard-reports': 'hk_standard_reports' },
-    'f&b': { 'executive-dashboard': 'fb_executive_dashboard', 'outlet-management': 'fb_outlet_management', 'menu-catalog': 'fb_menu_catalog', 'recipe-production': 'fb_recipe_production', 'inventory-cost': 'fb_inventory_cost', 'beverage-management': 'fb_beverage_management', 'purchasing-suppliers': 'fb_purchasing_suppliers', 'banquet-catering': 'fb_banquet_catering', 'room-service': 'fb_room_service', 'guest-crm': 'fb_guest_crm', 'promotions-pricing': 'fb_promotions_pricing', 'financial-control': 'fb_financial_control', 'operations-compliance': 'fb_operations_compliance', 'reporting-bi': 'fb_reporting_bi', 'integrations': 'fb_integrations' },
-    maintenance: { 'dashboard': 'eng_dashboard', 'workorders': 'eng_workorders', 'pm': 'eng_pm', 'assets': 'eng_assets', 'rooms': 'eng_rooms', 'utilities': 'eng_utilities', 'inventory': 'eng_inventory', 'staff': 'eng_staff', 'compliance': 'eng_compliance', 'reports': 'eng_reports', 'standard-reports': 'eng_standard_reports' },
-    inventory: { 'dashboard': 'inv_dashboard', 'items': 'inv_items', 'stores': 'inv_stores', 'requisitions': 'inv_requisitions', 'receiving': 'inv_receiving', 'count': 'inv_count', 'suppliers': 'inv_suppliers', 'standard-reports': 'inv_standard_reports', 'reports': 'inv_reports' },
-    finance: { 'dashboard': 'fin_dashboard', 'gl': 'fin_gl', 'sales': 'fin_sales', 'ap': 'fin_ap', 'ar': 'fin_ar', 'bank_recon': 'fin_bank_recon', 'reports': 'fin_reports', 'trial_balance': 'fin_trial_balance', 'financial_statements': 'fin_statements', 'budget': 'fin_budget', 'tax_compliance': 'fin_tax', 'erca_vat': 'fin_erca_vat', 'standard-reports': 'fin_standard_reports', 'period_close': 'fin_period_close', 'assets': 'fin_assets' },
-    hr: { 'dashboard': 'hr_dashboard', 'employees': 'hr_employees', 'attendance': 'hr_attendance', 'payroll': 'hr_payroll', 'leave': 'hr_leave', 'performance': 'hr_performance', 'training': 'hr_training', 'recruitment': 'hr_recruitment', 'reports': 'hr_reports', 'standard-reports': 'hr_standard_reports' },
-    procurement: { 'dashboard': 'proc_dashboard', 'requisitions': 'proc_requisitions', 'orders': 'proc_orders', 'suppliers': 'proc_suppliers', 'rfq': 'proc_rfq', 'receiving': 'proc_receiving', 'contracts': 'proc_contracts', 'budget': 'proc_budget', 'invoices': 'proc_invoices', 'approvals': 'proc_approvals', 'reports': 'proc_reports', 'standard-reports': 'proc_standard_reports' },
-  };
-
-  // Reset sub-dir if current sub-tab is not accessible per moduleAccess
-  React.useEffect(() => {
-    if (!currentUser?.moduleAccess || Object.keys(currentUser.moduleAccess).length === 0) return;
-    const subMap = deptSubModuleMap[activeDept];
-    if (!subMap) return;
-    const dirSetters: Record<string, [string, (v: any) => void]> = {
-      frontoffice: [frontDir, setFrontDir],
-      housekeeping: [hkDir, setHkDir],
-      'f&b': [fbDir, setFbDir],
-      maintenance: [engDir, setEngDir],
-      inventory: [invDir, setInvDir],
-      finance: [finDir, setFinDir],
-      hr: [hrDir, setHrDir],
-      procurement: [procDir, setProcDir],
-    };
-    const entry = dirSetters[activeDept];
-    if (!entry) return;
-    const [currentDir, setter] = entry;
-    const modId = subMap[currentDir];
-    if (modId && !hasModuleAccess(modId)) {
-      const firstAccessible = Object.entries(subMap).find(([, mid]) => hasModuleAccess(mid));
-      if (firstAccessible) setter(firstAccessible[0] as any);
-    }
-  }, [currentUser, activeDept]);
+  // Phase 3: deptSubModuleMap, access-control useEffects, isModuleDisabled,
+  // and admin module-toggle useEffect removed — all access control is now
+  // handled by DepartmentRoute at the route level.
 
   // Platform controls: a department portal can be disabled web-app-wide from
   // System Admin > Platform Controls. Admin and account settings are never gated.
   const moduleToggles = globalHotelSettings.moduleToggles || {};
 
-  // Auto-switch admin tab if the currently selected module is toggled off
-  React.useEffect(() => {
-    if (activeDept !== 'admin') return;
-    const visibleAdminModules = CORE_ADMIN_MODULES.filter(m => moduleToggles[m.toggleKey] !== false);
-    if (visibleAdminModules.length === 0) return;
-    const currentVisible = visibleAdminModules.some(m => m.id === adminDir);
-    if (!currentVisible) {
-      setAdminDir(visibleAdminModules[0].id);
-    }
-  }, [activeDept, moduleToggles, adminDir]);
+  // Compute sub-navigation items for the active department
+  const subNavItems: { id: string; label: string; modId: string }[] = React.useMemo(() => {
+    const subNavConfig: Record<string, { id: string; label: string; modId: string; icon?: LucideIcon }[]> = {
+      frontoffice: [
+        { id: 'dashboard', label: 'Dashboard', modId: 'fo_dashboard', icon: LayoutDashboard },
+        { id: 'reservations', label: 'Reservations', modId: 'fo_reservations', icon: Calendar },
+        { id: 'availability-inventory', label: 'Availability', modId: 'fo_availability', icon: Grid3x3 },
+        { id: 'front-desk-operations', label: 'Front Desk Ops', modId: 'fo_front_desk_ops', icon: DoorOpen },
+        { id: 'room-assignment', label: 'Room Assignment', modId: 'fo_room_assignment', icon: BedDouble },
+        { id: 'guest-profiles', label: 'Guest Profiles', modId: 'fo_guest_profiles', icon: Users },
+        { id: 'group-profiles-management', label: 'Group Profiles', modId: 'fo_group_profiles', icon: Users },
+        { id: 'check-in', label: 'Check-In', modId: 'fo_check_in', icon: Key },
+        { id: 'check-out', label: 'Check-Out', modId: 'fo_check_out', icon: CreditCard },
+        { id: 'folio-billing', label: 'Folio & Billing', modId: 'fo_folio', icon: FileText },
+        { id: 'night-audit', label: 'Night Audit', modId: 'fo_night_audit', icon: MoonIcon },
+        { id: 'keys-access', label: 'Keys & Access', modId: 'fo_keys_access', icon: KeySquare },
+        { id: 'concierge-portal', label: 'Concierge Portal', modId: 'fo_concierge_portal', icon: Crown },
+        { id: 'guest-requests', label: 'Guest Requests', modId: 'fo_guest_requests', icon: BellIcon },
+        { id: 'lost-found', label: 'Lost & Found', modId: 'fo_lost_found', icon: Search },
+        { id: 'communication-center', label: 'Comms', modId: 'fo_communication', icon: MessageSquare },
+        { id: 'reports', label: 'Reports', modId: 'fo_reports', icon: FileBarChart },
+        { id: 'configuration', label: 'Config', modId: 'fo_configuration', icon: Settings },
+      ],
+      housekeeping: [
+        { id: 'dashboard', label: 'Command Center', modId: 'hk_dashboard', icon: LayoutDashboard },
+        { id: 'rooms', label: 'Room Board', modId: 'hk_rooms', icon: BedDouble },
+        { id: 'tasks', label: 'Task Management', modId: 'hk_tasks', icon: ClipboardList },
+        { id: 'public-area', label: 'Public Areas', modId: 'hk_public_area', icon: SprayCan },
+        { id: 'inspections', label: 'Inspections', modId: 'hk_inspections', icon: ClipboardCheck },
+        { id: 'supervisor', label: 'Supervisor', modId: 'hk_supervisor', icon: Eye },
+        { id: 'minibar', label: 'Minibar', modId: 'hk_minibar', icon: Wine },
+        { id: 'guest-requests', label: 'Guest Requests', modId: 'hk_guest_requests', icon: BellIcon },
+        { id: 'deep-cleaning', label: 'Deep Clean', modId: 'hk_deep_cleaning', icon: Brush },
+        { id: 'preventive-cleaning', label: 'Preventive', modId: 'hk_preventive', icon: SprayCan },
+        { id: 'maintenance', label: 'Maintenance', modId: 'hk_maintenance', icon: Wrench },
+        { id: 'communication', label: 'Communication', modId: 'hk_communication', icon: MessageSquare },
+        { id: 'configuration', label: 'Configuration', modId: 'hk_configuration', icon: Settings },
+        { id: 'laundry', label: 'Laundry & Valet', modId: 'hk_laundry', icon: HandPlatter },
+        { id: 'inventory', label: 'Supplies & Linen', modId: 'hk_inventory', icon: Package },
+        { id: 'amenities', label: 'Guest Amenities', modId: 'hk_amenities', icon: Gift },
+        { id: 'lostfound', label: 'Lost & Found', modId: 'hk_lostfound', icon: Search },
+        { id: 'staff', label: 'Team', modId: 'hk_staff', icon: Users },
+        { id: 'reports', label: 'Intelligence', modId: 'hk_reports', icon: BarChart3 },
+        { id: 'standard-reports', label: 'Standard Reports', modId: 'hk_standard_reports', icon: FileBarChart },
+      ],
+      'f&b': [
+        { id: 'executive-dashboard', label: 'Executive Dashboard', modId: 'fb_executive_dashboard', icon: LayoutDashboard },
+        { id: 'outlet-management', label: 'Outlets', modId: 'fb_outlet_management', icon: Store },
+        { id: 'menu-catalog', label: 'Menu & Catalog', modId: 'fb_menu_catalog', icon: BookOpen },
+        { id: 'recipe-production', label: 'Recipe & Production', modId: 'fb_recipe_production', icon: ChefHat },
+        { id: 'inventory-cost', label: 'Inventory & Cost', modId: 'fb_inventory_cost', icon: Package },
+        { id: 'beverage-management', label: 'Beverage', modId: 'fb_beverage_management', icon: Wine },
+        { id: 'purchasing-suppliers', label: 'Purchasing', modId: 'fb_purchasing_suppliers', icon: ShoppingCart },
+        { id: 'banquet-catering', label: 'Banquets', modId: 'fb_banquet_catering', icon: PartyPopper },
+        { id: 'room-service', label: 'Room Service', modId: 'fb_room_service', icon: HandPlatter },
+        { id: 'guest-crm', label: 'Guest CRM', modId: 'fb_guest_crm', icon: Users },
+        { id: 'promotions-pricing', label: 'Promotions', modId: 'fb_promotions_pricing', icon: Tag },
+        { id: 'financial-control', label: 'Financial Control', modId: 'fb_financial_control', icon: Calculator },
+        { id: 'operations-compliance', label: 'Operations', modId: 'fb_operations_compliance', icon: ClipboardCheck },
+        { id: 'reporting-bi', label: 'Reporting & BI', modId: 'fb_reporting_bi', icon: BarChart3 },
+        { id: 'integrations', label: 'Integrations', modId: 'fb_integrations', icon: Network },
+      ],
+      maintenance: [
+        { id: 'dashboard', label: 'Dashboard', modId: 'eng_dashboard', icon: LayoutDashboard },
+        { id: 'work-requests', label: 'Work Requests', modId: 'eng_work_requests', icon: ClipboardList },
+        { id: 'workorders', label: 'Work Orders', modId: 'eng_workorders', icon: Wrench },
+        { id: 'corrective-maintenance', label: 'Corrective Maint.', modId: 'eng_corrective_maintenance', icon: Wrench },
+        { id: 'pm', label: 'Preventive Maint.', modId: 'eng_pm', icon: Calendar },
+        { id: 'predictive-maintenance', label: 'Predictive Maint.', modId: 'eng_predictive_maintenance', icon: Activity },
+        { id: 'equipment-registry', label: 'Equipment Registry', modId: 'eng_equipment_registry', icon: HardDrive },
+        { id: 'building-maintenance', label: 'Building Maint.', modId: 'eng_building_maintenance', icon: Building },
+        { id: 'energy-management', label: 'Energy Management', modId: 'eng_energy_management', icon: Gauge },
+        { id: 'spare-parts', label: 'Spare Parts', modId: 'eng_spare_parts', icon: Package },
+        { id: 'vendor-contractor', label: 'Vendors & Contractors', modId: 'eng_vendor_contractor', icon: Briefcase },
+        { id: 'inspections', label: 'Inspections', modId: 'eng_inspections', icon: ClipboardCheck },
+        { id: 'calibration', label: 'Calibration', modId: 'eng_calibration', icon: SlidersHorizontal },
+        { id: 'projects-renovations', label: 'Projects & Renovations', modId: 'eng_projects', icon: HardHat },
+        { id: 'communication', label: 'Communication', modId: 'eng_communication', icon: MessageSquare },
+        { id: 'configuration', label: 'Configuration', modId: 'eng_configuration', icon: Settings },
+        { id: 'assets', label: 'Asset Register', modId: 'eng_assets', icon: Boxes },
+        { id: 'rooms', label: 'Guest Rooms', modId: 'eng_rooms', icon: BedDouble },
+        { id: 'utilities', label: 'Utilities & Plant', modId: 'eng_utilities', icon: Activity },
+        { id: 'inventory', label: 'Spare Parts & Tools', modId: 'eng_inventory', icon: Package },
+        { id: 'staff', label: 'Technicians', modId: 'eng_staff', icon: Users },
+        { id: 'compliance', label: 'Safety & Compliance', modId: 'eng_compliance', icon: ShieldCheck },
+        { id: 'reports', label: 'Reports', modId: 'eng_reports', icon: FileBarChart },
+        { id: 'standard-reports', label: 'Standard Reports', modId: 'eng_standard_reports', icon: FileBarChart },
+      ],
+      inventory: [
+        { id: 'dashboard', label: 'Dashboard', modId: 'inv_dashboard', icon: LayoutDashboard },
+        { id: 'items', label: 'Item Master', modId: 'inv_items', icon: Package },
+        { id: 'stores', label: 'Stores & Transfers', modId: 'inv_stores', icon: Building },
+        { id: 'requisition', label: 'Requisitions', modId: 'inv_requisitions', icon: ClipboardList },
+        { id: 'receiving', label: 'Goods Receiving', modId: 'inv_receiving', icon: HardDriveDownload },
+        { id: 'count', label: 'Stock Counting', modId: 'inv_count', icon: ClipboardCheck },
+        { id: 'suppliers', label: 'Suppliers', modId: 'inv_suppliers', icon: Briefcase },
+        { id: 'standard-reports', label: 'Standard Reports', modId: 'inv_standard_reports', icon: FileBarChart },
+        { id: 'reports', label: 'Reports', modId: 'inv_reports', icon: BarChart3 },
+      ],
+      finance: [
+        { id: 'dashboard', label: 'Executive Dashboard', modId: 'fin_dashboard', icon: LayoutDashboard },
+        { id: 'gl', label: 'General Ledger', modId: 'fin_gl', icon: BookOpen },
+        { id: 'coa', label: 'Chart of Accounts', modId: 'fin_coa', icon: FolderOpen },
+        { id: 'ar', label: 'Accounts Receivable', modId: 'fin_ar', icon: Receipt },
+        { id: 'ap', label: 'Accounts Payable', modId: 'fin_ap', icon: Receipt },
+        { id: 'cash_bank', label: 'Cash & Bank', modId: 'fin_cash_bank', icon: Wallet },
+        { id: 'treasury', label: 'Treasury', modId: 'fin_treasury', icon: Landmark },
+        { id: 'revenue', label: 'Revenue', modId: 'fin_revenue', icon: TrendingUp },
+        { id: 'expense', label: 'Expense', modId: 'fin_expense', icon: Banknote },
+        { id: 'cost_center', label: 'Cost Center', modId: 'fin_cost_center', icon: Target },
+        { id: 'budgeting', label: 'Budgeting', modId: 'fin_budgeting', icon: PiggyBank },
+        { id: 'fixed_assets', label: 'Fixed Assets', modId: 'fin_fixed_assets', icon: Boxes },
+        { id: 'inventory', label: 'Inventory', modId: 'fin_inventory', icon: Package },
+        { id: 'intercompany', label: 'Intercompany', modId: 'fin_intercompany', icon: Network },
+        { id: 'tax', label: 'Tax', modId: 'fin_tax', icon: Scale },
+        { id: 'financial_close', label: 'Financial Close', modId: 'fin_financial_close', icon: Lock },
+        { id: 'consolidation', label: 'Consolidation', modId: 'fin_consolidation', icon: Layers },
+        { id: 'audit_compliance', label: 'Audit', modId: 'fin_audit_compliance', icon: Gavel },
+        { id: 'documents', label: 'Documents', modId: 'fin_documents', icon: FileText },
+        { id: 'approval', label: 'Approvals', modId: 'fin_approval', icon: CheckSquare },
+        { id: 'bi', label: 'Business Intel', modId: 'fin_bi', icon: BarChart3 },
+        { id: 'reports', label: 'Reports', modId: 'fin_reports', icon: FileBarChart },
+        { id: 'config', label: 'Configuration', modId: 'fin_config', icon: Settings },
+      ],
+      hr: [
+        { id: 'dashboard', label: 'Executive Dashboard', modId: 'hr_dashboard', icon: LayoutDashboard },
+        { id: 'organization', label: 'Organization Management', modId: 'hr_organization', icon: Building2 },
+        { id: 'employees', label: 'Employee Management', modId: 'hr_employees', icon: Users },
+        { id: 'recruitment', label: 'Recruitment', modId: 'hr_recruitment', icon: UserPlus },
+        { id: 'ats', label: 'Applicant Tracking (ATS)', modId: 'hr_ats', icon: ClipboardList },
+        { id: 'onboarding', label: 'Onboarding', modId: 'hr_onboarding', icon: UserCheck },
+        { id: 'ess', label: 'Employee Self-Service', modId: 'hr_ess', icon: IdCard },
+        { id: 'mss', label: 'Manager Self-Service', modId: 'hr_mss', icon: Briefcase },
+        { id: 'attendance', label: 'Attendance Management', modId: 'hr_attendance', icon: Calendar },
+        { id: 'shifts', label: 'Shift & Rostering', modId: 'hr_shifts', icon: CalendarDays },
+        { id: 'leave', label: 'Leave Management', modId: 'hr_leave', icon: CalendarOff },
+        { id: 'overtime', label: 'Time & Overtime', modId: 'hr_overtime', icon: Clock },
+        { id: 'payroll', label: 'Payroll Management', modId: 'hr_payroll', icon: Banknote },
+        { id: 'compensation', label: 'Compensation & Benefits', modId: 'hr_compensation', icon: Gift },
+        { id: 'performance', label: 'Performance Management', modId: 'hr_performance', icon: Target },
+        { id: 'learning', label: 'Learning & Development', modId: 'hr_learning', icon: GraduationCap },
+        { id: 'training', label: 'Training Management', modId: 'hr_training', icon: BookOpen },
+        { id: 'career', label: 'Career & Succession', modId: 'hr_career', icon: TrendingUp },
+        { id: 'health', label: 'Health & Safety', modId: 'hr_health', icon: HeartPulse },
+        { id: 'relations', label: 'Employee Relations', modId: 'hr_relations', icon: Handshake },
+        { id: 'documents', label: 'Document Management', modId: 'hr_documents', icon: FolderArchive },
+        { id: 'workflow', label: 'Workflow & Approvals', modId: 'hr_workflow', icon: Workflow },
+        { id: 'analytics', label: 'Reports & Analytics', modId: 'hr_analytics', icon: BarChart3 },
+        { id: 'configuration', label: 'Configuration', modId: 'hr_configuration', icon: Settings },
+      ],
+      security: [
+        { id: 'dashboard', label: 'Executive Dashboard', modId: 'sec_dashboard', icon: LayoutDashboard },
+        { id: 'soc', label: 'Security Operations Center', modId: 'sec_soc', icon: Shield },
+        { id: 'incidents', label: 'Incident Management', modId: 'sec_incidents', icon: AlertTriangle },
+        { id: 'investigations', label: 'Investigations', modId: 'sec_investigations', icon: Search },
+        { id: 'visitors', label: 'Visitor Management', modId: 'sec_visitors', icon: Users },
+        { id: 'access-control', label: 'Access Control', modId: 'sec_access', icon: Lock },
+        { id: 'keys', label: 'Key & Keycard Management', modId: 'sec_keys', icon: Key },
+        { id: 'cctv', label: 'CCTV Management', modId: 'sec_cctv', icon: Cctv },
+        { id: 'patrols', label: 'Patrol Management', modId: 'sec_patrols', icon: Footprints },
+        { id: 'lost-found', label: 'Lost & Found Oversight', modId: 'sec_lostfound', icon: Search },
+        { id: 'emergency', label: 'Emergency Management', modId: 'sec_emergency', icon: Siren },
+        { id: 'fire-safety', label: 'Fire & Life Safety', modId: 'sec_firesafety', icon: Flame },
+        { id: 'risk', label: 'Risk Management', modId: 'sec_risk', icon: AlertCircle },
+        { id: 'business-continuity', label: 'Business Continuity', modId: 'sec_businesscontinuity', icon: LifeBuoy },
+        { id: 'crisis', label: 'Crisis Management', modId: 'sec_crisis', icon: AlertTriangle },
+        { id: 'health-safety', label: 'Health & Safety Coordination', modId: 'sec_healthsafety', icon: HeartPulse },
+        { id: 'compliance', label: 'Compliance Management', modId: 'sec_compliance', icon: ShieldCheck },
+        { id: 'asset-protection', label: 'Asset Protection', modId: 'sec_assetprotection', icon: Shield },
+        { id: 'fraud-prevention', label: 'Fraud Prevention', modId: 'sec_fraudprevention', icon: Fingerprint },
+        { id: 'evidence', label: 'Evidence Management', modId: 'sec_evidence', icon: FolderArchive },
+        { id: 'communication', label: 'Communication Center', modId: 'sec_communication', icon: MessageSquare },
+        { id: 'reports', label: 'Reports', modId: 'sec_reports', icon: FileBarChart },
+        { id: 'configuration', label: 'Configuration', modId: 'sec_configuration', icon: Settings },
+      ],
+      transportation: [
+        { id: 'dashboard', label: 'Dashboard', modId: 'trans_dashboard', icon: LayoutDashboard },
+        { id: 'requests', label: 'Requests', modId: 'trans_requests', icon: ClipboardList },
+        { id: 'dispatch', label: 'Dispatch Center', modId: 'trans_dispatch', icon: Truck },
+        { id: 'trips', label: 'Trip Management', modId: 'trans_trips', icon: RouteIcon },
+        { id: 'airport', label: 'Airport Transfers', modId: 'trans_airport', icon: Plane },
+        { id: 'shuttle', label: 'Shuttle Management', modId: 'trans_shuttle', icon: Bus },
+        { id: 'guest', label: 'Guest Transportation', modId: 'trans_guest', icon: Users },
+        { id: 'corporate', label: 'Corporate Transportation', modId: 'trans_corporate', icon: Briefcase },
+        { id: 'staff', label: 'Staff Transportation', modId: 'trans_staff', icon: Users },
+        { id: 'fleet', label: 'Fleet Management', modId: 'trans_fleet', icon: Car },
+        { id: 'vehicles', label: 'Vehicle Registry', modId: 'trans_vehicles', icon: Car },
+        { id: 'drivers', label: 'Driver Management', modId: 'trans_drivers', icon: IdCard },
+        { id: 'routes', label: 'Route Management', modId: 'trans_routes', icon: MapPin },
+        { id: 'scheduling', label: 'Scheduling & Dispatch', modId: 'trans_scheduling', icon: Calendar },
+        { id: 'gps', label: 'GPS Tracking', modId: 'trans_gps', icon: MapPin },
+        { id: 'fuel', label: 'Fuel Management', modId: 'trans_fuel', icon: Fuel },
+        { id: 'maintenance', label: 'Vehicle Maintenance', modId: 'trans_maintenance', icon: Wrench },
+        { id: 'contractors', label: 'Contractors', modId: 'trans_contractors', icon: Briefcase },
+        { id: 'billing', label: 'Billing & Charges', modId: 'trans_billing', icon: Receipt },
+        { id: 'communication', label: 'Communication Center', modId: 'trans_communication', icon: MessageSquare },
+        { id: 'reports', label: 'Reports', modId: 'trans_reports', icon: FileBarChart },
+        { id: 'configuration', label: 'Configuration', modId: 'trans_configuration', icon: Settings },
+      ],
+      procurement: [
+        { id: 'dashboard', label: 'Procurement Dashboard', modId: 'proc_dashboard', icon: LayoutDashboard },
+        { id: 'requisitions', label: 'Requisitions', modId: 'proc_requisitions', icon: ClipboardList },
+        { id: 'orders', label: 'Purchase Orders', modId: 'proc_orders', icon: FileText },
+        { id: 'suppliers', label: 'Suppliers', modId: 'proc_suppliers', icon: Briefcase },
+        { id: 'rfq', label: 'RFQ Management', modId: 'proc_rfq', icon: FileText },
+        { id: 'receiving', label: 'Goods Receiving', modId: 'proc_receiving', icon: HardDriveDownload },
+        { id: 'contracts', label: 'Contracts', modId: 'proc_contracts', icon: FileText },
+        { id: 'budget', label: 'Budget Control', modId: 'proc_budget', icon: PiggyBank },
+        { id: 'invoices', label: 'Supplier Invoices', modId: 'proc_invoices', icon: Receipt },
+        { id: 'approvals', label: 'Approval Center', modId: 'proc_approvals', icon: CheckSquare },
+        { id: 'reports', label: 'Reports', modId: 'proc_reports', icon: FileBarChart },
+        { id: 'standard-reports', label: 'Standard Reports', modId: 'proc_standard_reports', icon: FileBarChart },
+      ],
+      sales: [
+        { id: 'dashboard', label: 'Dashboard', modId: 'sales_dashboard', icon: LayoutDashboard },
+        { id: 'crm', label: 'CRM', modId: 'sales_crm', icon: Users },
+        { id: 'guest-profiles', label: 'Guest Profiles', modId: 'sales_guest_profiles', icon: Users },
+        { id: 'corporate-accounts', label: 'Corporate Accounts', modId: 'sales_corporate_accounts', icon: Briefcase },
+        { id: 'travel-agents', label: 'Travel Agents', modId: 'sales_travel_agents', icon: Briefcase },
+        { id: 'leads', label: 'Leads', modId: 'sales_leads', icon: TrendingUp },
+        { id: 'opportunities', label: 'Opportunities', modId: 'sales_opportunities', icon: Target },
+        { id: 'proposals', label: 'Proposals', modId: 'sales_proposals', icon: FileText },
+        { id: 'contracts', label: 'Contracts', modId: 'sales_contracts', icon: FileText },
+        { id: 'sales-activities', label: 'Activities', modId: 'sales_activities', icon: Calendar },
+        { id: 'account-management', label: 'Account Mgmt', modId: 'sales_account_management', icon: Users },
+        { id: 'campaigns', label: 'Campaigns', modId: 'sales_campaigns', icon: Tag },
+        { id: 'email-marketing', label: 'Email', modId: 'sales_email_marketing', icon: Mail },
+        { id: 'sms-messaging', label: 'SMS', modId: 'sales_sms_messaging', icon: MessageSquare },
+        { id: 'loyalty', label: 'Loyalty', modId: 'sales_loyalty', icon: Gift },
+        { id: 'promotions', label: 'Promotions', modId: 'sales_promotions', icon: Tag },
+        { id: 'gift-cards', label: 'Gift Cards', modId: 'sales_gift_cards', icon: Gift },
+        { id: 'reputation', label: 'Reputation', modId: 'sales_reputation', icon: Star },
+        { id: 'guest-feedback', label: 'Feedback', modId: 'sales_guest_feedback', icon: MessageSquare },
+        { id: 'segmentation', label: 'Segmentation', modId: 'sales_segmentation', icon: PieChart },
+        { id: 'business-intelligence', label: 'BI', modId: 'sales_business_intelligence', icon: BarChart3 },
+        { id: 'communication', label: 'Communication', modId: 'sales_communication', icon: MessageSquare },
+        { id: 'reports', label: 'Reports', modId: 'sales_reports', icon: FileBarChart },
+        { id: 'configuration', label: 'Configuration', modId: 'sales_configuration', icon: Settings },
+      ],
+      concierge: [
+        { id: 'dashboard', label: 'Executive Dashboard', modId: 'concierge_dashboard', icon: LayoutDashboard },
+        { id: 'service-center', label: 'Guest Service Center', modId: 'concierge_service_center', icon: Users },
+        { id: 'guest-profiles', label: 'Guest Profiles', modId: 'concierge_guest_profiles', icon: Users },
+        { id: 'guest-requests', label: 'Guest Requests', modId: 'concierge_guest_requests', icon: BellIcon },
+        { id: 'concierge-desk', label: 'Concierge Desk', modId: 'concierge_desk', icon: MapPin },
+        { id: 'experience-booking', label: 'Experience Booking', modId: 'concierge_experience_booking', icon: Star },
+        { id: 'restaurant-reservations', label: 'Restaurant Reservations', modId: 'concierge_restaurant_reservations', icon: Utensils },
+        { id: 'transportation', label: 'Transportation', modId: 'concierge_transportation', icon: Car },
+        { id: 'tour-management', label: 'Tour Management', modId: 'concierge_tour_management', icon: MapPin },
+        { id: 'ticketing', label: 'Ticketing Services', modId: 'concierge_ticketing', icon: Ticket },
+      ],
+      'spa-wellness': [
+        { id: 'dashboard', label: 'Executive Dashboard', modId: 'spa_dashboard', icon: LayoutDashboard },
+        { id: 'appointments', label: 'Appointment Management', modId: 'spa_appointments', icon: Calendar },
+        { id: 'treatment-catalog', label: 'Treatment Catalog', modId: 'spa_treatment_catalog', icon: Sparkles },
+        { id: 'therapists', label: 'Therapist Management', modId: 'spa_therapists', icon: Users },
+        { id: 'treatment-rooms', label: 'Treatment Rooms', modId: 'spa_treatment_rooms', icon: Home },
+        { id: 'guest-wellness-profiles', label: 'Guest Wellness Profiles', modId: 'spa_guest_wellness_profiles', icon: Heart },
+        { id: 'wellness-programs', label: 'Wellness Programs', modId: 'spa_wellness_programs', icon: Target },
+        { id: 'memberships', label: 'Membership Management', modId: 'spa_memberships', icon: Award },
+        { id: 'fitness-center', label: 'Fitness Center', modId: 'spa_fitness_center', icon: Dumbbell },
+        { id: 'beauty-salon', label: 'Beauty Salon', modId: 'spa_beauty_salon', icon: Scissors },
+        { id: 'thermal-hydro', label: 'Thermal & Hydro', modId: 'spa_thermal_hydro', icon: Droplets },
+        { id: 'wellness-packages', label: 'Wellness Packages', modId: 'spa_wellness_packages', icon: Gift },
+        { id: 'retail-shop', label: 'Retail Shop', modId: 'spa_retail_shop', icon: ShoppingBag },
+        { id: 'inventory-consumption', label: 'Inventory Consumption', modId: 'spa_inventory_consumption', icon: Package },
+        { id: 'gift-cards', label: 'Gift Cards & Vouchers', modId: 'spa_gift_cards', icon: CreditCard },
+        { id: 'billing-payments', label: 'Billing & Payments', modId: 'spa_billing_payments', icon: DollarSign },
+        { id: 'communication', label: 'Communication Center', modId: 'spa_communication', icon: MessageSquare },
+        { id: 'reports', label: 'Reports', modId: 'spa_reports', icon: BarChart3 },
+        { id: 'configuration', label: 'Configuration', modId: 'spa_configuration', icon: Settings },
+        { id: 'luggage-services', label: 'Luggage Services', modId: 'concierge_luggage_services', icon: Package },
+        { id: 'parcel-management', label: 'Parcel Management', modId: 'concierge_parcel_management', icon: Package },
+        { id: 'vip-services', label: 'VIP & Butler Services', modId: 'concierge_vip_services', icon: Crown },
+        { id: 'personal-shopping', label: 'Personal Shopping', modId: 'concierge_personal_shopping', icon: ShoppingBag },
+        { id: 'local-recommendations', label: 'Local Recommendations', modId: 'concierge_local_recommendations', icon: MapPin },
+        { id: 'itinerary-planner', label: 'Itinerary Planner', modId: 'concierge_itinerary_planner', icon: Calendar },
+        { id: 'wake-up-reminder', label: 'Wake-up & Reminder', modId: 'concierge_wake_up_reminder', icon: Clock },
+        { id: 'guest-communication', label: 'Guest Communication', modId: 'concierge_guest_communication', icon: MessageSquare },
+        { id: 'vendor-management', label: 'Vendor Management', modId: 'concierge_vendor_management', icon: Building2 },
+        { id: 'billing-charges', label: 'Billing & Charges', modId: 'concierge_billing_charges', icon: DollarSign },
+        { id: 'reports', label: 'Reports', modId: 'concierge_reports', icon: FileBarChart },
+        { id: 'configuration', label: 'Configuration', modId: 'concierge_configuration', icon: Settings },
+      ],
+    };
 
-  const isModuleDisabled =
-    activeDept !== 'admin' &&
-    activeDept !== 'settings' &&
-    moduleToggles[activeDept] === false;
+    // Executive and Operations share the same sub-nav
+    const execOpsSubNav = [
+      { id: 'executive-dashboard', label: 'Executive Dashboard', modId: activeDept === 'executive' ? 'exec_executive_dashboard' : 'ops_executive_dashboard', icon: LayoutDashboard },
+      { id: 'enterprise-kpi-center', label: 'Enterprise KPI Center', modId: activeDept === 'executive' ? 'exec_enterprise_kpi_center' : 'ops_enterprise_kpi_center', icon: Target },
+      { id: 'operational-intelligence', label: 'Operational Intelligence', modId: activeDept === 'executive' ? 'exec_operational_intelligence' : 'ops_operational_intelligence', icon: Activity },
+      { id: 'financial-intelligence', label: 'Financial Intelligence', modId: activeDept === 'executive' ? 'exec_financial_intelligence' : 'ops_financial_intelligence', icon: DollarSign },
+      { id: 'revenue-intelligence', label: 'Revenue Intelligence', modId: activeDept === 'executive' ? 'exec_revenue_intelligence' : 'ops_revenue_intelligence', icon: TrendingUp },
+      { id: 'guest-intelligence', label: 'Guest Intelligence', modId: activeDept === 'executive' ? 'exec_guest_intelligence' : 'ops_guest_intelligence', icon: Users },
+      { id: 'sales-marketing-intelligence', label: 'Sales & Marketing', modId: activeDept === 'executive' ? 'exec_sales_marketing_intelligence' : 'ops_sales_marketing_intelligence', icon: TrendingUp },
+      { id: 'food-beverage-intelligence', label: 'F&B Intelligence', modId: activeDept === 'executive' ? 'exec_food_beverage_intelligence' : 'ops_food_beverage_intelligence', icon: Utensils },
+      { id: 'housekeeping-intelligence', label: 'Housekeeping', modId: activeDept === 'executive' ? 'exec_housekeeping_intelligence' : 'ops_housekeeping_intelligence', icon: BedDouble },
+      { id: 'engineering-intelligence', label: 'Engineering', modId: activeDept === 'executive' ? 'exec_engineering_intelligence' : 'ops_engineering_intelligence', icon: Wrench },
+      { id: 'human-capital-intelligence', label: 'Human Capital', modId: activeDept === 'executive' ? 'exec_human_capital_intelligence' : 'ops_human_capital_intelligence', icon: Users },
+      { id: 'procurement-intelligence', label: 'Procurement', modId: activeDept === 'executive' ? 'exec_procurement_intelligence' : 'ops_procurement_intelligence', icon: ShoppingCart },
+      { id: 'inventory-intelligence', label: 'Inventory', modId: activeDept === 'executive' ? 'exec_inventory_intelligence' : 'ops_inventory_intelligence', icon: Package },
+      { id: 'security-intelligence', label: 'Security', modId: activeDept === 'executive' ? 'exec_security_intelligence' : 'ops_security_intelligence', icon: Shield },
+      { id: 'sustainability-intelligence', label: 'Sustainability', modId: activeDept === 'executive' ? 'exec_sustainability_intelligence' : 'ops_sustainability_intelligence', icon: Leaf },
+      { id: 'benchmarking', label: 'Benchmarking', modId: activeDept === 'executive' ? 'exec_benchmarking' : 'ops_benchmarking', icon: Trophy },
+      { id: 'forecasting', label: 'Forecasting', modId: activeDept === 'executive' ? 'exec_forecasting' : 'ops_forecasting', icon: LineChart },
+      { id: 'ai-decision-support', label: 'AI Decision Support', modId: activeDept === 'executive' ? 'exec_ai_decision_support' : 'ops_ai_decision_support', icon: Brain },
+      { id: 'strategic-planning', label: 'Strategic Planning', modId: activeDept === 'executive' ? 'exec_strategic_planning' : 'ops_strategic_planning', icon: Compass },
+      { id: 'alerts-exceptions', label: 'Alerts & Exceptions', modId: activeDept === 'executive' ? 'exec_alerts_exceptions' : 'ops_alerts_exceptions', icon: AlertCircle },
+      { id: 'reports-center', label: 'Reports Center', modId: activeDept === 'executive' ? 'exec_reports_center' : 'ops_reports_center', icon: FileBarChart },
+      { id: 'enterprise-data-explorer', label: 'Data Explorer', modId: activeDept === 'executive' ? 'exec_enterprise_data_explorer' : 'ops_enterprise_data_explorer', icon: Database },
+      { id: 'configuration', label: 'Configuration', modId: activeDept === 'executive' ? 'exec_configuration' : 'ops_configuration', icon: Settings },
+    ];
+    subNavConfig.executive = execOpsSubNav;
+
+    // Hotel Operations Portal has its own navigation structure
+    const operationsSubNav = [
+      { id: 'executive-dashboard', label: 'Executive Dashboard', modId: 'ops_executive_dashboard', icon: LayoutDashboard },
+      { id: 'command-center', label: 'Operations Command Center', modId: 'ops_command_center', icon: Command },
+      { id: 'daily-briefing', label: 'Daily Briefing', modId: 'ops_daily_briefing', icon: FileText },
+      { id: 'morning-meeting', label: 'Morning Meeting', modId: 'ops_morning_meeting', icon: Users },
+      { id: 'approvals', label: 'Manager Approvals', modId: 'ops_approvals', icon: CheckCircle2 },
+      { id: 'cross-department-tasks', label: 'Cross-Department Tasks', modId: 'ops_cross_department_tasks', icon: ArrowRightLeft },
+      { id: 'duty-manager', label: 'Duty Manager Workspace', modId: 'ops_duty_manager', icon: Briefcase },
+      { id: 'calendar', label: 'Operational Calendar', modId: 'ops_calendar', icon: Calendar },
+      { id: 'vip-management', label: 'VIP Guest Management', modId: 'ops_vip_management', icon: Star },
+      { id: 'guest-recovery', label: 'Guest Recovery', modId: 'ops_guest_recovery', icon: Heart },
+      { id: 'service-quality', label: 'Service Quality', modId: 'ops_service_quality', icon: Award },
+      { id: 'room-operations', label: 'Room Operations', modId: 'ops_room_operations', icon: BedDouble },
+      { id: 'occupancy-forecast', label: 'Occupancy & Forecast', modId: 'ops_occupancy_forecast', icon: TrendingUp },
+      { id: 'event-coordination', label: 'Event & Group Coordination', modId: 'ops_event_coordination', icon: Ticket },
+      { id: 'emergency', label: 'Emergency Coordination', modId: 'ops_emergency', icon: Flame },
+      { id: 'communication', label: 'Communication Center', modId: 'ops_communication', icon: Megaphone },
+      { id: 'escalations', label: 'Escalation Center', modId: 'ops_escalations', icon: AlertTriangle },
+      { id: 'sop-compliance', label: 'SOP & Compliance', modId: 'ops_sop_compliance', icon: ListChecks },
+      { id: 'executive-checklists', label: 'Executive Checklists', modId: 'ops_executive_checklists', icon: CheckSquare },
+      { id: 'flash-reports', label: 'Daily Flash Reports', modId: 'ops_flash_reports', icon: FileBarChart },
+      { id: 'reports', label: 'Reports', modId: 'ops_reports', icon: FileCheck },
+      { id: 'configuration', label: 'Configuration', modId: 'ops_configuration', icon: Settings },
+    ];
+    subNavConfig.operations = operationsSubNav;
+
+    // Admin sub-nav from CORE_ADMIN_MODULES
+    subNavConfig.admin = CORE_ADMIN_MODULES
+      .filter(m => moduleToggles[m.toggleKey] !== false)
+      .map(m => ({ id: m.id, label: m.label, modId: m.id }));
+
+    const items = subNavConfig[activeDept] || [];
+    return items.filter(item => !item.modId || hasModuleAccess(item.modId));
+  }, [activeDept, currentUser, moduleToggles]);
+
+  // Phase 3: activeSubItem is now derived directly from the URL
+  const activeSubItem = activeTab;
+
+  // Phase 3: handleSubItemClick navigates to the new URL instead of setting state
+  const handleSubItemClick = (id: string) => {
+    const dept = DEPARTMENT_BY_KEY[activeDept];
+    if (dept) navigate(`/erp/${dept.urlSegment}/${id}`);
+  };
 
   return (
-    <div data-route={location.pathname} className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col font-sans transition-colors duration-300 selection:bg-amber-400 selection:text-slate-900" id="erp-master-view">
+    <div data-route={location.pathname} className={`min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-300 selection:bg-amber-400 selection:text-slate-900 ${location.pathname === '/public-portal' ? '' : 'flex'}`} id="erp-master-view">
       
-      {/* GLOBAL MASTER HEADER (Allows switching between Platform Views dynamically!) - Hidden for public booking page */}
-      {location.pathname !== '/booking' && (
-      <>
-        {/* Hover zone — invisible strip at top of screen to reveal nav */}
-        <div
-          className="fixed top-0 left-0 right-0 h-3 z-40"
-          onMouseEnter={() => setNavVisible(true)}
+      {/* SIDE NAVIGATION - Hidden for public booking, login, and guest pages */}
+      {location.pathname !== '/booking' && location.pathname !== '/public-portal' && location.pathname !== '/login' && location.pathname !== '/guest' && location.pathname !== '/guest-portal' && (
+        <SideNavigation
+          activeDept={activeDept}
+          activeDeptLabel={DEPARTMENT_BY_KEY[activeDept]?.label ?? activeDept}
+          currentUser={currentUser}
+          collapsed={navCollapsed}
+          onToggleCollapse={() => setNavCollapsed(!navCollapsed)}
+          subItems={subNavItems}
+          activeSubItem={activeSubItem}
+          onSubItemClick={handleSubItemClick}
+          notifications={notifications}
+          unreadNotifCount={getUnreadNotifCount()}
+          onToggleNotifications={() => setShowNotifications(!showNotifications)}
+          showNotifications={showNotifications}
+          onMarkNotificationRead={markNotificationRead}
+          onClearNotification={clearNotification}
+          accentClass={activeAccentClass}
         />
-        <nav
-          onMouseEnter={() => setNavVisible(true)}
-          onMouseLeave={() => setNavVisible(false)}
-          className={`bg-white/95 backdrop-blur-xl border-b border-slate-200 text-slate-900 py-3 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 fixed top-0 left-0 right-0 z-30 shadow-lg transition-transform duration-300 ${navVisible ? 'translate-y-0' : '-translate-y-full'}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-extrabold font-sans shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300">S</div>
-          <div>
-            <span className="font-sans font-extrabold text-sm tracking-tight text-slate-900 block">HOTEL ERP</span>
-            <span className="text-[10px] font-mono text-indigo-600 uppercase tracking-widest leading-none block font-semibold">Live sync operational portal</span>
-          </div>
-        </div>
+      )}
 
-
-        {/* Global info controls */}
-        <div className="flex items-center gap-4">
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-all duration-200 cursor-pointer smooth-transition"
-            title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+      {/* GLOBAL HEADER - Full width, only visible on mouse hover. Hidden for public booking, login, and guest pages */}
+      {location.pathname !== '/booking' && location.pathname !== '/public-portal' && location.pathname !== '/login' && location.pathname !== '/guest' && location.pathname !== '/guest-portal' && (
+        <>
+          {/* Hover trigger zone at top of screen */}
+          <div
+            className="fixed top-0 left-0 right-0 h-3 z-50"
+            onMouseEnter={() => setHeaderVisible(true)}
+          />
+          <header
+            onMouseEnter={() => setHeaderVisible(true)}
+            onMouseLeave={() => setHeaderVisible(false)}
+            className={`bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-b border-slate-200 dark:border-slate-800 py-3 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 fixed top-0 left-0 right-0 z-50 transition-transform duration-300 ${headerVisible ? 'translate-y-0' : '-translate-y-full'}`}
           >
-            {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
-          </button>
-
-          <div className="flex bg-slate-100 border border-slate-200 rounded-xl p-0.5 text-[10px] font-mono font-bold tracking-tight shadow-sm">
-            <button 
-              onClick={() => setCurrency('USD')}
-              className={`px-3 py-1 rounded-lg transition-all duration-200 smooth-transition ${currency === 'USD' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
-            >
-              USD
-            </button>
-            <button 
-              onClick={() => setCurrency('ETB')}
-              className={`px-3 py-1 rounded-lg transition-all duration-200 smooth-transition ${currency === 'ETB' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200'}`}
-            >
-              ETB
-            </button>
-          </div>
-          
-          <div className="text-right text-xs text-slate-600 font-sans hidden md:block leading-tight">
-            <div>Operating Date: <strong className="text-indigo-600 font-mono">{currentSystemDate}</strong></div>
-            <div className="text-[11px] text-slate-500 font-mono">Occ: {stats.occupancyRate}% | Rev: <span className="text-emerald-600">{formatAmount(stats.totalRevenue)}</span></div>
-          </div>
-
-          {/* Property Switcher */}
-          {properties.length > 1 && (
-            <div className="flex items-center gap-2">
-              <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 hidden sm:block">Property</label>
-              <select
-                value={currentPropertyId || ''}
-                onChange={(e) => setCurrentPropertyId(e.target.value || null)}
-                className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-sans font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-400 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
-              >
-                {properties.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.property_name}</option>
-                ))}
-              </select>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-extrabold font-sans shadow-lg shadow-indigo-500/20 hover:shadow-xl hover:shadow-indigo-500/30 transition-all duration-300">S</div>
+            <div>
+              <span className="font-sans font-extrabold text-sm tracking-tight text-slate-900 dark:text-white block">HOTEL ERP</span>
+              <span className="text-[10px] font-mono text-indigo-600 uppercase tracking-widest leading-none block font-semibold">Live sync operational portal</span>
             </div>
-          )}
+          </div>
 
-          {/* User credentials & Logout */}
-          {currentUser && (
-            <div className="flex items-center gap-3 border-l border-slate-200 pl-4">
-              <div className="flex items-center gap-2 text-xs">
-                <button 
-                  onClick={() => handleDeptChange('settings')}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs relative border transition transition-all cursor-pointer ${
-                    activeDept === 'settings' 
-                      ? 'bg-indigo-600 border-indigo-500 text-white' 
-                      : 'bg-slate-800 border-slate-700 text-amber-400 hover:bg-slate-700'
-                  }`}
-                  title="Account Settings"
+          {/* Global info controls */}
+          <div className="flex items-center gap-4">
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all duration-200 cursor-pointer smooth-transition"
+              title={theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            >
+              {theme === 'light' ? <Moon size={14} /> : <Sun size={14} />}
+            </button>
+
+            <div className="flex bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-0.5 text-[10px] font-mono font-bold tracking-tight shadow-sm">
+              <button 
+                onClick={() => setCurrency('USD')}
+                className={`px-3 py-1 rounded-lg transition-all duration-200 smooth-transition ${currency === 'USD' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                USD
+              </button>
+              <button 
+                onClick={() => setCurrency('ETB')}
+                className={`px-3 py-1 rounded-lg transition-all duration-200 smooth-transition ${currency === 'ETB' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700'}`}
+              >
+                ETB
+              </button>
+            </div>
+            
+            <div className="text-right text-xs text-slate-600 dark:text-slate-400 font-sans hidden md:block leading-tight">
+              <div>Operating Date: <strong className="text-indigo-600 font-mono">{currentSystemDate}</strong></div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-500 font-mono">Occ: {stats.occupancyRate}% | Rev: <span className="text-emerald-600">{formatAmount(stats.totalRevenue)}</span></div>
+            </div>
+
+            {/* Department Switcher — Phase 4 */}
+            {currentUser && location.pathname.startsWith('/erp') && (
+              <DepartmentSwitcher
+                currentUser={currentUser}
+                activeSegment={erpPathMatch?.dept.urlSegment}
+                moduleToggles={moduleToggles}
+                hasModuleAccess={hasModuleAccess}
+              />
+            )}
+
+            {/* Property Switcher */}
+            {properties.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden sm:block">Property</label>
+                <select
+                  value={currentPropertyId || ''}
+                  onChange={(e) => setCurrentPropertyId(e.target.value || null)}
+                  className="px-2.5 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[11px] font-sans font-semibold text-slate-700 dark:text-slate-200 cursor-pointer hover:border-indigo-400 transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
                 >
-                  {currentUser.avatarInitials}
-                  <span className="absolute bottom-0 right-0 w-2 h-2 bg-emerald-400 border border-slate-950 rounded-full"></span>
-                </button>
-                <div className="hidden lg:block text-left">
-                  <span className="text-slate-900 font-semibold block leading-tight text-[11px]">{currentUser.name}</span>
-                  <span className="text-[9px] text-slate-400 uppercase font-mono tracking-wider block leading-none font-semibold">{currentUser.roleDescription || currentUser.role}</span>
-                </div>
+                  {properties.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.property_name}</option>
+                  ))}
+                </select>
               </div>
+            )}
+
+            {/* Logout */}
+            {currentUser && (
               <button
                 onClick={handleLogout}
-                className="p-1.5 hover:bg-rose-50 rounded-lg text-rose-600 hover:text-rose-700 transition-all cursor-pointer smooth-transition"
+                className="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-all cursor-pointer smooth-transition"
                 title="Logout"
               >
                 <LogOut size={13} />
               </button>
-            </div>
-          )}
-        </div>
-      </nav>
-      </>
+            )}
+          </div>
+        </header>
+        </>
       )}
 
-      {/* RENDER CHOSEN COMPONENT PORTALS */}
-      <Routes>
-        <Route 
-          path="/login" 
-          element={
-            !sessionChecked ? (
-              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
-            ) : (
-              <LoginRoute onLoginSuccess={handleLoginSuccess} />
-            )
-          } 
-        />
-        <Route path="/booking" element={<BookingPage />} />
-        <Route path="/guest-portal" element={<GuestMobilePortal />} />
-        <Route 
-          path="/pos/login" 
-          element={<POSLoginRoute onLoginSuccess={handlePOSLoginSuccess} />}
-        />
-        <Route 
-          path="/pos" 
-          element={
-            !posUser ? (
-              <Navigate to="/pos/login" replace />
-            ) : (
-              <POSPortal user={posUser} onLogout={handlePOSLogout} />
-            )
-          }
-        />
-        <Route 
-          path="/erp/*" 
-          element={
-            !sessionChecked ? (
-              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
-            ) : !currentUser ? (
-              <Navigate to="/login" replace />
-            ) : mustChangePassword ? (
-              <ForcedPasswordChangeScreen 
-                user={currentUser} 
-                onSuccess={() => {
-                  setMustChangePassword(false);
-                  const initialDept = currentUser.allowedTabs && currentUser.allowedTabs.length > 0 
-                    ? currentUser.allowedTabs[0] 
-                    : 'frontoffice';
-                  setActiveDept(initialDept);
-                  navigate('/erp');
-                }}
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* RENDER CHOSEN COMPONENT PORTALS */}
+        <Routes>
+          <Route 
+            path="/login" 
+            element={
+              !sessionChecked ? (
+                <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
+              ) : (
+                <LoginRoute onLoginSuccess={handleLoginSuccess} />
+              )
+            } 
+          />
+          <Route path="/booking" element={<BookingPage />} />
+          <Route path="/public-portal" element={<PublicPortal />} />
+          <Route path="/guest-portal" element={<GuestMobilePortal />} />
+          <Route path="/guest" element={<GuestPortal />} />
+          <Route 
+            path="/pos/login" 
+            element={<POSLoginRoute onLoginSuccess={handlePOSLoginSuccess} />}
+          />
+          <Route 
+            path="/pos" 
+            element={
+              !posUser ? (
+                <Navigate to="/pos/login" replace />
+              ) : (
+                <POSPortal user={posUser} onLogout={handlePOSLogout} />
+              )
+            }
+          />
+          {/* Phase 3: nested route-driven ERP navigation */}
+          <Route path="/erp" element={
+            <ErpLayout
+              sessionChecked={sessionChecked}
+              currentUser={currentUser}
+              mustChangePassword={mustChangePassword}
+              onPasswordChanged={() => setMustChangePassword(false)}
+            />
+          }>
+            <Route index element={<ErpIndexRedirect currentUser={currentUser} />} />
+            <Route path=":department" element={
+              <DepartmentRoute
+                currentUser={currentUser}
+                moduleToggles={moduleToggles}
+                hasModuleAccess={hasModuleAccess}
               />
-            ) : (
-              <div className="flex-1 flex flex-col overflow-hidden lg:h-[calc(100vh-57px)]">
-                {/* MAIN OFFICE INTERFACE SCROLLABLE GRID */}
-                <main className="flex-1 flex flex-col overflow-y-auto bg-slate-50 dark:bg-slate-950 transition-colors duration-300 smooth-transition">
-                {/* Active Department Title Bar */}
-                <header className="bg-white/95 backdrop-blur-lg border-b border-slate-200 py-3.5 px-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs w-full transition-colors duration-300 smooth-transition">
-                  <div>
-                    <h2 className="text-base font-sans font-extrabold text-slate-900 dark:text-white leading-tight">
-                      {activeDept === 'frontoffice' && 'Front Office'}
-                      {activeDept === 'housekeeping' && 'Housekeeping'}
-                      {activeDept === 'f&b' && 'Food & Beverage'}
-                      {activeDept === 'maintenance' && 'Engineering'}
-                      {activeDept === 'sales' && 'Sales'}
-                      {activeDept === 'executive' && 'Executive & Operations'}
-                      {activeDept === 'admin' && 'Admin'}
-                      {activeDept === 'inventory' && 'Inventory'}
-                      {activeDept === 'finance' && 'Finance'}
-                      {activeDept === 'hr' && 'Human Resources'}
-                      {activeDept === 'procurement' && 'Procurement'}
-                      {activeDept === 'operations' && 'Operations & Executive'}
-                      {activeDept === 'settings' && 'Account Settings'}
-                    </h2>
-                    <div className="text-slate-500 text-[10px] flex items-center gap-1 font-mono uppercase tracking-wider">
-                      <span>Gheralta</span> / <span className="text-indigo-600 font-bold">{activeDept}</span>
-                    </div>
-                  </div>
-
-                  {/* Front Office sub-navigation triggers */}
-                  {activeDept === 'frontoffice' && (
-                    <div className="flex flex-wrap bg-slate-100 dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-700 rounded-xl self-center text-xs font-sans font-medium select-none gap-1 transition-colors duration-300 card-shadow" id="front-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, modId: 'fo_dashboard' },
-                        { id: 'reservations', label: 'Reservations', icon: Calendar, modId: 'fo_reservations' },
-                        { id: 'folio', label: 'Folio', icon: Coins, modId: 'fo_folio' },
-                        { id: 'crm', label: 'CRM Board', icon: Users, modId: 'fo_crm' },
-                        { id: 'reports', label: 'Reports & Audit', icon: FileBarChart, modId: 'fo_reports' },
-                        { id: 'inventory', label: 'Office Inventory', icon: Package, modId: 'fo_inventory' },
-                        { id: 'standard-reports', label: 'Standard Reports', icon: FileBarChart, modId: 'fo_standard_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => {
-                        const Icon = tab.icon;
-                        return (
-                          <button
-                            key={tab.id}
-                            onClick={() => setFrontDir(tab.id as typeof frontDir)}
-                            className={`px-3 py-1.5 rounded-lg transition-all duration-200 cursor-pointer smooth-transition flex items-center gap-1.5 ${
-                              frontDir === tab.id
-                                ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]'
-                                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 text-[11px]'
-                            }`}
-                          >
-                            <Icon size={13} />
-                            <span>{tab.label}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Housekeeping sub-navigation triggers */}
-                  {activeDept === 'housekeeping' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="hk-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Command Center', modId: 'hk_dashboard' },
-                        { id: 'rooms', label: 'Room Board', modId: 'hk_rooms' },
-                        { id: 'tasks', label: 'Task Management', modId: 'hk_tasks' },
-                        { id: 'laundry', label: 'Laundry & Valet', modId: 'hk_laundry' },
-                        { id: 'inventory', label: 'Supplies & Linen', modId: 'hk_inventory' },
-                        { id: 'amenities', label: 'Guest Amenities', modId: 'hk_amenities' },
-                        { id: 'lostfound', label: 'Lost & Found', modId: 'hk_lostfound' },
-                        { id: 'staff', label: 'Team', modId: 'hk_staff' },
-                        { id: 'reports', label: 'Intelligence', modId: 'hk_reports' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'hk_standard_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setHkDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hkDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* F&B sub-navigation triggers */}
-                  {activeDept === 'f&b' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="fb-sub-menu">
-                      {([
-                        { id: 'executive-dashboard', label: 'Executive Dashboard', modId: 'fb_executive_dashboard' },
-                        { id: 'outlet-management', label: 'Outlets', modId: 'fb_outlet_management' },
-                        { id: 'menu-catalog', label: 'Menu & Catalog', modId: 'fb_menu_catalog' },
-                        { id: 'recipe-production', label: 'Recipe & Production', modId: 'fb_recipe_production' },
-                        { id: 'inventory-cost', label: 'Inventory & Cost', modId: 'fb_inventory_cost' },
-                        { id: 'beverage-management', label: 'Beverage', modId: 'fb_beverage_management' },
-                        { id: 'purchasing-suppliers', label: 'Purchasing', modId: 'fb_purchasing_suppliers' },
-                        { id: 'banquet-catering', label: 'Banquets', modId: 'fb_banquet_catering' },
-                        { id: 'room-service', label: 'Room Service', modId: 'fb_room_service' },
-                        { id: 'guest-crm', label: 'Guest CRM', modId: 'fb_guest_crm' },
-                        { id: 'promotions-pricing', label: 'Promotions', modId: 'fb_promotions_pricing' },
-                        { id: 'financial-control', label: 'Financial Control', modId: 'fb_financial_control' },
-                        { id: 'operations-compliance', label: 'Operations', modId: 'fb_operations_compliance' },
-                        { id: 'reporting-bi', label: 'Reporting & BI', modId: 'fb_reporting_bi' },
-                        { id: 'integrations', label: 'Integrations', modId: 'fb_integrations' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setFbDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${fbDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Engineering sub-navigation triggers */}
-                  {activeDept === 'maintenance' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="eng-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Dashboard', modId: 'eng_dashboard' },
-                        { id: 'workorders', label: 'Work Orders', modId: 'eng_workorders' },
-                        { id: 'pm', label: 'Preventive Main.', modId: 'eng_pm' },
-                        { id: 'assets', label: 'Asset Register', modId: 'eng_assets' },
-                        { id: 'rooms', label: 'Guest Rooms', modId: 'eng_rooms' },
-                        { id: 'utilities', label: 'Utilities & Plant', modId: 'eng_utilities' },
-                        { id: 'inventory', label: 'Spare Parts & Tools', modId: 'eng_inventory' },
-                        { id: 'staff', label: 'Technicians', modId: 'eng_staff' },
-                        { id: 'compliance', label: 'Safety & Compliance', modId: 'eng_compliance' },
-                        { id: 'reports', label: 'Reports', modId: 'eng_reports' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'eng_standard_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setEngDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${engDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Inventory sub-navigation triggers */}
-                  {activeDept === 'inventory' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="inv-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Dashboard', modId: 'inv_dashboard' },
-                        { id: 'items', label: 'Item Master', modId: 'inv_items' },
-                        { id: 'stores', label: 'Stores & Transfers', modId: 'inv_stores' },
-                        { id: 'requisitions', label: 'Requisitions', modId: 'inv_requisitions' },
-                        { id: 'receiving', label: 'Goods Receiving', modId: 'inv_receiving' },
-                        { id: 'count', label: 'Stock Counting', modId: 'inv_count' },
-                        { id: 'suppliers', label: 'Suppliers', modId: 'inv_suppliers' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'inv_standard_reports' },
-                        { id: 'reports', label: 'Reports', modId: 'inv_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setInvDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${invDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Finance sub-navigation triggers */}
-                  {activeDept === 'finance' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="fin-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Dashboard', modId: 'fin_dashboard' },
-                        { id: 'gl', label: 'General Ledger', modId: 'fin_gl' },
-                        { id: 'sales', label: 'Sales Detail', modId: 'fin_sales' },
-                        { id: 'ap', label: 'Accounts Payable', modId: 'fin_ap' },
-                        { id: 'ar', label: 'Accounts Receivable', modId: 'fin_ar' },
-                        { id: 'bank_recon', label: 'Bank Reconciliation', modId: 'fin_bank_recon' },
-                        { id: 'reports', label: 'Financial Reports', modId: 'fin_reports' },
-                        { id: 'trial_balance', label: 'Trial Balance', modId: 'fin_trial_balance' },
-                        { id: 'financial_statements', label: 'Financial Statements', modId: 'fin_statements' },
-                        { id: 'budget', label: 'Budget vs Actual', modId: 'fin_budget' },
-                        { id: 'tax_compliance', label: 'Tax Compliance', modId: 'fin_tax' },
-                        { id: 'erca_vat', label: 'ERCA VAT Export', modId: 'fin_erca_vat' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'fin_standard_reports' },
-                        { id: 'period_close', label: 'Period Close', modId: 'fin_period_close' },
-                        { id: 'assets', label: 'Fixed Assets', modId: 'fin_assets' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setFinDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${finDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* HR sub-navigation triggers */}
-                  {activeDept === 'hr' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="hr-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'HR Analytics', modId: 'hr_dashboard' },
-                        { id: 'employees', label: 'Employee Master', modId: 'hr_employees' },
-                        { id: 'attendance', label: 'Attendance & Roster', modId: 'hr_attendance' },
-                        { id: 'payroll', label: 'Payroll Management', modId: 'hr_payroll' },
-                        { id: 'leave', label: 'Leave & Absences', modId: 'hr_leave' },
-                        { id: 'performance', label: 'Performance (KPIs)', modId: 'hr_performance' },
-                        { id: 'training', label: 'Learning & Dev', modId: 'hr_training' },
-                        { id: 'recruitment', label: 'Recruitment Flow', modId: 'hr_recruitment' },
-                        { id: 'reports', label: 'Reports', modId: 'hr_reports' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'hr_standard_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setHrDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${hrDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Admin sub-navigation triggers */}
-                  {activeDept === 'admin' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="admin-sub-menu">
-                      {CORE_ADMIN_MODULES.filter(m => moduleToggles[m.toggleKey] !== false).map(m => (
-                        <button
-                          key={m.id}
-                          onClick={() => setAdminDir(m.id)}
-                          className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${adminDir === m.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}
-                        >
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Procurement sub-navigation triggers */}
-                  {activeDept === 'procurement' && (
-                    <div className="flex bg-slate-100 p-0.5 border border-slate-200 rounded-xl self-center text-xs font-sans font-medium select-none gap-0.5 transition-colors duration-300 card-shadow" id="proc-sub-menu">
-                      {([
-                        { id: 'dashboard', label: 'Procurement Dashboard', modId: 'proc_dashboard' },
-                        { id: 'requisitions', label: 'Requisitions', modId: 'proc_requisitions' },
-                        { id: 'orders', label: 'Purchase Orders', modId: 'proc_orders' },
-                        { id: 'suppliers', label: 'Suppliers', modId: 'proc_suppliers' },
-                        { id: 'rfq', label: 'RFQ Management', modId: 'proc_rfq' },
-                        { id: 'receiving', label: 'Goods Receiving', modId: 'proc_receiving' },
-                        { id: 'contracts', label: 'Contracts', modId: 'proc_contracts' },
-                        { id: 'budget', label: 'Budget Control', modId: 'proc_budget' },
-                        { id: 'invoices', label: 'Supplier Invoices', modId: 'proc_invoices' },
-                        { id: 'approvals', label: 'Approval Center', modId: 'proc_approvals' },
-                        { id: 'reports', label: 'Reports', modId: 'proc_reports' },
-                        { id: 'standard-reports', label: 'Standard Reports', modId: 'proc_standard_reports' },
-                      ] as const).filter((tab) => hasModuleAccess(tab.modId)).map((tab) => (
-                        <button key={tab.id} onClick={() => setProcDir(tab.id as any)} className={`px-3 py-1 rounded-lg transition-all duration-200 cursor-pointer smooth-transition ${procDir === tab.id ? 'bg-indigo-600 text-white font-bold shadow-md text-[11px]' : 'text-slate-600 hover:text-slate-900 bg-white text-[11px]'}`}>{tab.label}</button>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Floating Alert widget */}
-                  <div className="flex gap-2 items-center self-end sm:self-center relative">
-                    <button
-                      id="notif-bell-toggle-btn"
-                      onClick={() => setShowNotifications(!showNotifications)}
-                      className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition flex items-center justify-center text-slate-600 gap-1.5 relative cursor-pointer"
-                    >
-                      <Bell size={13} className={getUnreadNotifCount() > 0 ? 'animate-bounce text-amber-500' : ''} />
-                      <span className="text-3xs font-mono font-bold uppercase tracking-wider">Operational Alerts</span>
-                      {getUnreadNotifCount() > 0 && (
-                        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center font-sans font-bold text-[9px]">
-                          {getUnreadNotifCount()}
-                        </span>
-                      )}
-                    </button>
-
-                    {/* Notifications overlay block */}
-                    {showNotifications && (
-                      <div className="absolute top-11 right-0 bg-white border border-slate-100 shadow-xl rounded-2xl w-80 z-40 p-4 space-y-3 animate-slide-in text-slate-600" id="alerts-ledger-panel">
-                        <div className="flex justify-between items-center border-b border-b-slate-100 pb-1.5 text-xs text-slate-800 font-bold">
-                          <span>Real-time Alerts Queue ({getUnreadNotifCount()})</span>
-                          <button 
-                            onClick={() => setShowNotifications(false)}
-                            className="p-0.5 hover:bg-slate-55 rounded text-slate-400"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-
-                        <div className="space-y-1.5 max-h-[260px] overflow-y-auto pr-1">
-                          {notifications.length === 0 ? (
-                            <div className="py-8 text-center text-2xs font-mono text-slate-400 font-bold">
-                              All department task alerts resolved. Queue empty.
-                            </div>
-                          ) : (
-                            notifications.map(n => (
-                              <div 
-                                key={n.id} 
-                                onClick={() => markNotificationRead(n.id)}
-                                className={`p-2.5 border rounded-lg transition text-3xs flex flex-col justify-between space-y-1 hover:border-slate-350 cursor-pointer ${
-                                  !n.read ? 'bg-indigo-50/20 border-indigo-200 text-indigo-950 font-semibold' : 'bg-slate-50 text-slate-500 border-slate-200'
-                                }`}
-                              >
-                                <div className="flex justify-between items-center mb-0.5">
-                                  <span className={`px-1 rounded text-4xs font-mono font-bold uppercase ${
-                                    n.department === 'Housekeeping' ? 'bg-emerald-100 text-emerald-800' :
-                                    n.department === 'F&B' ? 'bg-amber-100 text-amber-800' :
-                                    n.department === 'Maintenance' ? 'bg-rose-100 text-rose-800' :
-                                    'bg-indigo-100 text-indigo-800'
-                                  }`}>
-                                    {n.department}
-                                  </span>
-                                  <span className="text-slate-400 text-4xs font-mono">
-                                    {new Date(n.time).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                </div>
-                                <p className="leading-tight">{n.message}</p>
-                                <div className="flex justify-end gap-1.5 pt-1 text-4xs font-mono">
-                                  <button 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      clearNotification(n.id);
-                                    }}
-                                    className="text-rose-500 hover:underline"
-                                  >
-                                    Resolve
-                                  </button>
-                                </div>
-                              </div>
-                            ))
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </header>
-
-
-                {/* Render targeted department portal screen content */}
-                <div className="p-6 flex-1 min-h-0">
-
-                  {globalHotelSettings.maintenanceMode && (
-                    <div className="mb-4 flex items-center gap-3 px-5 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800">
-                      <ShieldAlert size={18} className="shrink-0 text-amber-500" />
-                      <p className="text-xs font-bold leading-relaxed">
-                        {globalHotelSettings.maintenanceMessage || 'The system is undergoing scheduled maintenance. Some features may be temporarily unavailable.'}
-                      </p>
-                    </div>
-                  )}
-
-                  {isModuleDisabled ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center py-20">
-                      <div className="inline-flex p-4 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
-                        <Lock size={28} className="text-slate-400" />
-                      </div>
-                      <h3 className="text-lg font-sans font-black text-slate-900 dark:text-white tracking-tight">Module Unavailable</h3>
-                      <p className="text-sm text-slate-500 mt-2 max-w-sm">This department portal has been disabled by an administrator via Platform Controls. Please contact System Administration for access.</p>
-                    </div>
-                  ) : (
-                  <>
-                  {activeDept === 'frontoffice' && (
-                    <FrontDeskPortal
-                      currentUser={currentUser}
-                      onPrintGuest={(data) => setPrintGuestForm(data)}
-                      onPrintGroup={(data) => setPrintGroupForm(data)}
-                      activeTab={frontDir}
-                      onTabChange={setFrontDir}
-                    />
-                  )}
-
-                  {/* HOUSEKEEPING PORTAL */}
-                  {activeDept === 'housekeeping' && (
-                    <HousekeepingPortal activeTab={hkDir} />
-                  )}
-
-                  {/* FOOD & BEVERAGE COMPORT */}
-                  {activeDept === 'f&b' && (
-                    <FoodBeveragePortal activeTab={fbDir} />
-                  )}
-
-                  {/* ENGINEERING & MAINTENANCE PORTAL */}
-                  {activeDept === 'maintenance' && (
-                    <EngineeringPortal activeTab={engDir} />
-                  )}
-
-                  {/* SALES & EVENTS PORTAL */}
-                  {activeDept === 'sales' && (
-                    <SalesPortal activeTab={'pipeline'} />
-                  )}
-
-                  {/* INVENTORY & WAREHOUSE PORTAL */}
-                  {activeDept === 'inventory' && (
-                    <InventoryPortal activeTab={invDir} />
-                  )}
-
-                  {/* FINANCE & ACCOUNTING PORTAL */}
-                  {activeDept === 'finance' && (
-                    <FinancePortal activeModule={finDir} />
-                  )}
-
-                  {/* HUMAN RESOURCES & WORKFORCE PORTAL */}
-                  {activeDept === 'hr' && (
-                    <HumanResourcesPortal activeModule={hrDir} />
-                  )}
-
-                  {/* UNIFIED EXECUTIVE & OPERATIONS PORTAL */}
-                  {activeDept === 'executive' && (
-                    <UnifiedPortal initialMode="executive" />
-                  )}
-
-                  {/* SYSTEM ADMINISTRATION & GOVERNANCE PORTAL */}
-                  {activeDept === 'admin' && (
-                    <AdminPortal activeModule={adminDir} />
-                  )}
-
-                  {/* PROCUREMENT & STRATEGIC SOURCING PORTAL */}
-                  {activeDept === 'procurement' && (
-                    <ProcurementPortal activeModule={procDir} />
-                  )}
-
-                  {/* OPERATIONS — now merged into Unified Portal */}
-                  {activeDept === 'operations' && (
-                    <UnifiedPortal initialMode="operations" />
-                  )}
-
-                  {/* ACCOUNT SETTINGS */}
-                  {activeDept === 'settings' && (
-                    <AccountSettingsModule />
-                  )}
-                  </>
-                  )}
-
+            } />
+            <Route path=":department/:tab" element={
+              <DepartmentRoute
+                currentUser={currentUser}
+                moduleToggles={moduleToggles}
+                hasModuleAccess={hasModuleAccess}
+              />
+            } />
+            <Route path="*" element={<ErpIndexRedirect currentUser={currentUser} />} />
+          </Route>
+          <Route path="/" element={<Navigate to="/public-portal" replace />} />
+          {/* Standalone KDS Display — accessible at /kds */}
+          <Route
+            path="/kds"
+            element={
+              !sessionChecked ? (
+                <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
+              ) : !currentUser ? (
+                <Navigate to="/login?redirect=/kds" replace />
+              ) : (
+                <div className="min-h-screen bg-slate-950">
+                  <KitchenDisplayModule />
                 </div>
-              </main>
-            </div>
-            )
-          }
-        />
-        <Route path="/" element={<Navigate to="/booking" replace />} />
-        {/* Standalone KDS Display — accessible at /kds */}
-        <Route
-          path="/kds"
-          element={
-            !sessionChecked ? (
-              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
-            ) : !currentUser ? (
-              <Navigate to="/login?redirect=/kds" replace />
-            ) : (
-              <div className="min-h-screen bg-slate-950">
-                <KitchenDisplayModule />
-              </div>
-            )
-          }
-        />
-        {/* KDS Management — accessible at /kds-management */}
-        <Route
-          path="/kds-management"
-          element={
-            !sessionChecked ? (
-              <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
-            ) : !currentUser ? (
-              <Navigate to="/login?redirect=/kds-management" replace />
-            ) : (
-              <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-                <KDSInstanceManagement />
-              </div>
-            )
-          }
-        />
-      </Routes>
+              )
+            }
+          />
+          {/* KDS Management — accessible at /kds-management */}
+          <Route
+            path="/kds-management"
+            element={
+              !sessionChecked ? (
+                <div className="flex-1 flex items-center justify-center bg-slate-950 text-slate-300 text-sm">Verifying secure session...</div>
+              ) : !currentUser ? (
+                <Navigate to="/login?redirect=/kds-management" replace />
+              ) : (
+                <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
+                  <KDSInstanceManagement />
+                </div>
+              )
+            }
+          />
+        </Routes>
 
-      {printGuestForm && (
-        <CheckInPrintModal data={printGuestForm} onClose={() => setPrintGuestForm(null)} />
-      )}
+        {printGuestForm && (
+          <CheckInPrintModal data={printGuestForm} onClose={() => setPrintGuestForm(null)} />
+        )}
 
-      {printGroupForm && (
-        <GroupCheckInPrintModal data={printGroupForm} onClose={() => setPrintGroupForm(null)} />
-      )}
+        {printGroupForm && (
+          <GroupCheckInPrintModal data={printGroupForm} onClose={() => setPrintGroupForm(null)} />
+        )}
+      </div>
     </div>
   );
 }

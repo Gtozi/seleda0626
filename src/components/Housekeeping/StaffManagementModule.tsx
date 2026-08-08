@@ -23,13 +23,18 @@ interface StaffMember {
   avgTime: string;
   rating: number;
   currentFloor: string;
+  productivityScore: number;
+  inspectionPassRate: number;
+  tasksAssigned: number;
+  tasksCompleted: number;
+  efficiency: number;
 }
 
 const staff: StaffMember[] = [
-  { id: 'HK-01', name: 'Staff Member A', role: 'Team Lead', status: 'Active', roomsCleaned: 12, avgTime: '24m', rating: 4.9, currentFloor: 'Floor 4' },
-  { id: 'HK-02', name: 'Staff Member B', role: 'Housekeeper', status: 'Active', roomsCleaned: 9, avgTime: '28m', rating: 4.7, currentFloor: 'Floor 2' },
-  { id: 'HK-03', name: 'Staff Member C', role: 'Housekeeper', status: 'On Break', roomsCleaned: 6, avgTime: '22m', rating: 4.8, currentFloor: 'Floor 3' },
-  { id: 'HK-04', name: 'Staff Member D', role: 'Housekeeper', status: 'Active', roomsCleaned: 10, avgTime: '30m', rating: 4.6, currentFloor: 'Floor 1' },
+  { id: 'HK-01', name: 'Staff Member A', role: 'Team Lead', status: 'Active', roomsCleaned: 12, avgTime: '24m', rating: 4.9, currentFloor: 'Floor 4', productivityScore: 95, inspectionPassRate: 98, tasksAssigned: 13, tasksCompleted: 12, efficiency: 92 },
+  { id: 'HK-02', name: 'Staff Member B', role: 'Housekeeper', status: 'Active', roomsCleaned: 9, avgTime: '28m', rating: 4.7, currentFloor: 'Floor 2', productivityScore: 88, inspectionPassRate: 94, tasksAssigned: 10, tasksCompleted: 9, efficiency: 90 },
+  { id: 'HK-03', name: 'Staff Member C', role: 'Housekeeper', status: 'On Break', roomsCleaned: 6, avgTime: '22m', rating: 4.8, currentFloor: 'Floor 3', productivityScore: 90, inspectionPassRate: 96, tasksAssigned: 7, tasksCompleted: 6, efficiency: 86 },
+  { id: 'HK-04', name: 'Staff Member D', role: 'Housekeeper', status: 'Active', roomsCleaned: 10, avgTime: '30m', rating: 4.6, currentFloor: 'Floor 1', productivityScore: 85, inspectionPassRate: 92, tasksAssigned: 11, tasksCompleted: 10, efficiency: 91 },
 ];
 
 export default function StaffManagementModule() {
@@ -67,7 +72,7 @@ export default function StaffManagementModule() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 py-3 border-y border-slate-50 dark:border-slate-850">
+              <div className="grid grid-cols-4 gap-2 py-3 border-y border-slate-50 dark:border-slate-850">
                 <div className="text-center">
                   <span className="text-[8px] text-slate-400 uppercase font-mono font-black block leading-none mb-1">CLEANED</span>
                   <span className="text-lg font-black text-slate-900 dark:text-white leading-none font-sans">{member.roomsCleaned}</span>
@@ -81,6 +86,25 @@ export default function StaffManagementModule() {
                    <span className="text-lg font-black text-amber-500 leading-none flex items-center justify-center gap-0.5 font-sans">
                      {member.rating}<Star size={10} fill="currentColor" />
                    </span>
+                </div>
+                <div className="text-center">
+                   <span className="text-[8px] text-slate-400 uppercase font-mono font-black block leading-none mb-1">PROD</span>
+                   <span className="text-lg font-black text-emerald-600 leading-none font-sans">{member.productivityScore}%</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 py-2">
+                <div className="text-center">
+                  <span className="text-[8px] text-slate-400 uppercase font-mono font-black block leading-none mb-1">INSPECT</span>
+                  <span className="text-sm font-black text-purple-600 leading-none font-sans">{member.inspectionPassRate}%</span>
+                </div>
+                <div className="text-center">
+                  <span className="text-[8px] text-slate-400 uppercase font-mono font-black block leading-none mb-1">TASKS</span>
+                  <span className="text-sm font-black text-slate-900 dark:text-white leading-none font-sans">{member.tasksCompleted}/{member.tasksAssigned}</span>
+                </div>
+                <div className="text-center">
+                  <span className="text-[8px] text-slate-400 uppercase font-mono font-black block leading-none mb-1">EFF</span>
+                  <span className="text-sm font-black text-blue-600 leading-none font-sans">{member.efficiency}%</span>
                 </div>
               </div>
 

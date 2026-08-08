@@ -1,9 +1,9 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Reservation, Room } from '../../types/erp';
 import { toISODate } from '../../utils/date';
 import { 
@@ -37,7 +37,15 @@ import {
   Layers,
   BarChart3,
   CalendarDays,
-  Rocket
+  Rocket,
+  Save,
+  History,
+  Database,
+  Download,
+  Upload,
+  Clock,
+  Award,
+  Gauge
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -49,7 +57,9 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend
+  Legend,
+  LineChart,
+  Line
 } from 'recharts';
 
 interface ForecastingProps {
@@ -79,8 +89,17 @@ export default function ReservationsForecasting({
   const [fCompPricing, setFCompPricing] = useState<'undercut' | 'fair' | 'premium'>('premium');
   const [fStrategy, setFStrategy] = useState<'optimistic' | 'defensive' | 'yield_max'>('yield_max');
   const [fPromoActive, setFPromoActive] = useState<boolean>(true);
-  const [forecastSubTab, setForecastSubTab] = useState<'occupancy' | 'revenue' | 'distribution'>('occupancy');
+  const [forecastSubTab, setForecastSubTab] = useState<'occupancy' | 'revenue' | 'distribution' | 'history' | 'accuracy'>('occupancy');
   const [aiSimulationLogs, setAiSimulationLogs] = useState<string[]>([]);
+
+  // Enhanced forecast management state
+  const [savedForecasts, setSavedForecasts] = useState<any[]>([]);
+  const [selectedForecast, setSelectedForecast] = useState<any>(null);
+  const [forecastName, setForecastName] = useState('');
+  const [isSavingForecast, setIsSavingForecast] = useState(false);
+  const [forecastHistoryData, setForecastHistoryData] = useState<any[]>([]);
+  const [accuracyMetrics, setAccuracyMetrics] = useState<any>(null);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
   // Compile Forecast Data Realtime!
   const forecastData = useMemo(() => {
@@ -220,6 +239,99 @@ export default function ReservationsForecasting({
     };
   }, [forecastData, rooms.length]);
 
+  // Load saved forecasts on mount
+  useEffect(() => {
+    loadSavedForecasts();
+  }, []);
+
+  const loadSavedForecasts = async () => {
+    try {
+      const res = await fetch('/api/forecasts', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSavedForecasts(data.forecasts || []);
+      }
+    } catch (error) {
+      console.error('Failed to load forecasts:', error);
+    }
+  };
+
+  const saveForecast = async () => {
+    if (!forecastName.trim()) {
+      alert('Please enter a forecast name');
+      return;
+    }
+
+    setIsSavingForecast(true);
+    try {
+      const forecastPayload = {
+        forecast_name: forecastName,
+        forecast_type: 'occupancy',
+        horizon_days: parseInt(fHorizon),
+        demand_multiplier: fDemandMultiplier,
+        comp_pricing_strategy: fCompPricing,
+        pricing_strategy: fStrategy,
+        promo_active: fPromoActive,
+        forecast_data: forecastData,
+        avg_occupancy_rate: forecastAggregates.simAvgOcc,
+        total_revenue: forecastAggregates.simTotalRev,
+        avg_adr: forecastAggregates.simAvgADR,
+        avg_revpar: forecastAggregates.simAvgRevPAR,
+        notes: `Generated with ${fStrategy} strategy, ${fCompPricing} pricing`
+      };
+
+      const res = await fetch('/api/forecasts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(forecastPayload)
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSuccessMsg('Forecast saved successfully!');
+        setForecastName('');
+        await loadSavedForecasts();
+      } else {
+        alert('Failed to save forecast');
+      }
+    } catch (error) {
+      console.error('Error saving forecast:', error);
+      alert('Error saving forecast');
+    } finally {
+      setIsSavingForecast(false);
+    }
+  };
+
+  const loadForecastDetails = async (forecastId: string) => {
+    try {
+      const res = await fetch(`/api/forecasts/${forecastId}`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedForecast(data.forecast);
+        setForecastHistoryData(data.dailyData || []);
+
+        // Calculate accuracy metrics if available
+        const daysWithActuals = data.dailyData?.filter((d: any) => d.actual_occupancy_rate !== null) || [];
+        if (daysWithActuals.length > 0) {
+          const avgOccAccuracy = daysWithActuals.reduce((sum: number, d: any) => 
+            sum + Math.abs(d.occupancy_variance_pct || 0), 0) / daysWithActuals.length;
+          const avgRevAccuracy = daysWithActuals.reduce((sum: number, d: any) => 
+            sum + Math.abs(d.revenue_variance_pct || 0), 0) / daysWithActuals.length;
+
+          setAccuracyMetrics({
+            occupancyAccuracy: (100 - avgOccAccuracy).toFixed(1),
+            revenueAccuracy: (100 - avgRevAccuracy).toFixed(1),
+            daysMeasured: daysWithActuals.length,
+            totalDays: data.dailyData?.length || 0
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading forecast details:', error);
+    }
+  };
+
   const applyAiRecommendation = () => {
     // Determine recommended tier
     if (forecastAggregates.simAvgOcc >= 75) {
@@ -240,165 +352,121 @@ export default function ReservationsForecasting({
     setTimeout(() => setSuccessMsg(''), 5000);
   };
 
+  if (!reservations || reservations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-64 bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm">
+        <div className="text-center">
+          <Calendar size={48} className="mx-auto text-gray-300 dark:text-gray-600 mb-4" />
+          <p className="text-gray-500 dark:text-gray-400 text-sm">No reservation data available</p>
+          <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Add reservations to enable forecasting</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-fade-in" id="ai-forecasting-view">
       {/* Dashboard Header */}
-      <div className="bg-gradient-to-r from-indigo-900 via-indigo-950 to-slate-950 text-white rounded-3xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6 border border-indigo-800/50">
-        <div className="space-y-1.5">
-          <span className="bg-indigo-500/20 text-indigo-300 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border border-indigo-500/30 inline-flex items-center gap-1">
-            <Brain size={12} className="animate-pulse text-indigo-400" /> ADVANCED PREDICTIVE INTELLIGENCE
-          </span>
-          <h3 className="text-xl font-sans font-black tracking-tight flex items-center gap-2">
-            Predictive Occupancy & Revenue Manager
-          </h3>
-          <p className="text-xs text-indigo-200/80 font-sans max-w-xl">
-            Simulate pricing pressure, seasonal velocity, and competitor dynamics to generate optimized inventory forecasts for your property.
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setFDemandMultiplier(1.2);
-              setFCompPricing('premium');
-              setFStrategy('yield_max');
-              setFPromoActive(true);
-              setFHorizon('7');
-              setAiSimulationLogs(prev => [`[${new Date().toISOString().slice(11,16)}] Simulation triggers reset to default yield-max standards.`, ...prev]);
-            }}
-            className="px-3.5 py-2 bg-indigo-950 hover:bg-indigo-900 text-indigo-200 border border-indigo-800/60 rounded-xl text-xs font-sans font-bold flex items-center gap-2 transition cursor-pointer"
-          >
-            <RefreshCw size={12} /> Reset Parameters
-          </button>
-          <button
-            onClick={() => {
-              triggerLiveSyncSimulation();
-              setAiSimulationLogs(prev => [`[${new Date().toISOString().slice(11,16)}] Success: Real-time ledger scan completed. ${reservations.length} active booking vectors loaded.`, ...prev]);
-            }}
-            className="px-4 py-2 bg-white hover:bg-slate-150 text-indigo-900 rounded-xl text-xs font-sans font-extrabold flex items-center gap-2 transition cursor-pointer shadow-lg"
-          >
-            <Activity size={12} className="animate-spin-slow text-indigo-600" /> Scan Ledger
-          </button>
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Reservation Forecast</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Predictive occupancy and revenue analysis based on current bookings</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setFDemandMultiplier(1.2);
+                setFCompPricing('premium');
+                setFStrategy('yield_max');
+                setFPromoActive(true);
+                setFHorizon('7');
+                setAiSimulationLogs(prev => [`[${new Date().toISOString().slice(11,16)}] Simulation triggers reset to default yield-max standards.`, ...prev]);
+              }}
+              className="px-4 py-2 bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-slate-600 transition-colors text-sm font-medium"
+            >
+              <RefreshCw size={16} className="inline mr-2" /> Reset Parameters
+            </button>
+            <button
+              onClick={() => {
+                triggerLiveSyncSimulation();
+                setAiSimulationLogs(prev => [`[${new Date().toISOString().slice(11,16)}] Success: Real-time ledger scan completed. ${reservations.length} active booking vectors loaded.`, ...prev]);
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <Activity size={16} className="inline mr-2" /> Refresh Data
+            </button>
+          </div>
         </div>
       </div>
 
       {successMsg && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-xs rounded-2xl flex items-center gap-2">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 font-mono text-xs rounded-xl flex items-center gap-2">
           <Check size={14} className="text-emerald-700 bg-emerald-100 p-0.5 rounded-full" />
           {successMsg}
         </div>
       )}
 
       {/* KPI Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4.5 space-y-2 hover:shadow-xs transition">
-          <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-            <span>Avg Occupancy</span>
-            <Percent size={12} className="text-indigo-500" />
-          </p>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Avg Occupancy</span>
+            <Percent size={16} className="text-blue-500" />
+          </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-sans font-black text-slate-900 tracking-tight leading-none">
+            <span className="text-2xl font-bold text-gray-900 dark:text-white">
               {forecastAggregates.simAvgOcc}%
             </span>
-            <span className="text-2xs font-mono font-semibold text-slate-400">
+            <span className="text-sm text-gray-400">
               Base: {forecastAggregates.baseAvgOcc}%
             </span>
           </div>
-          <div className="space-y-1">
-            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden flex">
-              <div className="bg-slate-400 h-full" style={{ width: `${forecastAggregates.baseAvgOcc}%` }}></div>
-              <div className="bg-indigo-600 h-full transition-all duration-500" style={{ width: `${Math.max(0, forecastAggregates.simAvgOcc - forecastAggregates.baseAvgOcc)}%` }}></div>
-            </div>
-            <div className="flex justify-between text-[9px] font-mono text-slate-400">
-              <span>{forecastAggregates.roomNightsSimulated} of {rooms.length * (fHorizon === '7' ? 7 : 30)} Nights</span>
-              <span className={forecastAggregates.simAvgOcc > forecastAggregates.baseAvgOcc ? 'text-emerald-600 font-bold' : 'text-slate-400'}>
-                +{Math.max(0, forecastAggregates.simAvgOcc - forecastAggregates.baseAvgOcc)}% pickup
-              </span>
-            </div>
+          <div className="mt-2 w-full bg-gray-200 dark:bg-slate-700 rounded-full h-2">
+            <div className="bg-blue-500 h-2 rounded-full transition-all" style={{ width: `${forecastAggregates.simAvgOcc}%` }}></div>
           </div>
         </div>
 
         {/* KPI 2 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4.5 space-y-2 hover:shadow-xs transition">
-          <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-            <span>Projected Revenue</span>
-            <DollarSign size={12} className="text-emerald-500" />
-          </p>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-2xl font-sans font-black text-slate-800 tracking-tight leading-none">
-              {formatAmount(forecastAggregates.simTotalRev)}
-            </span>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Projected Revenue</span>
+            <DollarSign size={16} className="text-green-500" />
           </div>
-          <div className="text-[10px] text-slate-500 font-sans flex items-center gap-1.5 animate-pulse-subtle">
-            <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">OTB: {formatAmount(forecastAggregates.baseTotalRev)}</span>
-            {forecastAggregates.simTotalRev > forecastAggregates.baseTotalRev && (
-              <span className="text-emerald-600 font-mono font-bold">
-                +{Math.round(((forecastAggregates.simTotalRev - forecastAggregates.baseTotalRev) / (forecastAggregates.baseTotalRev || 1)) * 100)}%
-              </span>
-            )}
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {formatAmount(forecastAggregates.simTotalRev)}
           </div>
-          <div className="text-[9px] font-mono text-slate-400">Estimated Rooms + Package yield</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            OTB: {formatAmount(forecastAggregates.baseTotalRev)}
+          </div>
         </div>
 
         {/* KPI 3 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4.5 space-y-2 hover:shadow-xs transition">
-          <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-            <span>Forecasted ADR</span>
-            <Target size={12} className="text-indigo-500" />
-          </p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-sans font-black text-slate-900 tracking-tight leading-none">
-              {formatAmount(forecastAggregates.simAvgADR)}
-            </span>
-            <span className="text-2xs font-mono text-slate-400">
-              Base: {formatAmount(forecastAggregates.baseAvgADR)}
-            </span>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Forecasted ADR</span>
+            <Target size={16} className="text-purple-500" />
           </div>
-          <p className="text-[10px] text-slate-500 font-sans">
-            Average room tariff expected
-          </p>
-          <div className="text-[9px] font-mono text-slate-400">Strategy: {fStrategy === 'yield_max' ? 'AI Dynamic Max' : fStrategy === 'optimistic' ? 'Premium 1.15x' : 'Defensive 0.85x'}</div>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {formatAmount(forecastAggregates.simAvgADR)}
+          </div>
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Base: {formatAmount(forecastAggregates.baseAvgADR)}
+          </div>
         </div>
 
         {/* KPI 4 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4.5 space-y-2 hover:shadow-xs transition">
-          <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-            <span>Forecasted RevPAR</span>
-            <TrendingUp size={12} className="text-indigo-500" />
-          </p>
-          <div className="flex items-baseline gap-2">
-            <span className="text-2xl font-sans font-black text-indigo-700 tracking-tight leading-none">
-              {formatAmount(forecastAggregates.simAvgRevPAR)}
-            </span>
-            <span className="text-2xs font-mono text-slate-400">
-              Base: {formatAmount(forecastAggregates.baseAvgRevPAR)}
-            </span>
+        <div className="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">Forecasted RevPAR</span>
+            <TrendingUp size={16} className="text-orange-500" />
           </div>
-          <p className="text-[10px] text-slate-500 font-sans">
-            Revenue Per Available Room
-          </p>
-          <div className="text-[9px] font-mono text-slate-400">Global Efficiency benchmark</div>
-        </div>
-
-        {/* KPI 5 */}
-        <div className="bg-white border border-slate-200 rounded-2xl p-4.5 space-y-2 hover:shadow-xs transition">
-          <p className="text-[10px] font-mono font-extrabold uppercase tracking-wider text-slate-400 flex items-center justify-between">
-            <span>Waitlist Risk</span>
-            <AlertCircle size={12} className="text-amber-500" />
-          </p>
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-sans font-black text-amber-700 tracking-tight leading-none">
-              {reservations.filter(r => r.status === 'Waitlisted').length}
-            </span>
-            <span className="text-xs text-slate-400 font-bold ml-1">Guests</span>
+          <div className="text-2xl font-bold text-gray-900 dark:text-white">
+            {formatAmount(forecastAggregates.simAvgRevPAR)}
           </div>
-          <p className="text-[10px] text-slate-500 font-sans">
-            Waitlist demand clearance:
-          </p>
-          <div className="text-[9px] font-mono font-bold text-amber-600 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span>
-            {forecastAggregates.simAvgOcc >= 85 ? 'High Risk - Sell Out Likely' : 'Normal Clearance'}
+          <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Base: {formatAmount(forecastAggregates.baseAvgRevPAR)}
           </div>
         </div>
       </div>
@@ -408,7 +476,7 @@ export default function ReservationsForecasting({
         
         {/* LEFT COLUMN: SCENARIO CONTROLLER (4 COLS) */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-5">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-5">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
               <Sliders size={16} className="text-indigo-600" />
               <div>
@@ -498,7 +566,7 @@ export default function ReservationsForecasting({
                     setAiSimulationLogs(prev => [`[${new Date().toISOString().slice(11,16)}] Competitor: Neutral competitor rate pressure mapped.`, ...prev]);
                   }}
                   className={`py-2 rounded-lg border transition cursor-pointer flex flex-col items-center justify-center gap-0.5 ${
-                    fCompPricing === 'fair' ? 'bg-slate-100 border-slate-350 text-slate-800' : 'bg-white border-transparent'
+                    fCompPricing === 'fair' ? 'bg-slate-100 border-slate-400 text-slate-800' : 'bg-white border-transparent'
                   }`}
                 >
                   <Layers size={12} className="text-slate-500" />
@@ -520,7 +588,7 @@ export default function ReservationsForecasting({
             </div>
 
             {/* PROMOTION OVERLAY CAMPAIGN */}
-            <div className="flex items-center justify-between p-3 bg-indigo-50/70 border border-indigo-150 rounded-2xl">
+            <div className="flex items-center justify-between p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl">
               <div className="space-y-0.5 max-w-[70%]">
                 <span className="text-[11px] font-sans font-bold text-indigo-950 flex items-center gap-1">
                   <Sparkles size={12} className="text-indigo-600" /> Target Promo Overlay
@@ -561,7 +629,7 @@ export default function ReservationsForecasting({
           </div>
 
           {/* AI Yield Recommendation Box */}
-          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-150 rounded-3xl p-5 shadow-2xs space-y-4">
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 border border-indigo-200 rounded-xl p-5 shadow-2xs space-y-4">
             <div className="flex items-center gap-1.5 text-indigo-900 font-sans font-bold text-xs">
               <Brain size={14} className="text-indigo-600 animate-bounce-short" />
               <span>AI Co-Pilot Live Assessment</span>
@@ -587,7 +655,7 @@ export default function ReservationsForecasting({
           </div>
 
           {/* Sim Console Logs */}
-          <div className="bg-slate-900 text-slate-350 p-4 rounded-3xl space-y-2 border border-slate-800">
+          <div className="bg-slate-900 text-slate-400 p-4 rounded-xl space-y-2 border border-slate-800">
             <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500 font-extrabold block">Simulation Audit Output</span>
             <div className="font-mono text-[10px] space-y-1.5 max-h-32 overflow-y-auto pr-1">
               {aiSimulationLogs.map((log, i) => (
@@ -603,7 +671,7 @@ export default function ReservationsForecasting({
         <div className="lg:col-span-8 space-y-6">
           
           {/* VISUALIZATION CONTAINER */}
-          <div className="bg-white border border-slate-205 rounded-3xl p-5 shadow-xs space-y-4">
+          <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <BarChart3 className="text-indigo-600" size={16} />
@@ -611,24 +679,57 @@ export default function ReservationsForecasting({
               </div>
               
               {/* CHART SUB TABS */}
-              <div className="flex bg-slate-50 border p-1 rounded-lg text-[10px] font-mono font-bold text-slate-500 border-slate-150">
+              <div className="flex bg-slate-50 border p-1 rounded-lg text-[10px] font-mono font-bold text-slate-500 border-slate-200 flex-wrap gap-1">
                 <button
                   onClick={() => setForecastSubTab('occupancy')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'occupancy' ? 'bg-white text-slate-900 shadow-3xs border border-slate-200' : 'hover:text-slate-800'}`}
+                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'occupancy' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'hover:text-slate-800'}`}
                 >
                   Occupancy Curve
                 </button>
                 <button
                   onClick={() => setForecastSubTab('revenue')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'revenue' ? 'bg-white text-slate-900 shadow-3xs border border-slate-200' : 'hover:text-slate-800'}`}
+                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'revenue' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'hover:text-slate-800'}`}
                 >
                   Revenue Segment Mix
                 </button>
                 <button
                   onClick={() => setForecastSubTab('distribution')}
-                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'distribution' ? 'bg-white text-slate-900 shadow-3xs border border-slate-200' : 'hover:text-slate-800'}`}
+                  className={`px-2.5 py-1 rounded transition cursor-pointer ${forecastSubTab === 'distribution' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'hover:text-slate-800'}`}
                 >
                   Room Class Demands
+                </button>
+                <button
+                  onClick={() => setForecastSubTab('history')}
+                  className={`px-2.5 py-1 rounded transition cursor-pointer flex items-center gap-1 ${forecastSubTab === 'history' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'hover:text-slate-800'}`}
+                >
+                  <History size={10} />
+                  History
+                </button>
+                <button
+                  onClick={() => setForecastSubTab('accuracy')}
+                  className={`px-2.5 py-1 rounded transition cursor-pointer flex items-center gap-1 ${forecastSubTab === 'accuracy' ? 'bg-white text-slate-900 shadow-sm border border-slate-200' : 'hover:text-slate-800'}`}
+                >
+                  <Award size={10} />
+                  Accuracy
+                </button>
+              </div>
+
+              {/* Save forecast section */}
+              <div className="flex gap-2 mt-3">
+                <input
+                  type="text"
+                  value={forecastName}
+                  onChange={(e) => setForecastName(e.target.value)}
+                  placeholder="Forecast name..."
+                  className="flex-1 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-sans text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+                />
+                <button
+                  onClick={saveForecast}
+                  disabled={isSavingForecast}
+                  className="px-3 py-1.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white rounded-lg text-xs font-mono font-bold hover:from-indigo-600 hover:to-indigo-700 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Save size={12} />
+                  {isSavingForecast ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </div>
@@ -673,7 +774,7 @@ export default function ReservationsForecasting({
                     <Bar name="OTA Portfolios Rev" dataKey="otaRevenue" stackId="a" fill="#10b981" />
                     <Bar name="Corporate Portfolios" dataKey="corporateRevenue" stackId="a" fill="#f59e0b" />
                   </BarChart>
-                ) : (
+                ) : forecastSubTab === 'distribution' ? (
                   <BarChart data={forecastData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                     <XAxis dataKey="label" stroke="#94a3b8" fontSize={9} fontStyle="mono" />
@@ -686,13 +787,139 @@ export default function ReservationsForecasting({
                     <Bar name="Suite Category" dataKey="suiteOcc" stackId="occ" fill="#2563eb" />
                     <Bar name="Penthouse Premium" dataKey="penthouseOcc" stackId="occ" fill="#1d4ed8" />
                   </BarChart>
-                )}
+                ) : forecastSubTab === 'history' ? (
+                  <div className="h-full flex flex-col">
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                      {savedForecasts.length === 0 ? (
+                        <div className="text-center py-8 text-slate-400 text-xs">
+                          <Database size={24} className="mx-auto mb-2 opacity-50" />
+                          <p>No saved forecasts yet</p>
+                          <p className="text-[10px] mt-1">Save your current forecast to start tracking history</p>
+                        </div>
+                      ) : (
+                        savedForecasts.map((forecast) => (
+                          <div
+                            key={forecast.id}
+                            onClick={() => loadForecastDetails(forecast.id)}
+                            className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                              selectedForecast?.id === forecast.id
+                                ? 'bg-indigo-50 border-indigo-200 shadow-sm'
+                                : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-sm'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-xs font-bold text-slate-800">{forecast.forecast_name}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {new Date(forecast.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2 text-[10px]">
+                              <div>
+                                <span className="text-slate-400">Occ:</span>
+                                <span className="font-mono font-bold ml-1">{forecast.avg_occupancy_rate?.toFixed(1)}%</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400">Rev:</span>
+                                <span className="font-mono font-bold ml-1">{formatAmount(forecast.total_revenue)}</span>
+                              </div>
+                              <div>
+                                <span className="text-slate-400">ADR:</span>
+                                <span className="font-mono font-bold ml-1">{formatAmount(forecast.avg_adr)}</span>
+                              </div>
+                            </div>
+                            {forecast.occupancy_accuracy_pct && (
+                              <div className="mt-2 pt-2 border-t border-slate-100">
+                                <span className="text-[9px] text-slate-400">Accuracy: </span>
+                                <span className="text-[9px] font-mono font-bold text-emerald-600">
+                                  {(100 - forecast.occupancy_accuracy_pct).toFixed(1)}%
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : forecastSubTab === 'accuracy' ? (
+                  <div className="h-full flex flex-col">
+                    {!accuracyMetrics ? (
+                      <div className="text-center py-8 text-slate-400 text-xs">
+                        <Award size={24} className="mx-auto mb-2 opacity-50" />
+                        <p>Select a forecast to view accuracy metrics</p>
+                        <p className="text-[10px] mt-1">Accuracy requires actual vs. forecasted data</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Gauge size={16} className="text-emerald-600" />
+                              <span className="text-[10px] font-mono font-bold text-emerald-800">OCCUPANCY ACCURACY</span>
+                            </div>
+                            <div className="text-2xl font-bold text-emerald-700">{accuracyMetrics.occupancyAccuracy}%</div>
+                            <div className="text-[10px] text-emerald-600 mt-1">
+                              {accuracyMetrics.daysMeasured} of {accuracyMetrics.totalDays} days measured
+                            </div>
+                          </div>
+                          <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <DollarSign size={16} className="text-blue-600" />
+                              <span className="text-[10px] font-mono font-bold text-blue-800">REVENUE ACCURACY</span>
+                            </div>
+                            <div className="text-2xl font-bold text-blue-700">{accuracyMetrics.revenueAccuracy}%</div>
+                            <div className="text-[10px] text-blue-600 mt-1">
+                              {accuracyMetrics.daysMeasured} of {accuracyMetrics.totalDays} days measured
+                            </div>
+                          </div>
+                        </div>
+
+                        {forecastHistoryData.length > 0 && (
+                          <div className="bg-white border border-slate-200 rounded-xl p-4">
+                            <h4 className="text-xs font-bold text-slate-800 mb-3">Daily Variance Analysis</h4>
+                            <div className="h-[150px]">
+                              <ResponsiveContainer width="100%" height="100%">
+                                <LineChart data={forecastHistoryData.filter((d: any) => d.actual_occupancy_rate !== null)}>
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                  <XAxis 
+                                    dataKey="forecast_date" 
+                                    stroke="#94a3b8" 
+                                    fontSize={9} 
+                                    fontStyle="mono"
+                                    tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                  />
+                                  <YAxis stroke="#94a3b8" fontSize={9} />
+                                  <Tooltip contentStyle={{ background: '#0f172a', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '11px', fontFamily: 'monospace' }} />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="occupancy_variance_pct" 
+                                    stroke="#ef4444" 
+                                    strokeWidth={2}
+                                    name="Occupancy Variance %"
+                                    dot={{ r: 3 }}
+                                  />
+                                  <Line 
+                                    type="monotone" 
+                                    dataKey="revenue_variance_pct" 
+                                    stroke="#3b82f6" 
+                                    strokeWidth={2}
+                                    name="Revenue Variance %"
+                                    dot={{ r: 3 }}
+                                  />
+                                </LineChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* DATE REGISTER DETAIL TABLE */}
-          <div className="bg-white border border-slate-205 rounded-3xl overflow-hidden shadow-xs">
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
             <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
               <CalendarDays size={14} className="text-indigo-600" />
               <span className="text-xs font-sans font-black text-slate-800">Date-by-Date Smart Ledger Forecast</span>

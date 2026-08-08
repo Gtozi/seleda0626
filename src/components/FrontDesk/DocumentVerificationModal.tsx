@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -224,19 +224,19 @@ export default function DocumentVerificationModal({
 
                 {/* OCR Extracted Data */}
                 {selectedDoc.ocrExtractedData && Object.keys(selectedDoc.ocrExtractedData).length > 0 && (
-                  <div className="bg-amber-50 rounded-xl p-4 space-y-3">
+                  <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
                     <button
                       onClick={() => setShowOcrData(!showOcrData)}
                       className="flex items-center justify-between w-full"
                     >
-                      <span className="text-xs font-semibold text-amber-800 flex items-center gap-2">
+                      <span className="text-xs font-semibold text-indigo-800 flex items-center gap-2">
                         <Camera size={14} />
                         OCR Extracted Data
                       </span>
-                      <span className="text-xs text-amber-600">{showOcrData ? 'Hide' : 'Show'}</span>
+                      <span className="text-xs text-indigo-600">{showOcrData ? 'Hide' : 'Show'}</span>
                     </button>
                     {showOcrData && (
-                      <div className="text-xs text-amber-900 space-y-1 font-mono">
+                      <div className="text-xs text-indigo-900 space-y-1 font-mono">
                         {Object.entries(selectedDoc.ocrExtractedData).map(([key, value]) => (
                           <div key={key} className="flex justify-between">
                             <span className="opacity-70">{key}:</span>

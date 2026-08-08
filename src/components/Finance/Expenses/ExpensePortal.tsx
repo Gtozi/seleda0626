@@ -111,7 +111,7 @@ const ExpensePortal = () => {
             <button
               key={sm.id}
               onClick={() => setActiveSubModule(sm.id as any)}
-              className={`px-4 py-2 rounded-xl flex items-center gap-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
+              className={`px-4 py-2 rounded-lg flex items-center gap-2 text-[10px] font-black uppercase tracking-wider transition-all whitespace-nowrap ${
                 activeSubModule === sm.id 
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200 dark:shadow-none' 
                   : 'text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-800'
@@ -126,7 +126,7 @@ const ExpensePortal = () => {
         <div className="ml-auto flex items-center gap-2">
            <button 
              onClick={() => setShowAddModal(true)}
-             className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition"
+             className="flex items-center gap-2 px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition"
            >
               <Plus size={14} />
               New Expense Request
@@ -157,14 +157,14 @@ const ExpensePortal = () => {
                    <button
                      type="button"
                      onClick={() => setModalTab('requisition')}
-                     className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${modalTab === 'requisition' ? 'bg-indigo-650 bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
+                     className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${modalTab === 'requisition' ? 'bg-indigo-650 bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
                    >
                      Standard Requisition
                    </button>
                    <button
                      type="button"
                      onClick={() => setModalTab('grn')}
-                     className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-xl transition-all ${modalTab === 'grn' ? 'bg-emerald-650 bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
+                     className={`flex-1 py-2.5 text-[9px] font-black uppercase tracking-widest rounded-lg transition-all ${modalTab === 'grn' ? 'bg-emerald-650 bg-emerald-600 text-white shadow' : 'text-slate-400 hover:text-slate-600 dark:hover:text-white'}`}
                    >
                      Grn Receipt Entry
                    </button>

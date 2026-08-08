@@ -148,9 +148,15 @@ interface PublicSettings {
   bookingSecureBookingText?: string;
 }
 
+interface RoomOccupancy {
+  adults: number;
+  children: number;
+}
+
 interface SelectedItem {
   roomType: string;
   quantity: number;
+  occupancies: RoomOccupancy[];
 }
 
 
@@ -571,11 +577,35 @@ export default function BookingPage() {
     } else {
       setSelectedItems(prev => {
         const existing = prev.find(item => item.roomType === roomType);
-        if (!existing) return [...prev, { roomType, quantity }];
-        return prev.map(item => item.roomType === roomType ? { ...item, quantity } : item);
+        if (!existing) {
+          const occupancies: RoomOccupancy[] = Array.from({ length: quantity }, () => ({ adults, children }));
+          return [...prev, { roomType, quantity, occupancies }];
+        }
+        const currentOccs = existing.occupancies || [];
+        const newOccs: RoomOccupancy[] = Array.from({ length: quantity }, (_, i) =>
+          currentOccs[i] || { adults, children }
+        );
+        return prev.map(item => item.roomType === roomType ? { ...item, quantity, occupancies: newOccs } : item);
       });
     }
+  }, [adults, children]);
+
+  const setRoomOccupancy = useCallback((roomType: string, roomIndex: number, field: 'adults' | 'children', value: number) => {
+    setSelectedItems(prev => prev.map(item => {
+      if (item.roomType !== roomType) return item;
+      const occupancies = [...(item.occupancies || [])];
+      if (occupancies[roomIndex]) {
+        occupancies[roomIndex] = { ...occupancies[roomIndex], [field]: value };
+      }
+      return { ...item, occupancies };
+    }));
   }, []);
+
+  const totalGuests = useMemo(() => {
+    return selectedItems.reduce((sum, item) => {
+      return sum + (item.occupancies || []).reduce((s, o) => s + o.adults + o.children, 0);
+    }, 0);
+  }, [selectedItems]);
 
   const totalSelectedRooms = useMemo(() => selectedItems.reduce((sum, item) => sum + item.quantity, 0), [selectedItems]);
 
@@ -811,7 +841,8 @@ export default function BookingPage() {
           roomType: item.roomType,
           quantity: item.quantity,
           adults,
-          children
+          children,
+          occupancies: item.occupancies || Array.from({ length: item.quantity }, () => ({ adults, children }))
         })),
         // B2B fields
         operator_id: selectedOperatorId || null,
@@ -1272,7 +1303,7 @@ export default function BookingPage() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-stone-400">Guests</span>
-                      <span className="font-bold text-stone-800">{adults} Adult{adults > 1 ? 's' : ''} {children > 0 ? `· ${children} Child` : ''}</span>
+                      <span className="font-bold text-stone-800">{totalGuests > 0 ? `${totalGuests} Guest${totalGuests > 1 ? 's' : ''}` : `${adults} Adult${adults > 1 ? 's' : ''} ${children > 0 ? `· ${children} Child` : ''}`}</span>
                     </div>
                   </div>
 
@@ -1346,7 +1377,7 @@ export default function BookingPage() {
           initial={{ opacity: 0, y: 15 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.4 }}
-          className="max-w-4xl mx-auto space-y-8"
+          className="max-w-4xl mx-auto space-y-8 print-area"
         >
           {/* Header Action Row (Hidden on print) */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-stone-200 rounded-2xl p-4 shadow-sm print:hidden">
@@ -1436,7 +1467,7 @@ export default function BookingPage() {
             <div className="p-6 bg-stone-50/50 flex flex-col justify-center items-center text-center space-y-1">
               <Calendar size={18} className="text-amber-500" />
               <p className="text-sm font-bold text-stone-800">{nights} Night{nights > 1 ? 's' : ''} Stay</p>
-              <p className="text-xs text-stone-500">{adults} Adult{adults > 1 ? 's' : ''} {children > 0 ? `· ${children} Child${children > 1 ? 'ren' : ''}` : ''}</p>
+              <p className="text-xs text-stone-500">{totalGuests > 0 ? `${totalGuests} Guest${totalGuests > 1 ? 's' : ''}` : `${adults} Adult${adults > 1 ? 's' : ''} ${children > 0 ? `· ${children} Child${children > 1 ? 'ren' : ''}` : ''}`}</p>
             </div>
 
             {/* Check-Out */}
@@ -1463,6 +1494,8 @@ export default function BookingPage() {
                   {selectedItems.map(item => {
                     const room = rooms.find(r => r.type === item.roomType);
                     if (!room) return null;
+                    const occs = item.occupancies || [];
+                    const hasPerRoom = occs.length > 1 && occs.some(o => o.adults !== occs[0].adults || o.children !== occs[0].children);
                     return (
                       <div key={item.roomType} className="flex items-start gap-4">
                         <div className="w-16 h-12 bg-stone-100 rounded-xl overflow-hidden shrink-0">
@@ -1471,6 +1504,11 @@ export default function BookingPage() {
                         <div className="space-y-0.5">
                           <h4 className="font-bold text-stone-900 text-sm">{room.title}</h4>
                           <p className="text-xs text-stone-500">{item.quantity} room{item.quantity > 1 ? 's' : ''} · {nights} night{nights > 1 ? 's' : ''}</p>
+                          {hasPerRoom && (
+                            <p className="text-[10px] text-stone-400">
+                              {occs.map((o, i) => `R${i + 1}: ${o.adults} adult${o.adults > 1 ? 's' : ''}${o.children > 0 ? `, ${o.children} child${o.children > 1 ? 'ren' : ''}` : ''}`).join(' · ')}
+                            </p>
+                          )}
                           <div className="flex flex-wrap gap-1 pt-1">
                             {room.features.slice(0, 3).map((f, i) => (
                               <span key={i} className="text-[9px] bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded font-medium">
@@ -2165,11 +2203,14 @@ export default function BookingPage() {
               </div>
               <div className="md:col-span-4 space-y-1.5">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1.5">
-                  <Users size={12} /> Guests per room
+                  <Users size={12} /> Default guests per room
                 </label>
                 <div className="bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-3">
                   <Counter label="Adults" value={adults} onChange={setAdults} min={1} max={10} />
                   <Counter label="Children" value={children} onChange={setChildren} min={0} max={10} />
+                  {totalSelectedRooms > 1 && (
+                    <p className="text-[10px] text-stone-400 leading-relaxed">Applied to new rooms. Adjust each room individually below.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -2365,27 +2406,80 @@ export default function BookingPage() {
                                       Add room <Plus size={16} />
                                     </button>
                                   ) : (
-                                    <div className="flex items-center justify-between w-full">
-                                      <span className="text-sm font-medium text-stone-700">{quantity} room{quantity > 1 ? 's' : ''}</span>
-                                      <div className="flex items-center gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={(e) => { e.stopPropagation(); setRoomQuantity(room.type, quantity - 1); }}
-                                          className="w-8 h-8 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
-                                        >
-                                          <Minus size={14} />
-                                        </button>
-                                        <span className="w-6 text-center text-sm font-semibold text-stone-900">{quantity}</span>
-                                        <button
-                                          type="button"
-                                          onClick={(e) => { e.stopPropagation(); setRoomQuantity(room.type, quantity + 1); }}
-                                          disabled={quantity >= room.available}
-                                          className="w-8 h-8 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 disabled:opacity-40 transition"
-                                        >
-                                          <Plus size={14} />
-                                        </button>
+                                    <>
+                                      <div className="flex items-center justify-between w-full">
+                                        <span className="text-sm font-medium text-stone-700">{quantity} room{quantity > 1 ? 's' : ''}</span>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setRoomQuantity(room.type, quantity - 1); }}
+                                            className="w-8 h-8 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
+                                          >
+                                            <Minus size={14} />
+                                          </button>
+                                          <span className="w-6 text-center text-sm font-semibold text-stone-900">{quantity}</span>
+                                          <button
+                                            type="button"
+                                            onClick={(e) => { e.stopPropagation(); setRoomQuantity(room.type, quantity + 1); }}
+                                            disabled={quantity >= room.available}
+                                            className="w-8 h-8 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 disabled:opacity-40 transition"
+                                          >
+                                            <Plus size={14} />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
+
+                                      {quantity > 1 && (
+                                        <div className="mt-3 pt-3 border-t border-stone-100 space-y-2">
+                                          <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-1">
+                                            <Users size={10} /> Occupancy per room
+                                          </p>
+                                          {(selectedItems.find(item => item.roomType === room.type)?.occupancies || []).map((occ, occIdx) => (
+                                            <div key={occIdx} className="flex items-center justify-between gap-2 bg-stone-50 rounded-lg px-3 py-2">
+                                              <span className="text-xs font-semibold text-stone-600 shrink-0">Room {occIdx + 1}</span>
+                                              <div className="flex items-center gap-3">
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-[10px] text-stone-500">A</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setRoomOccupancy(room.type, occIdx, 'adults', Math.max(1, occ.adults - 1)); }}
+                                                    className="w-6 h-6 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
+                                                  >
+                                                    <Minus size={10} />
+                                                  </button>
+                                                  <span className="w-5 text-center text-xs font-semibold text-stone-900">{occ.adults}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setRoomOccupancy(room.type, occIdx, 'adults', Math.min(10, occ.adults + 1)); }}
+                                                    className="w-6 h-6 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
+                                                  >
+                                                    <Plus size={10} />
+                                                  </button>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                  <span className="text-[10px] text-stone-500">C</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setRoomOccupancy(room.type, occIdx, 'children', Math.max(0, occ.children - 1)); }}
+                                                    className="w-6 h-6 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
+                                                  >
+                                                    <Minus size={10} />
+                                                  </button>
+                                                  <span className="w-5 text-center text-xs font-semibold text-stone-900">{occ.children}</span>
+                                                  <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); setRoomOccupancy(room.type, occIdx, 'children', Math.min(10, occ.children + 1)); }}
+                                                    className="w-6 h-6 rounded-full border border-stone-200 bg-white flex items-center justify-center text-stone-500 hover:border-amber-400 hover:text-amber-600 transition"
+                                                  >
+                                                    <Plus size={10} />
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
+                                    </>
                                   )}
                                 </div>
                               </div>
@@ -2425,11 +2519,18 @@ export default function BookingPage() {
                           {selectedItems.map(item => {
                             const room = rooms.find(r => r.type === item.roomType);
                             if (!room) return null;
+                            const occs = item.occupancies || [];
+                            const hasPerRoom = occs.length > 1 && occs.some(o => o.adults !== occs[0].adults || o.children !== occs[0].children);
                             return (
                               <div key={item.roomType} className="flex items-start justify-between gap-3 text-sm">
                                 <div>
                                   <p className="font-semibold text-stone-900">{room.title}</p>
                                   <p className="text-xs text-stone-500">{item.quantity} room{item.quantity > 1 ? 's' : ''} × {formatPrice(room.rate)} / night</p>
+                                  {hasPerRoom && (
+                                    <p className="text-[10px] text-stone-400 mt-0.5">
+                                      {occs.map((o, i) => `R${i + 1}: ${o.adults}A${o.children > 0 ? ` ${o.children}C` : ''}`).join(' · ')}
+                                    </p>
+                                  )}
                                 </div>
                                 <span className="font-semibold text-stone-900 shrink-0">{formatPrice(room.rate * nights * item.quantity)}</span>
                               </div>
@@ -3102,10 +3203,19 @@ export default function BookingPage() {
                       if (!room) return null;
                       const baseRate = room.baseRate || room.rate;
                       const effectiveRate = getEffectiveNightlyRate(baseRate, finalPricing.seasonMultiplier, finalPricing.ratePlanModifier);
+                      const occs = item.occupancies || [];
+                      const hasPerRoom = occs.length > 1 && occs.some(o => o.adults !== occs[0].adults || o.children !== occs[0].children);
                       return (
-                        <div key={item.roomType} className="flex justify-between text-stone-600">
-                          <span>{room.title} × {item.quantity} ({nights} night{nights > 1 ? 's' : ''})</span>
-                          <span className="font-medium">{formatPrice(effectiveRate * nights * item.quantity)}</span>
+                        <div key={item.roomType} className="space-y-0.5">
+                          <div className="flex justify-between text-stone-600">
+                            <span>{room.title} × {item.quantity} ({nights} night{nights > 1 ? 's' : ''})</span>
+                            <span className="font-medium">{formatPrice(effectiveRate * nights * item.quantity)}</span>
+                          </div>
+                          {hasPerRoom && (
+                            <p className="text-[10px] text-stone-400 pl-1">
+                              {occs.map((o, i) => `R${i + 1}: ${o.adults}A${o.children > 0 ? ` ${o.children}C` : ''}`).join(' · ')}
+                            </p>
+                          )}
                         </div>
                       );
                     })}
@@ -3197,9 +3307,11 @@ export default function BookingPage() {
                 <p className="text-xs text-stone-500">{nights} night{nights > 1 ? 's' : ''} · {formatPrice(finalPricing.roomTotal)}</p>
               </div>
             </div>
-            <div className="flex items-center gap-6">
-              <Counter label="Adults" value={adults} onChange={setAdults} min={1} max={10} />
-              <Counter label="Children" value={children} onChange={setChildren} min={0} max={10} />
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Total Guests</p>
+                <p className="text-sm font-semibold text-stone-900">{totalGuests > 0 ? totalGuests : adults + children}</p>
+              </div>
             </div>
             <button
               onClick={nextStep}

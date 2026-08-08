@@ -26,6 +26,16 @@ import LostAndFoundModule from './LostAndFoundModule';
 import HousekeepingInventoryModule from './HousekeepingInventoryModule';
 import GuestAmenitiesModule from './GuestAmenitiesModule';
 import TaskManagementModule from './TaskManagementModule';
+import PublicAreaCleaningModule from './PublicAreaCleaningModule';
+import RoomInspectionsModule from './RoomInspectionsModule';
+import SupervisorConsoleModule from './SupervisorConsoleModule';
+import MinibarOperationsModule from './MinibarOperationsModule';
+import GuestRequestsModule from './GuestRequestsModule';
+import DeepCleaningModule from './DeepCleaningModule';
+import PreventiveCleaningModule from './PreventiveCleaningModule';
+import MaintenanceCoordinationModule from './MaintenanceCoordinationModule';
+import CommunicationCenterModule from './CommunicationCenterModule';
+import ConfigurationModule from './ConfigurationModule';
 // import TaskOptimizationModule from './TaskOptimizationModule';
 // import PerformanceAnalyticsModule from './PerformanceAnalyticsModule';
 import DepartmentReportsModule from '../Shared/DepartmentReportsModule';
@@ -35,6 +45,16 @@ export type HKTab =
   | 'dashboard'
   | 'rooms'
   | 'tasks'
+  | 'public-area'
+  | 'inspections'
+  | 'supervisor'
+  | 'minibar'
+  | 'guest-requests'
+  | 'deep-cleaning'
+  | 'preventive-cleaning'
+  | 'maintenance'
+  | 'communication'
+  | 'configuration'
   | 'optimization'
   | 'analytics'
   | 'laundry'
@@ -51,6 +71,10 @@ export type RoomCleaningStatus =
   | 'Occupied Clean' 
   | 'Occupied Dirty' 
   | 'Inspected' 
+  | 'Ready'
+  | 'Pickup'
+  | 'Sleep-Out'
+  | 'Do Not Disturb'
   | 'Out of Order' 
   | 'Out of Service' 
   | 'Maintenance Required';
@@ -60,7 +84,8 @@ export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface HKTask {
   id: string;
-  type: 'Room Cleaning' | 'Deep Cleaning' | 'Public Area Cleaning' | 'Garden Cleaning' | 'Pool Cleaning' | 'Pest Control' | 'Maintenance Follow-up';
+  type: 'Checkout Cleaning' | 'Stayover Service' | 'VIP Preparation' | 'Turndown Service' | 'Special Cleaning' | 'Emergency Cleaning' | 'Deep Cleaning' | 'Public Area Cleaning' | 'Garden Cleaning' | 'Pool Cleaning' | 'Pest Control' | 'Maintenance Follow-up';
+  category: 'Automatic' | 'Manual';
   location: string;
   assignedTo?: string;
   priority: TaskPriority;
@@ -106,6 +131,16 @@ export default function HousekeepingPortal({ activeTab }: { activeTab: HKTab }) 
           />
         )}
         {activeTab === 'tasks' && <TaskManagementModule />}
+        {activeTab === 'public-area' && <PublicAreaCleaningModule />}
+        {activeTab === 'inspections' && <RoomInspectionsModule />}
+        {activeTab === 'supervisor' && <SupervisorConsoleModule />}
+        {activeTab === 'minibar' && <MinibarOperationsModule />}
+        {activeTab === 'guest-requests' && <GuestRequestsModule />}
+        {activeTab === 'deep-cleaning' && <DeepCleaningModule />}
+        {activeTab === 'preventive-cleaning' && <PreventiveCleaningModule />}
+        {activeTab === 'maintenance' && <MaintenanceCoordinationModule />}
+        {activeTab === 'communication' && <CommunicationCenterModule />}
+        {activeTab === 'configuration' && <ConfigurationModule />}
         {/* {activeTab === 'optimization' && <TaskOptimizationModule />} */}
         {/* {activeTab === 'analytics' && <PerformanceAnalyticsModule />} */}
         {activeTab === 'laundry' && <LaundryModule />}

@@ -20,7 +20,7 @@ import { useSystem } from './SystemContext';
 import { useGuest } from './GuestContext';
 import { supabaseService } from '../services/supabaseService';
 import { supabase, hasSupabaseConfig } from '../lib/supabase';
-import { getTypeAvailability, TypeAvailability } from '../services/allocationService';
+import { getTypeAvailability, TypeAvailability, rangesOverlap } from '../services/allocationService';
 import { mapRoomFromDb, mapReservationFromDb, mapGroupBookingFromDb } from '../services/dataMapper';
 
 export interface ReservationContextType {
@@ -33,11 +33,11 @@ export interface ReservationContextType {
   seasons: Season[];
   packages: Package[];
   
-  addReservation: (reservation: Omit<Reservation, 'id'>) => string;
-  updateReservation: (id: string, updates: Partial<Reservation>) => void;
+  addReservation: (reservation: Omit<Reservation, 'id'>) => Promise<string>;
+  updateReservation: (id: string, updates: Partial<Reservation>) => Promise<void>;
   updateReservationStatus: (id: string, status: ReservationStatus) => void;
   updateDepositStatus: (id: string, isPaid: boolean) => void;
-  assignRoomToReservation: (id: string, roomNumber: string) => void;
+  assignRoomToReservation: (id: string, roomNumber: string) => Promise<void>;
   changeRoom: (id: string, newRoomNumber: string) => Promise<void>;
   promoteFromWaitlist: (id: string) => void;
   
@@ -275,11 +275,70 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     };
   }, [refreshData]);
 
-  const addReservation = useCallback((resData: Omit<Reservation, 'id'>): string => {
+  const addReservation = useCallback(async (resData: Omit<Reservation, 'id'>): Promise<string> => {
     const newId = `R-${Math.floor(1000 + Math.random() * 9000)}`;
     const days = calculateNights(resData.checkInDate, resData.checkOutDate);
     const nights = days > 0 ? days : 1;
     const status: ReservationStatus = resData.channel === 'Walk-In' ? resData.status : 'Waitlisted';
+
+    // ── Availability guard ──────────────────────────────────────────────
+    // Prevent overbooking before the reservation enters local state and is
+    // persisted to Supabase. Only confirmed-consuming statuses (Confirmed /
+    // CheckedIn) consume physical inventory; Waitlisted bookings are
+    // overflow-tolerant by design and are validated at promotion time.
+    if (status === 'Confirmed' || status === 'CheckedIn') {
+      const avail = getTypeAvailability(
+        resData.roomType, resData.checkInDate, resData.checkOutDate,
+        rooms, reservations
+      );
+      if (avail.available <= 0) {
+        throw new Error(
+          `No ${resData.roomType} rooms available for ${resData.checkInDate} to ${resData.checkOutDate} ` +
+          `(${avail.booked} of ${avail.capacity} booked).`
+        );
+      }
+    }
+
+    // If a specific room number is assigned, verify it isn't already booked
+    // by another confirmed-consuming reservation for overlapping dates.
+    // Query the database directly to avoid stale in-memory state issues.
+    if (resData.roomNumber && hasSupabaseConfig) {
+      const { data: conflicts, error } = await supabase
+        .from('reservations')
+        .select('id, guest_name, check_in_date, check_out_date')
+        .eq('room_number', resData.roomNumber)
+        .in('status', ['Confirmed', 'CheckedIn'])
+        .neq('id', newId)
+        .lt('check_in_date', resData.checkOutDate)
+        .gt('check_out_date', resData.checkInDate)
+        .limit(1);
+      
+      if (error) {
+        console.error('Error checking room conflicts:', error);
+      }
+      
+      if (conflicts && conflicts.length > 0) {
+        const conflict = conflicts[0];
+        throw new Error(
+          `Room ${resData.roomNumber} is already booked for the selected dates ` +
+          `(by reservation ${conflict.id} - ${conflict.guest_name}).`
+        );
+      }
+    } else if (resData.roomNumber) {
+      // Fallback to in-memory check if Supabase is not configured
+      const conflict = reservations.find(r =>
+        r.id !== newId &&
+        r.roomNumber === resData.roomNumber &&
+        (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+        rangesOverlap(resData.checkInDate, resData.checkOutDate, r.checkInDate, r.checkOutDate)
+      );
+      if (conflict) {
+        throw new Error(
+          `Room ${resData.roomNumber} is already booked for the selected dates ` +
+          `(by reservation ${conflict.id}).`
+        );
+      }
+    }
 
     // Itemize selected packages as separate pre-tax folio charges so package
     // revenue is preserved and visible on the folio.
@@ -332,9 +391,61 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     logAudit(`New reservation ${newId} created for ${resData.guestName} (${resData.channel}).`);
     return newId;
-  }, [logAudit, packages]);
+  }, [logAudit, packages, rooms, reservations]);
 
-  const updateReservation = useCallback((id: string, updates: Partial<Reservation>) => {
+  const updateReservation = useCallback(async (id: string, updates: Partial<Reservation>): Promise<void> => {
+    // Check for room conflicts when roomNumber is being changed.
+    // Use the server-side assign_room RPC for DB-level conflict checking
+    // to avoid stale in-memory state issues.
+    if (updates.roomNumber !== undefined) {
+      const res = reservations.find(r => r.id === id);
+      if (res && updates.roomNumber !== res.roomNumber) {
+        if (supabaseService.isConfigured()) {
+          try {
+            const response = await fetch(`/api/${id}/assign-room`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ roomNumber: updates.roomNumber }),
+            });
+            if (!response.ok) {
+              const data = await response.json();
+              addNotification(
+                data.error || `Cannot assign Room ${updates.roomNumber}: conflict detected.`,
+                'error', 'Front Office'
+              );
+              return;
+            }
+          } catch (error) {
+            addNotification(
+              `Network error assigning Room ${updates.roomNumber}: ${String(error)}`,
+              'error', 'Front Office'
+            );
+            return;
+          }
+        } else {
+          // Fallback to in-memory check if Supabase is not configured
+          const newRoom = updates.roomNumber;
+          const checkIn = updates.checkInDate || res.checkInDate;
+          const checkOut = updates.checkOutDate || res.checkOutDate;
+          const conflict = reservations.find(r =>
+            r.id !== id &&
+            r.roomNumber === newRoom &&
+            (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+            rangesOverlap(checkIn, checkOut, r.checkInDate, r.checkOutDate)
+          );
+          if (conflict) {
+            addNotification(
+              `Cannot assign Room ${newRoom}: already booked by reservation ${conflict.id} ` +
+              `(${conflict.guestName}) for overlapping dates.`,
+              'error', 'Front Office'
+            );
+            return;
+          }
+        }
+      }
+    }
+
     setReservations(prev => {
       const next = prev.map(r => {
         if (r.id === id) {
@@ -356,7 +467,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const finalRes = { ...updatedRes, charges: updatedCharges, totalAmount: 0 };
             if (supabaseService.isConfigured()) supabaseService.upsertReservation(finalRes).catch(console.error);
             // Fetch updated total from DB
-            fetch(`/api/reservations/${id}/total`, { credentials: 'include' })
+            fetch(`/api/${id}/total`, { credentials: 'include' })
               .then(res => res.json())
               .then(data => {
                 setReservations(prev => prev.map(r => r.id === id ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -372,9 +483,45 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return next;
     });
     logAudit(`Reservation ${id} updated.`);
-  }, [logAudit]);
+  }, [logAudit, reservations, addNotification]);
 
   const updateReservationStatus = useCallback((id: string, status: ReservationStatus) => {
+    // When promoting to a confirmed-consuming status, verify availability
+    if (status === 'Confirmed' || status === 'CheckedIn') {
+      const res = reservations.find(r => r.id === id);
+      if (res && res.status !== 'Confirmed' && res.status !== 'CheckedIn') {
+        const avail = getTypeAvailability(
+          res.roomType, res.checkInDate, res.checkOutDate,
+          rooms, reservations, id
+        );
+        if (avail.available <= 0) {
+          addNotification(
+            `Cannot set to ${status}: no ${res.roomType} rooms available ` +
+            `for ${res.checkInDate} to ${res.checkOutDate} (${avail.booked} of ${avail.capacity} booked).`,
+            'error', 'Front Office'
+          );
+          return;
+        }
+        // Also check room conflict if a room is assigned
+        if (res.roomNumber) {
+          const conflict = reservations.find(r =>
+            r.id !== id &&
+            r.roomNumber === res.roomNumber &&
+            (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+            rangesOverlap(res.checkInDate, res.checkOutDate, r.checkInDate, r.checkOutDate)
+          );
+          if (conflict) {
+            addNotification(
+              `Cannot set to ${status}: Room ${res.roomNumber} is already ` +
+              `booked by reservation ${conflict.id} for these dates.`,
+              'error', 'Front Office'
+            );
+            return;
+          }
+        }
+      }
+    }
+
     setReservations(prev => {
       const next = prev.map(r => r.id === id ? { ...r, status } : r);
       if (supabaseService.isConfigured()) {
@@ -384,7 +531,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return next;
     });
     logAudit(`Reservation ${id} status updated to ${status}.`);
-  }, [logAudit]);
+  }, [logAudit, reservations, rooms, addNotification]);
 
   const updateDepositStatus = useCallback((id: string, isPaid: boolean) => {
     setReservations(prev => {
@@ -398,7 +545,54 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     logAudit(`Reservation ${id} deposit status updated to ${isPaid ? 'Paid' : 'Unpaid'}.`);
   }, [logAudit]);
 
-  const assignRoomToReservation = useCallback((id: string, roomNumber: string) => {
+  const assignRoomToReservation = useCallback(async (id: string, roomNumber: string): Promise<void> => {
+    const res = reservations.find(r => r.id === id);
+    if (!res) return;
+
+    // Use the server-side assign_room RPC for DB-level conflict checking.
+    // This prevents double-booking that the stale in-memory check would miss.
+    if (supabaseService.isConfigured()) {
+      try {
+        const response = await fetch(`/api/${id}/assign-room`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ roomNumber }),
+        });
+
+        if (!response.ok) {
+          const data = await response.json();
+          addNotification(
+            data.error || `Cannot assign Room ${roomNumber}: conflict detected.`,
+            'error', 'Front Office'
+          );
+          return;
+        }
+      } catch (error) {
+        addNotification(
+          `Network error assigning Room ${roomNumber}: ${String(error)}`,
+          'error', 'Front Office'
+        );
+        return;
+      }
+    } else {
+      // Fallback to in-memory check if Supabase is not configured
+      const conflict = reservations.find(r =>
+        r.id !== id &&
+        r.roomNumber === roomNumber &&
+        (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+        rangesOverlap(res.checkInDate, res.checkOutDate, r.checkInDate, r.checkOutDate)
+      );
+      if (conflict) {
+        addNotification(
+          `Cannot assign Room ${roomNumber}: already booked by reservation ${conflict.id} ` +
+          `(${conflict.guestName}) for overlapping dates.`,
+          'error', 'Front Office'
+        );
+        return;
+      }
+    }
+
     setReservations(prev => {
       const next = prev.map(r => {
         if (r.id === id) {
@@ -410,21 +604,23 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
         return r;
       });
-      if (supabaseService.isConfigured()) {
+      // Only upsert if Supabase is NOT configured (server-side RPC already
+      // persisted the assignment when it is configured).
+      if (!supabaseService.isConfigured()) {
         const tgt = next.find(r => r.id === id);
         if (tgt) supabaseService.upsertReservation(tgt).catch(console.error);
       }
       return next;
     });
     logAudit(`Assigned Room ${roomNumber} to Reservation ${id}.`);
-  }, [logAudit]);
+  }, [logAudit, reservations, addNotification]);
 
   const changeRoom = useCallback(async (id: string, newRoomNumber: string) => {
     const res = reservations.find(r => r.id === id);
     const oldRoomNumber = res?.roomNumber;
 
     try {
-      const response = await fetch(`/api/reservations/${id}/change-room`, {
+      const response = await fetch(`/api/${id}/change-room`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -457,6 +653,40 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const promoteFromWaitlist = useCallback((id: string) => {
     const res = reservations.find(r => r.id === id);
     if (!res || res.status !== 'Waitlisted') return;
+
+    // ── Availability guard at promotion time ────────────────────────────
+    // Promoting from Waitlisted to Confirmed consumes physical inventory.
+    // Verify the room type still has availability before committing.
+    const avail = getTypeAvailability(
+      res.roomType, res.checkInDate, res.checkOutDate,
+      rooms, reservations, id
+    );
+    if (avail.available <= 0) {
+      addNotification(
+        `Cannot promote ${res.guestName}: no ${res.roomType} rooms available ` +
+        `for ${res.checkInDate} to ${res.checkOutDate} (${avail.booked} of ${avail.capacity} booked).`,
+        'error', 'Front Office'
+      );
+      return;
+    }
+
+    // If a room is already assigned, verify it isn't double-booked.
+    if (res.roomNumber) {
+      const conflict = reservations.find(r =>
+        r.id !== id &&
+        r.roomNumber === res.roomNumber &&
+        (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+        rangesOverlap(res.checkInDate, res.checkOutDate, r.checkInDate, r.checkOutDate)
+      );
+      if (conflict) {
+        addNotification(
+          `Cannot promote ${res.guestName}: Room ${res.roomNumber} is already ` +
+          `booked by reservation ${conflict.id} for these dates.`,
+          'error', 'Front Office'
+        );
+        return;
+      }
+    }
 
     setReservations(prev => {
       const next = prev.map(r => r.id === id ? { ...r, status: 'Confirmed' } : r);
@@ -550,11 +780,11 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
       linkUrl: `/guest?resId=${id}`
     });
     logAudit(`Promoted Reservation ${id} from waitlist.`);
-  }, [reservations, globalHotelSettings, addNotification, addDispatchedEmail, logAudit]);
+  }, [reservations, rooms, globalHotelSettings, addNotification, addDispatchedEmail, logAudit]);
 
   const addFolioCharge = useCallback(async (reservationId: string, charge: Omit<FolioCharge, 'id' | 'date'>) => {
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/charges`, {
+      const response = await fetch(`/api/${reservationId}/charges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -585,7 +815,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
             const newCharge = { ...charge, id: result.lineId || result.lineNumber?.toString() || `C-${Date.now()}`, date: toISODate() };
             const updatedCharges = [...(r.charges || []), newCharge];
             // Fetch updated total from DB
-            fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+            fetch(`/api/${reservationId}/total`, { credentials: 'include' })
               .then(res => res.json())
               .then(data => {
                 setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -609,7 +839,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (r.id === reservationId) {
           const updatedCharges = (r.charges || []).map(c => c.id === chargeId ? { ...c, ...updates } : c);
           // Fetch updated total from DB
-          fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+          fetch(`/api/${reservationId}/total`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
               setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -627,7 +857,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     if (updates.targetFolio !== undefined) persistable.targetFolio = updates.targetFolio;
     if (updates.amount !== undefined) persistable.amount = updates.amount;
     if (Object.keys(persistable).length > 0) {
-      fetch(`/api/reservations/${reservationId}/charges/${chargeId}`, {
+      fetch(`/api/${reservationId}/charges/${chargeId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -638,7 +868,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const voidFolioCharge = useCallback(async (reservationId: string, chargeId: string) => {
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/charges/${chargeId}/void`, {
+      const response = await fetch(`/api/${reservationId}/charges/${chargeId}/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -655,7 +885,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
           if (r.id === reservationId) {
             const updatedCharges = (r.charges || []).map(c => c.id === chargeId ? { ...c, isVoided: true } : c);
             // Fetch updated total from DB
-            fetch(`/api/reservations/${reservationId}/total`, { credentials: 'include' })
+            fetch(`/api/${reservationId}/total`, { credentials: 'include' })
               .then(res => res.json())
               .then(data => {
                 setReservations(prev => prev.map(r => r.id === reservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -687,7 +917,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (r.id === sourceReservationId) {
           const updatedCharges = (r.charges || []).filter(c => c.id !== chargeId);
           // Fetch updated total from DB
-          fetch(`/api/reservations/${sourceReservationId}/total`, { credentials: 'include' })
+          fetch(`/api/${sourceReservationId}/total`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
               setReservations(prev => prev.map(r => r.id === sourceReservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -698,7 +928,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
         if (r.id === targetReservationId) {
           const updatedCharges = [...(r.charges || []), chargeToMove!];
           // Fetch updated total from DB
-          fetch(`/api/reservations/${targetReservationId}/total`, { credentials: 'include' })
+          fetch(`/api/${targetReservationId}/total`, { credentials: 'include' })
             .then(res => res.json())
             .then(data => {
               setReservations(prev => prev.map(r => r.id === targetReservationId ? { ...r, totalAmount: data.totalAmount || 0 } : r));
@@ -713,7 +943,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     // Sync to DB: the chargeId IS the folio_line ID (returned from post_folio_charge RPC)
     try {
-      const response = await fetch(`/api/reservations/${sourceReservationId}/charges/${chargeId}/move`, {
+      const response = await fetch(`/api/${sourceReservationId}/charges/${chargeId}/move`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -744,7 +974,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }
 
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/payments`, {
+      const response = await fetch(`/api/${reservationId}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -789,7 +1019,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const voidFolioPayment = useCallback(async (reservationId: string, paymentId: string) => {
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/payments/${paymentId}/void`, {
+      const response = await fetch(`/api/${reservationId}/payments/${paymentId}/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -818,7 +1048,7 @@ export const ReservationProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const getFolioBalance = useCallback(async (reservationId: string, folioType: 'consolidated' | 'folio-a' | 'folio-b' = 'consolidated') => {
     try {
-      const response = await fetch(`/api/reservations/${reservationId}/folio-balance?folioType=${folioType}`, {
+      const response = await fetch(`/api/${reservationId}/folio-balance?folioType=${folioType}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

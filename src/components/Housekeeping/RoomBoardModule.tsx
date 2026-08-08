@@ -384,7 +384,9 @@ export default function RoomBoardModule({
                 {[
                   'Vacant Clean', 'Vacant Dirty',
                   'Occupied Clean', 'Occupied Dirty',
-                  'Inspected', 'Out of Order',
+                  'Inspected', 'Ready',
+                  'Pickup', 'Sleep-Out',
+                  'Do Not Disturb', 'Out of Order',
                   'Out of Service', 'Maintenance Required'
                 ].map((s) => (
                   <button 

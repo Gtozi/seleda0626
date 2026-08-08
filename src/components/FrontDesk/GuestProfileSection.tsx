@@ -1,11 +1,20 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
 
 import React from 'react';
 import { motion } from 'motion/react';
-import { User, ShieldCheck, MessageSquare, Building, Gift, Tag } from 'lucide-react';
+import { User, ShieldCheck, MessageSquare, Building, Gift, Tag, Globe } from 'lucide-react';
+
+const COMMON_COUNTRIES = [
+  'Ethiopia', 'Kenya', 'Djibouti', 'Sudan', 'Eritrea', 'Somalia',
+  'United States', 'United Kingdom', 'Germany', 'France', 'Italy',
+  'China', 'India', 'UAE', 'Saudi Arabia', 'South Africa', 'Nigeria',
+  'Egypt', 'Turkey', 'Japan', 'Canada', 'Australia', 'Spain', 'Netherlands',
+  'South Sudan', 'Rwanda', 'Uganda', 'Tanzania', 'Ghana', 'Morocco',
+  'Brazil', 'Russia', 'South Korea', 'Singapore', 'Thailand', 'Indonesia',
+];
 
 interface GuestProfileSectionProps {
   bookingType: 'Individual' | 'Group' | 'Corporate';
@@ -81,11 +90,11 @@ export default function GuestProfileSection({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.05, duration: 0.35, ease: 'easeOut' }}
-      className="bg-white border border-stone-200 rounded-2xl shadow-xl shadow-stone-900/5 overflow-hidden"
+      className="bg-white border border-slate-200 rounded-xl shadow-sm shadow-slate-900/5 overflow-hidden"
     >
-      <div className="p-5 border-b border-stone-100 bg-stone-50/50">
-        <h3 className="font-semibold text-stone-900 flex items-center gap-2">
-          <User size={18} className="text-amber-500" />
+      <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+        <h3 className="font-semibold text-slate-900 flex items-center gap-2">
+          <User size={18} className="text-indigo-500" />
           {isGroup ? 'Group & Contact Details' : 'Guest Details'}
         </h3>
       </div>
@@ -93,7 +102,7 @@ export default function GuestProfileSection({
       <div className="p-5 space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label htmlFor="guestName" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">
+            <label htmlFor="guestName" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
               {isGroup ? 'Primary contact name' : 'Full name'}
             </label>
             <input
@@ -101,7 +110,7 @@ export default function GuestProfileSection({
               type="text"
               value={guestName}
               onChange={(e) => onGuestNameChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition"
               placeholder={isGroup ? 'e.g. John Smith' : 'e.g. John Doe'}
               aria-invalid={!!errors?.guestName}
               aria-describedby={errors?.guestName ? 'guestName-error' : undefined}
@@ -113,13 +122,13 @@ export default function GuestProfileSection({
 
           {isGroup && (
             <div className="space-y-1">
-              <label htmlFor="groupName" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Group name</label>
+              <label htmlFor="groupName" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Group name</label>
               <input
                 id="groupName"
                 type="text"
                 value={groupName || ''}
                 onChange={(e) => onGroupNameChange?.(e.target.value)}
-                className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition"
                 placeholder="e.g. Company Conference"
                 aria-invalid={!!errors?.groupName}
                 aria-describedby={errors?.groupName ? 'groupName-error' : undefined}
@@ -133,13 +142,13 @@ export default function GuestProfileSection({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label htmlFor="guestEmail" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Email</label>
+            <label htmlFor="guestEmail" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Email</label>
             <input
               id="guestEmail"
               type="email"
               value={guestEmail}
               onChange={(e) => onGuestEmailChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition"
               placeholder="john@example.com"
               aria-invalid={!!errors?.guestEmail}
               aria-describedby={errors?.guestEmail ? 'guestEmail-error' : undefined}
@@ -149,13 +158,13 @@ export default function GuestProfileSection({
             )}
           </div>
           <div className="space-y-1">
-            <label htmlFor="guestPhone" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Phone</label>
+            <label htmlFor="guestPhone" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Phone</label>
             <input
               id="guestPhone"
               type="tel"
               value={guestPhone}
               onChange={(e) => onGuestPhoneChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition"
               placeholder="+1 (555) 000-0000"
             />
           </div>
@@ -163,23 +172,28 @@ export default function GuestProfileSection({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
-            <label htmlFor="guestNationality" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Nationality</label>
-            <input
+            <label htmlFor="guestNationality" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1">
+              <Globe size={10} /> Nationality
+            </label>
+            <select
               id="guestNationality"
-              type="text"
               value={guestNationality || ''}
               onChange={(e) => onGuestNationalityChange?.(e.target.value)}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
-              placeholder="e.g. Ethiopia"
-            />
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition appearance-none"
+            >
+              <option value="">Select country...</option>
+              {COMMON_COUNTRIES.map(country => (
+                <option key={country} value={country}>{country}</option>
+              ))}
+            </select>
           </div>
           <div className="space-y-1">
-            <label htmlFor="channel" className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Booking Channel</label>
+            <label htmlFor="channel" className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Booking Channel</label>
             <select
               id="channel"
               value={channel}
               onChange={(e) => onChannelChange(e.target.value)}
-              className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition appearance-none"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition appearance-none"
             >
               <option value="Walk-In">Walk-In</option>
               <option value="Direct Website">Direct Website</option>
@@ -191,34 +205,34 @@ export default function GuestProfileSection({
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="specialRequests" className="text-[10px] font-bold uppercase tracking-widest text-stone-400 flex items-center gap-2">
-            <MessageSquare size={12} className="text-stone-400" /> Special requests
+          <label htmlFor="specialRequests" className="text-[10px] font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <MessageSquare size={12} className="text-slate-400" /> Special requests
           </label>
           <textarea
             id="specialRequests"
             value={specialRequests || ''}
             onChange={(e) => onSpecialRequestsChange?.(e.target.value)}
             rows={2}
-            className="w-full px-3 py-2.5 bg-stone-50 border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition resize-none"
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition resize-none"
             placeholder="e.g. Late check-in requested, high floor preferred, allergy information..."
           />
         </div>
 
         {/* B2B Tour Operator & Voucher */}
         {isGroup && (
-          <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-2xl space-y-4">
+          <div className="p-4 bg-indigo-50/50 border border-indigo-100 rounded-xl space-y-4">
             <div className="flex items-center gap-1.5 pb-2 border-b border-indigo-100/60 text-indigo-900 font-bold uppercase tracking-wider text-[10px] font-mono">
               <Building size={14} className="text-indigo-600" /> Tour Operator & Voucher
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
-                <label htmlFor="operatorId" className="text-[10px] font-bold uppercase tracking-widest text-stone-500">Tour operator</label>
+                <label htmlFor="operatorId" className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Tour operator</label>
                 <select
                   id="operatorId"
                   value={operatorId || ''}
                   onChange={(e) => onOperatorIdChange?.(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition appearance-none"
+                  className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition appearance-none"
                 >
                   <option value="">No tour operator</option>
                   {tourOperators.map((op) => (
@@ -228,8 +242,8 @@ export default function GuestProfileSection({
               </div>
 
               <div className="space-y-1">
-                <label htmlFor="voucherCode" className="text-[10px] font-bold uppercase tracking-widest text-stone-500 flex items-center gap-1">
-                  <Gift size={12} className="text-stone-400" /> Voucher code
+                <label htmlFor="voucherCode" className="text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1">
+                  <Gift size={12} className="text-slate-400" /> Voucher code
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
@@ -243,7 +257,7 @@ export default function GuestProfileSection({
                           onClearVoucher?.();
                         }
                       }}
-                      className="w-full px-3 py-2.5 bg-white border border-stone-200 rounded-xl text-sm text-stone-800 focus:ring-2 focus:ring-amber-400 focus:border-amber-400 outline-none transition"
+                      className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 outline-none transition"
                       placeholder="Enter voucher code"
                     />
                     {voucherDiscount ? (
@@ -275,8 +289,8 @@ export default function GuestProfileSection({
         )}
 
         {/* Key Booking Policies */}
-        <div className="p-4 bg-stone-50 border border-stone-200/80 rounded-2xl space-y-3 text-xs text-stone-600">
-          <div className="flex items-center gap-1.5 pb-1 border-b border-stone-200/40 text-stone-900 font-bold uppercase tracking-wider text-[10px] font-mono">
+        <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-3 text-xs text-slate-600">
+          <div className="flex items-center gap-1.5 pb-1 border-b border-slate-200/40 text-slate-900 font-bold uppercase tracking-wider text-[10px] font-mono">
             <ShieldCheck size={14} className="text-emerald-600" /> Key Booking Policies
           </div>
 
@@ -285,21 +299,21 @@ export default function GuestProfileSection({
               C
             </div>
             <div>
-              <p className="font-bold text-stone-800 text-[11px]">Flexible Cancellation Rules</p>
-              <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">
-                Free cancellation up to <strong className="text-stone-700 font-bold">{cancellationGraceHours} hours</strong> before check-in. Late cancellations incur a {cancellationPenaltyPercent}% fee.
+              <p className="font-bold text-slate-800 text-[11px]">Flexible Cancellation Rules</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                Free cancellation up to <strong className="text-slate-700 font-bold">{cancellationGraceHours} hours</strong> before check-in. Late cancellations incur a {cancellationPenaltyPercent}% fee.
               </p>
             </div>
           </div>
 
           <div className="flex items-start gap-2.5">
-            <div className="w-5 h-5 bg-amber-50 text-amber-700 flex items-center justify-center rounded-lg text-[10px] font-black shrink-0 mt-0.5 font-mono">
+            <div className="w-5 h-5 bg-indigo-50 text-indigo-700 flex items-center justify-center rounded-lg text-[10px] font-black shrink-0 mt-0.5 font-mono">
               W
             </div>
             <div>
-              <p className="font-bold text-stone-800 text-[11px]">Verification Protocol</p>
-              <p className="text-[11px] text-stone-500 mt-0.5 leading-relaxed">
-                Reservations may be held as <span className="font-semibold text-amber-700 font-mono">Waitlisted</span> and are automatically promoted to <span className="font-semibold text-emerald-700 font-mono">Confirmed</span> once verified by business admin.
+              <p className="font-bold text-slate-800 text-[11px]">Verification Protocol</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
+                Reservations may be held as <span className="font-semibold text-indigo-700 font-mono">Waitlisted</span> and are automatically promoted to <span className="font-semibold text-emerald-700 font-mono">Confirmed</span> once verified by business admin.
               </p>
             </div>
           </div>

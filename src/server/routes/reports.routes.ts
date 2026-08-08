@@ -126,4 +126,69 @@ router.post('/historical-stats', authenticate, requirePermission('reports:export
   return res.status(503).json({ error: 'Database not configured' });
 });
 
+// Report Schedules
+router.get('/schedules', authenticate, requirePermission('reports:view'), async (_req, res) => {
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('report_schedules')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ schedules: data || [] });
+  }
+
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/schedules', authenticate, requirePermission('reports:export'), async (req, res) => {
+
+  const { reportName, frequency, recipients, status, nextRun } = req.body || {};
+  if (!reportName || !frequency) return res.status(400).json({ error: 'reportName and frequency are required' });
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('report_schedules')
+      .insert({
+        report_name: reportName,
+        frequency,
+        recipients: recipients || [],
+        status: status || 'Active',
+        next_run: nextRun || null,
+        created_by: req.user?.id || null
+      })
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, schedule: data });
+  }
+
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Report Versions
+router.post('/versions', authenticate, requirePermission('reports:export'), async (req, res) => {
+
+  const { reportName, fileSize, status } = req.body || {};
+  if (!reportName) return res.status(400).json({ error: 'reportName is required' });
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin
+      .from('report_versions')
+      .insert({
+        report_name: reportName,
+        file_size: fileSize || null,
+        status: status || 'Draft',
+        generated_by: req.user?.name || req.user?.id || null
+      })
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, version: data });
+  }
+
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
 export default router;

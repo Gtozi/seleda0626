@@ -97,9 +97,19 @@ function normalizePermission(action: string) {
 
 /**
  * Get authenticated user from request session
+ * Checks cookie first, then Authorization: Bearer header as fallback
  */
 export async function getRequestUser(req: express.Request): Promise<User | null> {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  let token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+
+  // Fallback: check Authorization: Bearer header
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
+
   if (!token) return null;
 
   const tokenHash = hashToken(token);
@@ -202,9 +212,19 @@ export async function userCan(user: User | null, action: string, context?: Permi
 
 /**
  * Revoke user session
+ * Checks cookie first, then Authorization: Bearer header as fallback
  */
 export async function revokeRequestSession(req: express.Request) {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  let token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+
+  // Fallback: check Authorization: Bearer header
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7);
+    }
+  }
+
   if (!token) return;
 
   const tokenHash = hashToken(token);

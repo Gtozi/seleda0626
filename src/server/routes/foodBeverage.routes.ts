@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { authenticate, requirePermission } from '../middleware/auth';
 import { hasSupabaseAdminConfig, supabaseAdmin } from '../supabaseAdmin';
 
@@ -1243,6 +1244,310 @@ router.post('/supplier-invoices/:id/paid', authenticate, requirePermission('fb:i
   }).eq('id', req.params.id).select().single();
   if (error) return res.status(500).json({ error: error.message });
   return res.json(data);
+});
+
+// =====================
+// F&B Recipe & Ingredient API (migrated from server.ts inline handlers)
+// =====================
+router.get('/ingredients', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('ingredients').select('*').eq('is_active', true).order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/ingredients', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { name, category, unitOfMeasure, parLevel, reorderPoint, currentCost } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('ingredients')
+      .insert({ name, category, unit_of_measure: unitOfMeasure, par_level: parLevel, reorder_point: reorderPoint, current_cost: currentCost, is_active: true })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, ingredient: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/ingredients/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { name, category, unitOfMeasure, parLevel, reorderPoint, currentCost, isActive } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateFields: Record<string, any> = {};
+    if (name !== undefined) updateFields.name = name;
+    if (category !== undefined) updateFields.category = category;
+    if (unitOfMeasure !== undefined) updateFields.unit_of_measure = unitOfMeasure;
+    if (parLevel !== undefined) updateFields.par_level = parLevel;
+    if (reorderPoint !== undefined) updateFields.reorder_point = reorderPoint;
+    if (currentCost !== undefined) updateFields.current_cost = currentCost;
+    if (isActive !== undefined) updateFields.is_active = isActive;
+    const { error } = await supabaseAdmin.from('ingredients').update(updateFields).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.delete('/ingredients/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('ingredients').update({ is_active: false }).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.get('/menu-items', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('menu_items').select('*').eq('is_active', true).order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/menu-items', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('menu_items')
+      .insert(req.body)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/menu-items/:id', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('menu_items')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.delete('/menu-items/:id', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('menu_items')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.get('/recipes', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('recipes')
+      .select('*, menu_items(name, selling_price), recipe_lines(*, ingredients(id, name, current_cost, unit_of_measure))')
+      .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/recipes', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { menuItemId, portions, yield: recipeYield, lines } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const recipeId = crypto.randomUUID();
+    const { data: recipeData, error: recipeError } = await supabaseAdmin.from('recipes')
+      .insert({
+        id: recipeId,
+        menu_item_id: menuItemId,
+        portions,
+        yield: recipeYield
+      })
+      .select()
+      .single();
+
+    if (recipeError) return res.status(500).json({ error: recipeError.message });
+
+    if (lines && lines.length > 0) {
+      const { error: linesError } = await supabaseAdmin.from('recipe_lines')
+        .insert(lines.map((line: any) => ({
+          id: crypto.randomUUID(),
+          recipe_id: recipeId,
+          ingredient_id: line.ingredientId,
+          quantity: line.quantity,
+          unit: line.unit,
+          cost_at_time_of_costing: line.cost || 0
+        })));
+
+      if (linesError) return res.status(500).json({ error: linesError.message });
+    }
+
+    return res.json(recipeData);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/recipes/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('recipes')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.delete('/recipes/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('recipes')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.get('/recipes/:id/cost', authenticate, async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.rpc('calculate_recipe_cost', { p_recipe_id: req.params.id });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// =====================
+// F&B Wastage API (migrated from server.ts inline handlers)
+// =====================
+router.get('/wastage', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('wastage_logs')
+      .select('*, ingredients(name, category, unit_of_measure)')
+      .order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/wastage', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { ingredientId, locationId, quantity, unit, reason, costValue, notes } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('wastage_logs')
+      .insert({ ingredient_id: ingredientId, location_id: locationId, quantity, unit, reason, cost_value: costValue, notes, logged_by: req.user!.id })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, wastage: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.get('/wastage/summary', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('waste_summary').select('*');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// =====================
+// F&B Outlets API (migrated from server.ts inline handlers)
+// =====================
+router.get('/outlets', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('outlets')
+      .select('*').order('name');
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/outlets', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('outlets')
+      .insert(req.body)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/outlets/:id', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('outlets')
+      .update(req.body)
+      .eq('id', req.params.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.delete('/outlets/:id', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { error } = await supabaseAdmin.from('outlets')
+      .delete()
+      .eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// =====================
+// F&B Banquet Events (BEO) API (migrated from server.ts inline handlers)
+// =====================
+router.get('/banquet-events', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('banquet_events')
+      .select('*').order('event_date', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/banquet-events', authenticate, requirePermission('fb:write'), async (req, res) => {
+  const { eventName, eventDate, clientName, guestCount, menuPackage, roomSetup, paymentTerms,
+          estimatedRevenue, notes, avRequirements, billingInstructions, contactPhone, contactEmail,
+          eventStartTime, eventEndTime, functionRoom } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('banquet_events')
+      .insert({
+        event_name: eventName, event_date: eventDate, client_name: clientName,
+        guest_count: guestCount, menu_package: menuPackage, room_setup: roomSetup,
+        payment_terms: paymentTerms, estimated_revenue: estimatedRevenue, notes,
+        av_requirements: avRequirements, billing_instructions: billingInstructions,
+        contact_phone: contactPhone, contact_email: contactEmail,
+        event_start_time: eventStartTime, event_end_time: eventEndTime, function_room: functionRoom,
+        status: 'Draft',
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, event: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/banquet-events/:id', authenticate, requirePermission('fb:write'), async (req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('banquet_events')
+      .update(req.body).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, event: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
 });
 
 export default router;

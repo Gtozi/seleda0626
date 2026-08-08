@@ -183,6 +183,20 @@ export const rangesOverlap = (aIn: string, aOut: string, bIn: string, bOut: stri
 };
 
 /**
+ * Returns true if a reservation's room type matches the requested room type.
+ * Prefers the canonical roomTypeId (foreign key to room_types) when both sides
+ * have it, falling back to the display type name for legacy records.
+ */
+const reservationMatchesRoomType = (res: Reservation, roomType: string, rooms: Room[]): boolean => {
+  // If any room of the requested type exposes a roomTypeId, use id-based matching
+  const sampleRoom = rooms.find(r => r.type === roomType);
+  if (sampleRoom?.roomTypeId && res.roomTypeId) {
+    return res.roomTypeId === sampleRoom.roomTypeId;
+  }
+  return res.roomType === roomType;
+};
+
+/**
  * Calculates physical availability for a room type over a requested date range.
  * Only confirmed-consuming reservations (Confirmed / CheckedIn) count against
  * capacity; Waitlisted bookings are intentionally overflow-tolerant by design.
@@ -195,11 +209,11 @@ export const getTypeAvailability = (
   reservations: Reservation[],
   excludeReservationId?: string
 ): TypeAvailability => {
-  // Use type name matching (canonical via room_type_id join in dataMapper)
-  const capacity = rooms.filter(r => r.type === roomType).length;
+  // Sellable capacity excludes rooms that are physically unavailable.
+  const capacity = rooms.filter(r => r.type === roomType && r.status !== 'Out of Order').length;
   const booked = reservations.filter(res =>
     res.id !== excludeReservationId &&
-    res.roomType === roomType &&
+    reservationMatchesRoomType(res, roomType, rooms) &&
     (res.status === 'Confirmed' || res.status === 'CheckedIn') &&
     rangesOverlap(checkInDate, checkOutDate, res.checkInDate, res.checkOutDate)
   ).length;
@@ -226,10 +240,19 @@ export const calculateOverbookingRisk = (
 
   uniqueRoomTypes.forEach(type => {
     const capacityOfThisType = rooms.filter(r => r.type === type).length;
-    // Count active bookings overlapping today
-    const activeOfThisType = reservations.filter(res => 
-      res.roomType === type && 
-      (res.status === 'CheckedIn' || (res.status === 'Confirmed' && res.checkInDate === date))
+    // Count active bookings overlapping the target date.
+    // A booking is "active" on `date` if its [checkInDate, checkOutDate) range
+    // covers it — i.e. checkInDate <= date < checkOutDate. This catches multi-day
+    // stays, not just same-day arrivals.
+    const nextDay = (() => {
+      const d = new Date(date);
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const activeOfThisType = reservations.filter(res =>
+      reservationMatchesRoomType(res, type, rooms) &&
+      (res.status === 'CheckedIn' || res.status === 'Confirmed') &&
+      rangesOverlap(date, nextDay, res.checkInDate, res.checkOutDate)
     ).length;
 
     if (activeOfThisType > capacityOfThisType) {
@@ -243,4 +266,50 @@ export const calculateOverbookingRisk = (
   });
 
   return risks;
+};
+
+/**
+ * Finds an available room number for a given room type and date range.
+ * Considers existing confirmed/checked-in reservations that overlap the
+ * requested stay, plus any explicitly excluded room numbers (e.g. rooms
+ * already assigned earlier in the same batch).
+ *
+ * Returns the best available room number, or null if none available.
+ */
+export const findAvailableRoomForType = (
+  roomType: string,
+  checkInDate: string,
+  checkOutDate: string,
+  rooms: Room[],
+  reservations: Reservation[],
+  excludeRoomNumbers: Set<string> = new Set()
+): string | null => {
+  if (!roomType || !checkInDate || !checkOutDate) return null;
+
+  // Rooms already assigned for this type during the overlapping period.
+  // Only confirmed-consuming reservations (Confirmed / CheckedIn) block
+  // physical inventory; Waitlisted bookings are overflow-tolerant.
+  const assignedNumbers = new Set(
+    reservations
+      .filter(r =>
+        r.roomNumber &&
+        reservationMatchesRoomType(r, roomType, rooms) &&
+        (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+        rangesOverlap(checkInDate, checkOutDate, r.checkInDate, r.checkOutDate)
+      )
+      .map(r => r.roomNumber as string)
+  );
+
+  const unavailableNumbers = new Set([...assignedNumbers, ...excludeRoomNumbers]);
+
+  const candidates = rooms.filter(
+    r =>
+      r.type === roomType &&
+      r.status !== 'Out of Order' &&
+      !unavailableNumbers.has(r.number)
+  );
+
+  // Prefer Vacant Clean, then any available
+  const best = candidates.find(r => r.status === 'Vacant Clean') || candidates[0];
+  return best ? best.number : null;
 };

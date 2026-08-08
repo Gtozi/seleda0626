@@ -89,14 +89,14 @@ const FinancialStatements = () => {
               type="date"
               value={plPeriodStart}
               onChange={(e) => setPlPeriodStart(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
             <span className="text-slate-400">to</span>
             <input
               type="date"
               value={plPeriodEnd}
               onChange={(e) => setPlPeriodEnd(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
           </div>
         </div>
@@ -128,7 +128,7 @@ const FinancialStatements = () => {
               { label: 'Net Profit', value: `$${profitLoss.summary.net_profit.toLocaleString()}`, sub: 'Bottom line', icon: DollarSign, color: profitLoss.summary.net_profit >= 0 ? 'text-emerald-500' : 'text-rose-500' },
             ].map((stat, i) => (
               <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+                <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                   <stat.icon size={18} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -194,7 +194,7 @@ const FinancialStatements = () => {
               type="date"
               value={bsAsOfDate}
               onChange={(e) => setBsAsOfDate(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
           </div>
         </div>
@@ -232,7 +232,7 @@ const FinancialStatements = () => {
               },
             ].map((stat, i) => (
               <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+                <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                   <stat.icon size={18} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -318,14 +318,14 @@ const FinancialStatements = () => {
               type="date"
               value={cfPeriodStart}
               onChange={(e) => setCfPeriodStart(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
             <span className="text-slate-400">to</span>
             <input
               type="date"
               value={cfPeriodEnd}
               onChange={(e) => setCfPeriodEnd(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
           </div>
         </div>
@@ -364,7 +364,7 @@ const FinancialStatements = () => {
               },
             ].map((stat, i) => (
               <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+                <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                   <stat.icon size={18} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -459,19 +459,19 @@ const FinancialStatements = () => {
         <div className="flex bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit">
           <button
             onClick={() => setActiveTab('profit-loss')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'profit-loss' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'profit-loss' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Profit & Loss
           </button>
           <button
             onClick={() => setActiveTab('balance-sheet')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'balance-sheet' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'balance-sheet' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Balance Sheet
           </button>
           <button
             onClick={() => setActiveTab('cash-flow')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'cash-flow' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'cash-flow' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Cash Flow
           </button>

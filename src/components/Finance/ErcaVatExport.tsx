@@ -47,14 +47,14 @@ const ErcaVatExport = () => {
               type="date"
               value={periodStart}
               onChange={(e) => setPeriodStart(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
             <span className="text-slate-400">to</span>
             <input
               type="date"
               value={periodEnd}
               onChange={(e) => setPeriodEnd(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
           </div>
         </div>
@@ -92,7 +92,7 @@ const ErcaVatExport = () => {
               { label: 'Net VAT Payable', value: `$${vatExport.summary.total_net_vat.toLocaleString()}`, sub: vatExport.summary.total_net_vat >= 0 ? 'Payable to ERCA' : 'Receivable from ERCA', icon: DollarSign, color: vatExport.summary.total_net_vat >= 0 ? 'text-rose-500' : 'text-emerald-500' },
             ].map((stat, i) => (
               <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+                <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                   <stat.icon size={18} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -164,7 +164,7 @@ const ErcaVatExport = () => {
 
           <div className="bg-amber-50 dark:bg-amber-500/10 border border-amber-100 dark:border-amber-500/20 p-6 rounded-3xl">
             <div className="flex items-start gap-4">
-              <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-xl">
+              <div className="p-2 bg-amber-100 dark:bg-amber-500/20 rounded-lg">
                 <AlertCircle size={20} className="text-amber-600 dark:text-amber-400" />
               </div>
               <div>

@@ -192,39 +192,41 @@ export const canAccessTab = (
   // Settings tab is accessible to all active users
   if (tab === 'settings') return true;
 
-  // Check explicitly allowed tabs first (overrides role defaults)
-  if (user.allowedTabs && Array.isArray(user.allowedTabs)) {
-    return user.allowedTabs.includes(tab as any);
-  }
-
-  // Fallback: if no explicit allowedTabs, restrict access based on role
-  // Admin/System Admin can only access admin
-  if (user.role === 'admin' || user.role === 'system_admin') {
-    return tab === 'admin';
-  }
-
-  // Executive/GM/Owner can access executive and operations (merged portal)
-  if (user.role === 'executive' || user.role === 'general_manager' || user.role === 'gm' || user.role === 'owner') {
-    return tab === 'executive' || tab === 'operations';
-  }
-
-  // F&B users can access POS tab
-  if (user.role === 'f&b' && tab === 'pos') {
+  // Full access roles can access any tab
+  if (isFullAccessRole(user.role)) {
     return true;
   }
 
-  // POS users can access POS tab
-  if (user.role === 'pos' && tab === 'pos') {
-    return true;
+  // Role-to-tab mapping for strict access control
+  // For non-custom standard roles, this is the ONLY source of truth
+  // allowedTabs is ignored to prevent database inconsistencies from granting cross-role access
+  const roleToTabMap: Record<string, string[]> = {
+    frontoffice: ['frontoffice'],
+    housekeeping: ['housekeeping'],
+    'f&b': ['f&b', 'pos'],
+    maintenance: ['maintenance'],
+    inventory: ['inventory'],
+    finance: ['finance'],
+    hr: ['hr'],
+    procurement: ['procurement'],
+    sales: ['sales'],
+    operations: ['operations', 'executive', 'pos'],
+    pos: ['pos'],
+    executive: ['executive', 'operations'],
+    general_manager: ['executive', 'operations'],
+    gm: ['executive', 'operations'],
+    owner: ['executive', 'operations'],
+  };
+
+  // For custom roles, rely on explicit allowedTabs
+  if (user.role === 'custom') {
+    return !!(user.allowedTabs && Array.isArray(user.allowedTabs) && user.allowedTabs.includes(tab as any));
   }
 
-  // Operations users can access POS tab for management and executive (merged portal)
-  if (user.role === 'operations' && (tab === 'pos' || tab === 'executive')) {
-    return true;
-  }
-
-  // Default: user can only access their own role's tab
-  return user.role === tab;
+  // For all standard non-full-access roles, enforce strict role-based access
+  // allowedTabs cannot override role boundaries
+  const allowedTabsForRole = roleToTabMap[user.role];
+  return !!(allowedTabsForRole && allowedTabsForRole.includes(tab));
 };
 
 /**

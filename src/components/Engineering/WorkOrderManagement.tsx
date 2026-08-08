@@ -1,72 +1,136 @@
 
 import React, { useState } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MapPin, 
-  Clock, 
-  User, 
-  AlertTriangle, 
-  CheckCircle2, 
-  MoreVertical,
+import {
+  MapPin,
+  User,
+  AlertTriangle,
   Plus,
-  MessageSquare,
   Wrench,
   ChevronRight,
   ClipboardList
 } from 'lucide-react';
-import { WorkOrder, WorkOrderPriority, WorkOrderStatus, WorkOrderType } from '../../types/engineering';
+import { WorkOrder, WorkOrderPriority, WorkOrderStatus } from '../../types/engineering';
 
 const WorkOrderManagement: React.FC = () => {
-  // Mock Data
+  // Mock Data - Updated with new lifecycle and details per specification
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([
     {
       id: 'WO-1024',
       number: 'WO-2026-001',
-      requestDate: '2026-05-30 08:30',
+      requestDate: '2026-07-29 08:30',
       requestingDept: 'Housekeeping',
       location: 'Room 101',
       roomNumber: '101',
       priority: 'High',
       type: 'Plumbing',
       description: 'Water leak detected under bathroom sink. Guest reported dripping sounds.',
-      status: 'Technician Assigned',
+      status: 'In Progress',
       assignedTechnicianId: 'T-01',
+      sla: '4 hours',
+      asset: 'Bathroom Sink Fixtures',
+      laborHours: 2.5,
+      spareParts: ['P-Trap Assembly', 'Washers'],
+      cost: 150,
+      attachments: 2,
+      photos: 3,
     },
     {
       id: 'WO-1025',
       number: 'WO-2026-002',
-      requestDate: '2026-05-30 09:15',
+      requestDate: '2026-07-29 09:15',
       requestingDept: 'Front Office',
       location: 'Lobby',
       priority: 'Emergency',
       type: 'Electrical',
       description: 'Power outage in lobby reception area. All front desk terminals offline.',
-      status: 'In Progress',
+      status: 'Assigned',
       assignedTechnicianId: 'T-03',
+      sla: '30 minutes',
+      asset: 'Main Distribution Panel',
+      laborHours: 4,
+      spareParts: ['Circuit Breaker 20A'],
+      cost: 450,
+      attachments: 1,
+      photos: 2,
     },
     {
       id: 'WO-1026',
       number: 'WO-2026-003',
-      requestDate: '2026-05-29 16:45',
+      requestDate: '2026-07-28 16:45',
       requestingDept: 'F&B',
       location: 'Main Kitchen',
       priority: 'Normal',
       type: 'Kitchen Equipment',
       description: 'Cold room door seal damaged. Losing temperature efficiency.',
-      status: 'Parts Requested',
+      status: 'Waiting for Parts',
       assignedTechnicianId: 'T-02',
+      sla: '24 hours',
+      asset: 'Walk-in Cold Room',
+      laborHours: 3,
+      spareParts: ['Door Seal Gasket', 'Screws'],
+      cost: 280,
+      attachments: 3,
+      photos: 4,
     },
     {
       id: 'WO-1027',
       number: 'WO-2026-004',
-      requestDate: '2026-05-30 10:00',
+      requestDate: '2026-07-28 14:00',
       requestingDept: 'Management',
       location: 'Pool Area',
       priority: 'Low',
-      type: 'Swimming Pool',
+      type: 'Plumbing',
       description: 'Filter backwash required as per weekly schedule.',
-      status: 'Supervisor Review',
+      status: 'Completed',
+      assignedTechnicianId: 'T-04',
+      sla: '48 hours',
+      asset: 'Pool Filtration System',
+      laborHours: 1.5,
+      spareParts: [],
+      cost: 75,
+      attachments: 0,
+      photos: 1,
+      completionNotes: 'Backwash completed successfully. Filter pressure normalized.',
+    },
+    {
+      id: 'WO-1028',
+      number: 'WO-2026-005',
+      requestDate: '2026-07-28 10:30',
+      requestingDept: 'Housekeeping',
+      location: 'Room 205',
+      roomNumber: '205',
+      priority: 'High',
+      type: 'HVAC',
+      description: 'AC unit not cooling properly. Guest complaining about room temperature.',
+      status: 'Waiting for Vendor',
+      assignedTechnicianId: 'T-01',
+      sla: '4 hours',
+      asset: 'Split AC Unit',
+      laborHours: 2,
+      spareParts: ['Refrigerant R410A'],
+      cost: 320,
+      attachments: 2,
+      photos: 2,
+    },
+    {
+      id: 'WO-1029',
+      number: 'WO-2026-006',
+      requestDate: '2026-07-27 16:20',
+      requestingDept: 'Security',
+      location: 'Parking Lot',
+      priority: 'Normal',
+      type: 'Electrical',
+      description: 'Parking lot light pole #3 not functioning. Safety concern.',
+      status: 'Verified',
+      assignedTechnicianId: 'T-03',
+      sla: '24 hours',
+      asset: 'Light Pole #3',
+      laborHours: 1,
+      spareParts: ['LED Bulb 100W'],
+      cost: 85,
+      attachments: 1,
+      photos: 2,
+      completionNotes: 'Replaced LED bulb. Light functioning. Verified by security team.',
     },
   ]);
 
@@ -85,22 +149,22 @@ const WorkOrderManagement: React.FC = () => {
 
   const getStatusBadge = (status: WorkOrderStatus) => {
     switch (status) {
-      case 'Logged': return 'bg-slate-100 text-slate-600 border-slate-200';
-      case 'Assigned': return 'bg-blue-50 text-blue-700 border-blue-100';
-      case 'In Progress': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
-      case 'On Hold': return 'bg-amber-50 text-amber-700 border-amber-100';
-      case 'Pending Parts': return 'bg-orange-50 text-orange-700 border-orange-100';
-      case 'Parts Received': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
-      case 'Work Completed': return 'bg-emerald-100 text-emerald-900 border-emerald-200';
-      case 'Verification': return 'bg-purple-50 text-purple-700 border-purple-100';
-      case 'Quality Audit': return 'bg-pink-50 text-pink-700 border-pink-100';
-      case 'Signature': return 'bg-teal-50 text-teal-700 border-teal-100';
+      case 'Draft': return 'bg-slate-100 text-slate-600 border-slate-200';
+      case 'Submitted': return 'bg-blue-50 text-blue-700 border-blue-100';
+      case 'Approved': return 'bg-indigo-50 text-indigo-700 border-indigo-100';
+      case 'Assigned': return 'bg-purple-50 text-purple-700 border-purple-100';
+      case 'In Progress': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'Waiting for Parts': return 'bg-orange-50 text-orange-700 border-orange-100';
+      case 'Waiting for Vendor': return 'bg-rose-50 text-rose-700 border-rose-100';
+      case 'Completed': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'Verified': return 'bg-teal-50 text-teal-700 border-teal-100';
       case 'Closed': return 'bg-slate-100 text-slate-400 border-slate-100';
+      case 'Cancelled': return 'bg-rose-100 text-rose-600 border-rose-200';
       default: return 'bg-slate-50 text-slate-500 border-slate-100';
     }
   };
 
-  const statuses: (WorkOrderStatus | 'All')[] = ['All', 'Logged', 'Assigned', 'In Progress', 'On Hold', 'Pending Parts', 'Work Completed', 'Closed'];
+  const statuses: (WorkOrderStatus | 'All')[] = ['All', 'Draft', 'Submitted', 'Approved', 'Assigned', 'In Progress', 'Waiting for Parts', 'Waiting for Vendor', 'Completed', 'Verified', 'Closed', 'Cancelled'];
 
   return (
     <div className="space-y-6 text-sans">

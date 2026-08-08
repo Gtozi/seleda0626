@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -60,7 +60,7 @@ export function GiftShopSuppliesDashboardWidgets() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         
         {/* WIDGET A: GIFT SHOP KPIs */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-850 p-6 rounded-3xl shadow-3xs hover:shadow-2xs transition-all relative overflow-hidden group">
+        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-2xs transition-all relative overflow-hidden group">
           <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-bl from-slate-500/10 to-transparent rounded-full -mr-5 -mt-5 transition-transform duration-500 group-hover:scale-110" />
           
           <div className="flex justify-between items-start mb-4">
@@ -69,38 +69,38 @@ export function GiftShopSuppliesDashboardWidgets() {
             </span>
             <button
               onClick={() => setDrillDown(drillDown === 'gift' ? 'none' : 'gift')}
-              className="text-4xs font-mono font-extrabold text-slate-650 dark:text-slate-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+              className="text-4xs font-mono font-extrabold text-slate-600 dark:text-slate-400 hover:underline flex items-center gap-0.5 cursor-pointer"
             >
               {drillDown === 'gift' ? 'Collapse' : 'Drill-Down'} <ArrowUpRight size={10} />
             </button>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-850">
+            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Today's Sales</span>
               <strong className="text-lg font-sans font-black text-slate-900 dark:text-white mt-1 block">$0</strong>
               <span className="text-[8px] text-slate-400 font-semibold flex items-center md:gap-0.5 mt-0.5">No data</span>
             </div>
-            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-850">
+            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Month-to-Date</span>
               <strong className="text-lg font-sans font-black text-slate-900 dark:text-white mt-1 block">$0</strong>
               <span className="text-[8px] text-slate-400 font-semibold flex items-center md:gap-0.5 mt-0.5">No data</span>
             </div>
-            <div className="p-3 bg-slate-50/20 dark:bg-slate-950/10 rounded-2xl border border-slate-100/50 dark:border-slate-900/20">
+            <div className="p-3 bg-slate-50/20 dark:bg-slate-950/10 rounded-xl border border-slate-100/50 dark:border-slate-900/20">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Gross Profit</span>
               <strong className="text-lg font-sans font-black text-slate-750 dark:text-slate-400 mt-1 block">$0</strong>
               <span className="text-[8px] font-mono font-extrabold text-slate-500">0% Margin</span>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 dark:border-slate-850 pt-3 space-y-2">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
             <div className="flex justify-between text-3xs font-mono">
               <span className="text-slate-400">Top Selling Product:</span>
-              <strong className="text-slate-700 dark:text-slate-350">--</strong>
+              <strong className="text-slate-700 dark:text-slate-400">--</strong>
             </div>
             <div className="flex justify-between text-3xs font-mono">
               <span className="text-slate-400">Total Catalog Value:</span>
-              <strong className="text-slate-700 dark:text-slate-350">$0 (Current Stock)</strong>
+              <strong className="text-slate-700 dark:text-slate-400">$0 (Current Stock)</strong>
             </div>
             <div className="flex justify-between text-3xs font-mono">
               <span className="text-slate-400">Low Stock Alerts:</span>
@@ -110,7 +110,7 @@ export function GiftShopSuppliesDashboardWidgets() {
         </div>
 
         {/* WIDGET B: OFFICE SUPPLIES KPIs */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-850 p-6 rounded-3xl shadow-3xs hover:shadow-2xs transition-all relative overflow-hidden group">
+        <div className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 p-6 rounded-xl shadow-sm hover:shadow-2xs transition-all relative overflow-hidden group">
           <div className="absolute right-0 top-0 w-24 h-24 bg-gradient-to-bl from-slate-500/10 to-transparent rounded-full -mr-5 -mt-5 transition-transform duration-500 group-hover:scale-110" />
 
           <div className="flex justify-between items-start mb-4">
@@ -119,34 +119,34 @@ export function GiftShopSuppliesDashboardWidgets() {
             </span>
             <button
               onClick={() => setDrillDown(drillDown === 'supplies' ? 'none' : 'supplies')}
-              className="text-4xs font-mono font-extrabold text-slate-650 dark:text-slate-400 hover:underline flex items-center gap-0.5 cursor-pointer"
+              className="text-4xs font-mono font-extrabold text-slate-600 dark:text-slate-400 hover:underline flex items-center gap-0.5 cursor-pointer"
             >
               {drillDown === 'supplies' ? 'Collapse' : 'Drill-Down'} <ArrowUpRight size={10} />
             </button>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-4">
-            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-850">
+            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Monthly Cost</span>
               <strong className="text-lg font-sans font-black text-slate-900 dark:text-white mt-1 block">$0</strong>
               <span className="text-[8px] text-slate-400 font-semibold flex items-center md:gap-0.5 mt-0.5">No data</span>
             </div>
-            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-2xl border border-slate-100 dark:border-slate-850">
+            <div className="p-3 bg-slate-50/60 dark:bg-slate-950/40 rounded-xl border border-slate-100 dark:border-slate-800">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Budget Util.</span>
               <strong className="text-lg font-sans font-black text-slate-900 dark:text-white mt-1 block">0%</strong>
               <span className="text-[8px] text-slate-400 font-mono">No data</span>
             </div>
-            <div className="p-3 bg-slate-50/20 dark:bg-slate-950/10 rounded-2xl border border-slate-100/50 dark:border-slate-900/20">
+            <div className="p-3 bg-slate-50/20 dark:bg-slate-950/10 rounded-xl border border-slate-100/50 dark:border-slate-900/20">
               <span className="text-[9px] font-mono font-medium text-slate-400 uppercase tracking-wider block">Variance</span>
               <strong className="text-lg font-sans font-black text-slate-700 dark:text-slate-400 mt-1 block">$0</strong>
               <span className="text-[8px] font-mono font-extrabold text-slate-600">No data</span>
             </div>
           </div>
 
-          <div className="border-t border-slate-100 dark:border-slate-850 pt-3 space-y-2">
+          <div className="border-t border-slate-100 dark:border-slate-800 pt-3 space-y-2">
             <div className="flex justify-between text-3xs font-mono">
               <span className="text-slate-400">High Consumption category:</span>
-              <strong className="text-slate-700 dark:text-slate-350">--</strong>
+              <strong className="text-slate-700 dark:text-slate-400">--</strong>
             </div>
             <div className="flex justify-between text-3xs font-mono">
               <span className="text-slate-400">Pending Requisitions:</span>
@@ -163,7 +163,7 @@ export function GiftShopSuppliesDashboardWidgets() {
 
       {/* --- DRILL DOWN SECTION PANELS --- */}
       {drillDown === 'gift' && (
-        <div className="p-6 bg-slate-50/10 dark:bg-slate-950/5 border border-slate-150/40 dark:border-slate-900/40 rounded-3xl animate-fade-in space-y-4">
+        <div className="p-6 bg-slate-50/10 dark:bg-slate-950/5 border border-slate-200/40 dark:border-slate-900/40 rounded-xl animate-fade-in space-y-4">
           <div className="flex justify-between items-center pb-2 border-b border-slate-100 dark:border-slate-950">
             <h5 className="text-xs font-black text-slate-950 dark:text-slate-400 uppercase tracking-widest font-mono flex items-center gap-2">
               <ShoppingBag size={12} /> Gift Shop Sales Performance Deep-Dive Review
@@ -189,7 +189,7 @@ export function GiftShopSuppliesDashboardWidgets() {
             <div className="space-y-4">
               <span className="text-[10px] font-mono font-bold text-slate-500 block uppercase">Product Stock Status Check</span>
               <div className="space-y-2 select-none">
-                <div className="p-2 border border-slate-100 dark:border-slate-850 rounded-xl bg-slate-50/20 dark:bg-slate-950/10 text-3xs font-mono space-y-0.5 text-slate-600 dark:text-slate-400">
+                <div className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/20 dark:bg-slate-950/10 text-3xs font-mono space-y-0.5 text-slate-600 dark:text-slate-400">
                   <p className="text-[9px] text-slate-500">No low stock alerts. Data will populate from inventory system.</p>
                 </div>
               </div>
@@ -199,7 +199,7 @@ export function GiftShopSuppliesDashboardWidgets() {
       )}
 
       {drillDown === 'supplies' && (
-        <div className="p-6 bg-slate-50/10 dark:bg-slate-950/5 border border-slate-150/40 dark:border-slate-900/40 rounded-3xl animate-fade-in space-y-4">
+        <div className="p-6 bg-slate-50/10 dark:bg-slate-950/5 border border-slate-200/40 dark:border-slate-900/40 rounded-xl animate-fade-in space-y-4">
           <div className="flex justify-between items-center pb-2 border-b border-slate-100/50 dark:border-slate-950">
             <h5 className="text-xs font-black text-slate-950 dark:text-slate-400 uppercase tracking-widest font-mono flex items-center gap-2">
               <Boxes size={12} /> Front Office supplies distribution breakdown
@@ -226,7 +226,7 @@ export function GiftShopSuppliesDashboardWidgets() {
             <div className="space-y-4">
               <span className="text-[10px] font-mono font-bold text-slate-500 block uppercase">Low Stock Supplies Alerts</span>
               <div className="space-y-2 select-none">
-                <div className="p-2 border border-slate-100 dark:border-slate-850 rounded-xl bg-slate-50/20 dark:bg-slate-950/10 text-3xs font-mono space-y-0.5 text-slate-600 dark:text-slate-400">
+                <div className="p-2 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50/20 dark:bg-slate-950/10 text-3xs font-mono space-y-0.5 text-slate-600 dark:text-slate-400">
                   <p className="text-[9px] text-slate-500">No low stock alerts. Data will populate from inventory system.</p>
                 </div>
               </div>
@@ -244,8 +244,8 @@ export function GiftShopSuppliesDashboardWidgets() {
 // ============================================================================
 export function OperationsManagerExecutiveSummarySection() {
   return (
-    <div className="space-y-5 p-5 border border-slate-200/80 dark:border-slate-850 rounded-2xl bg-slate-50/10 dark:bg-slate-950/10 animate-fade-in">
-      <div className="flex justify-between items-start border-b border-slate-150 dark:border-slate-850 pb-3">
+    <div className="space-y-5 p-5 border border-slate-200/80 dark:border-slate-800 rounded-xl bg-slate-50/10 dark:bg-slate-950/10 animate-fade-in">
+      <div className="flex justify-between items-start border-b border-slate-200 dark:border-slate-800 pb-3">
         <div>
           <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest font-mono">
             6. Gift Shop & Front Office Supplies Performance
@@ -260,28 +260,28 @@ export function OperationsManagerExecutiveSummarySection() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         
         {/* Metric 1 */}
-        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl">
+        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <span className="text-[9px] font-mono font-semibold text-slate-400 tracking-wider uppercase block">Gift Shop Revenue</span>
           <strong className="text-base font-sans font-black text-slate-950 dark:text-white block mt-1">$0</strong>
           <span className="text-[8px] font-mono text-slate-400 font-bold block mt-0.5">No data</span>
         </div>
 
         {/* Metric 2 */}
-        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl">
+        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <span className="text-[9px] font-mono font-semibold text-slate-400 tracking-wider uppercase block">Retail Gross Profit</span>
           <strong className="text-base font-sans font-black text-slate-950 dark:text-white block mt-1">$0</strong>
           <span className="text-[8px] font-mono text-slate-400 font-bold block mt-0.5">0% Profit Margin</span>
         </div>
 
         {/* Metric 3 */}
-        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl">
+        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <span className="text-[9px] font-mono font-semibold text-slate-400 tracking-wider uppercase block font-mono">Total Inventory Value</span>
           <strong className="text-base font-sans font-black text-slate-950 dark:text-white block mt-1">$0</strong>
           <span className="text-[8px] font-mono text-slate-500 block mt-0.5">$0 Retail / $0 Supplies</span>
         </div>
 
         {/* Metric 4 */}
-        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-xl">
+        <div className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <span className="text-[9px] font-mono font-semibold text-slate-400 tracking-wider uppercase block">Supplies Cost (MTD)</span>
           <strong className="text-base font-sans font-black text-slate-950 dark:text-white block mt-1">$0</strong>
           <span className="text-[8px] font-mono text-slate-400 font-bold block mt-0.5">No data</span>
@@ -293,16 +293,16 @@ export function OperationsManagerExecutiveSummarySection() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-1">
             <span className="font-bold text-slate-950 dark:text-slate-400 block border-b pb-1">Supplies Consumed Summary</span>
-            <ul className="space-y-1 text-slate-650 dark:text-slate-405 leading-relaxed">
+            <ul className="space-y-1 text-slate-600 dark:text-slate-405 leading-relaxed">
               <li className="flex justify-between"><span>Total Units Issued:</span> <strong>0 items</strong></li>
               <li className="flex justify-between"><span>Top Dept Usage:</span> <strong>--</strong></li>
-              <li className="flex justify-between"><span>High Consumption:</span> <strong className="text-slate-650">--</strong></li>
+              <li className="flex justify-between"><span>High Consumption:</span> <strong className="text-slate-600">--</strong></li>
             </ul>
           </div>
 
           <div className="space-y-1">
             <span className="font-bold text-slate-700 block border-b pb-1">Low Stock Risks & Alerts</span>
-            <ul className="space-y-1 text-slate-650 dark:text-slate-455 leading-relaxed">
+            <ul className="space-y-1 text-slate-600 dark:text-slate-455 leading-relaxed">
               <li className="flex justify-between"><span>Items Below Min:</span> <strong className="text-slate-600">0 GS / 0 Supplies</strong></li>
               <li className="flex justify-between"><span>Critical Supplies:</span> <strong>--</strong></li>
               <li className="flex justify-between"><span>Est Days Remaining:</span> <strong className="text-slate-750">--</strong></li>
@@ -444,7 +444,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
         {/* Splits and Staff Lists columns */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2">
           
-          <div className="p-4 border dark:border-slate-850 rounded-2xl bg-white dark:bg-slate-900 space-y-3">
+          <div className="p-4 border dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-3">
             <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-400 block">Payments Distribution</span>
             <div className="space-y-2 text-3xs font-mono">
               <div className="flex justify-between border-b pb-1">
@@ -470,7 +470,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
             </div>
           </div>
 
-          <div className="p-4 border dark:border-slate-850 rounded-2xl bg-white dark:bg-slate-900 space-y-3">
+          <div className="p-4 border dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-3">
             <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-400 block">Sales Revenue by Staff On-Duty</span>
             <div className="space-y-2 text-3xs font-mono">
               <div className="flex justify-between text-slate-400 pt-1">
@@ -484,28 +484,28 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
 
         {/* Selling products tables */}
         <div className="space-y-3 pt-2">
-          <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-650 block">Product Item Velocity Analysis</span>
+          <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-600 block">Product Item Velocity Analysis</span>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             
             {/* Top items */}
-            <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
-              <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 text-[9px] font-mono font-bold text-slate-500 border-b border-slate-150 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 text-[9px] font-mono font-bold text-slate-500 border-b border-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-500" /> Top Selling Items
               </div>
               <table className="w-full text-3xs font-mono leading-normal">
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   <tr><td className="px-3 py-2 text-slate-400">No sales data available</td><td className="px-3 py-2 text-center text-slate-400">--</td><td className="px-3 py-2 text-right text-slate-400">--</td></tr>
                 </tbody>
               </table>
             </div>
 
             {/* Slow moving items */}
-            <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
-              <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 text-[9px] font-mono font-bold text-slate-500 border-b border-slate-150 uppercase tracking-wider flex items-center gap-1.5">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-slate-50 dark:bg-slate-800 px-3 py-2 text-[9px] font-mono font-bold text-slate-500 border-b border-slate-200 uppercase tracking-wider flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-500" /> Slow Moving Items (Action Needed)
               </div>
               <table className="w-full text-3xs font-mono leading-normal">
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   <tr><td className="px-3 py-2 text-slate-400">No inventory data available</td><td className="px-3 py-2 text-center text-slate-400">--</td><td className="px-3 py-2 text-right text-slate-400">--</td></tr>
                 </tbody>
               </table>
@@ -526,30 +526,30 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
       <div className="space-y-4 text-xs font-mono">
         <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400 block border-b pb-1">Register Drawer Reconciliation Records</span>
 
-        <table className="w-full text-3xs line-normal border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden">
+        <table className="w-full text-3xs line-normal border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
           <thead>
-            <tr className="bg-slate-50 dark:bg-slate-800 text-[9px] uppercase border-b border-slate-150 dark:border-slate-800 text-slate-450">
+            <tr className="bg-slate-50 dark:bg-slate-800 text-[9px] uppercase border-b border-slate-200 dark:border-slate-800 text-slate-450">
               <th className="py-2 px-3 text-left">Cash Reconciliation Column</th>
               <th className="py-2 px-3 text-right">System Booked Value</th>
               <th className="py-2 px-3 text-right">Physical Counted Value</th>
               <th className="py-2 px-3 text-right">Variance Drift</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
             <tr>
-              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-350">1. Opening Cash Float (Drawer Base)</td>
+              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-400">1. Opening Cash Float (Drawer Base)</td>
               <td className="py-2.5 px-3 text-right text-slate-500">$0.00</td>
               <td className="py-2.5 px-3 text-right text-slate-500">$0.00</td>
               <td className="py-2.5 px-3 text-right font-bold text-slate-300">$0.00</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-350">2. Recorded Cash Sales Received Today</td>
+              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-400">2. Recorded Cash Sales Received Today</td>
               <td className="py-2.5 px-3 text-right text-slate-400 font-bold">$0.00</td>
               <td className="py-2.5 px-3 text-right text-slate-400 font-bold">$0.00</td>
               <td className="py-2.5 px-3 text-right font-bold text-slate-300">$0.00</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-350">3. Deducted Cash Refunds Dispensed</td>
+              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-400">3. Deducted Cash Refunds Dispensed</td>
               <td className="py-2.5 px-3 text-right text-slate-400 font-bold">$0.00</td>
               <td className="py-2.5 px-3 text-right text-slate-400 font-bold">$0.00</td>
               <td className="py-2.5 px-3 text-right font-bold text-slate-300">$0.00</td>
@@ -561,7 +561,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
               <td className="py-2.5 px-3 text-right text-slate-400 font-black">$0.00 (No data)</td>
             </tr>
             <tr>
-              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-350">5. Cash Deposited to Safe (Envelope Drop)</td>
+              <td className="py-2.5 px-3 font-semibold text-slate-700 dark:text-slate-400">5. Cash Deposited to Safe (Envelope Drop)</td>
               <td className="py-2.5 px-3 text-right text-slate-400">$0.00</td>
               <td className="py-2.5 px-3 text-right text-slate-400">$0.00</td>
               <td className="py-2.5 px-3 text-right font-bold text-slate-300">$0.00</td>
@@ -575,7 +575,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
           </tbody>
         </table>
 
-        <div className="p-3 border border-slate-100 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-950/15 rounded-xl text-3xs text-slate-600 dark:text-slate-400 leading-normal">
+        <div className="p-3 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-950/15 rounded-xl text-3xs text-slate-600 dark:text-slate-400 leading-normal">
           <strong>Daily Reconciliation Status: No data available.</strong> Data will populate from cash reconciliation system.
         </div>
       </div>
@@ -593,10 +593,10 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
           <span className="text-4xs text-slate-400 font-bold">Total SKUs: 0 Active</span>
         </div>
 
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-805">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-805">
                 <th className="py-2 px-3">Product Description / SKU</th>
                 <th className="py-2 px-2 text-center">Opening Stock</th>
                 <th className="py-2 px-2 text-center">Received Stock</th>
@@ -606,7 +606,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
                 <th className="py-2 px-3 text-right text-slate-900 dark:text-white font-bold">Closing Stock</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900 select-none font-sans">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 select-none font-sans">
               <tr>
                 <td className="py-2.5 px-3 text-slate-400" colSpan={7}>No inventory data available. Data will populate from inventory system.</td>
               </tr>
@@ -632,10 +632,10 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
           <span className="text-4xs text-slate-400 font-bold">Total Daily Consumption Cost: $0.00</span>
         </div>
 
-        <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+        <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
           <table className="w-full text-3xs text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150 dark:border-slate-801">
+              <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200 dark:border-slate-801">
                 <th className="py-2 px-3">Issued Item</th>
                 <th className="py-2 px-3">Staff Member Receiving</th>
                 <th className="py-2 px-2">Department</th>
@@ -644,7 +644,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
                 <th className="py-2 px-3 text-right">Remaining Stock</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900 select-none">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 select-none">
               <tr>
                 <td className="py-2.5 px-3 text-slate-400" colSpan={6}>No supplies consumption data available. Data will populate from inventory system.</td>
               </tr>
@@ -652,7 +652,7 @@ export function GiftShopSuppliesDailyReportRenderer({ reportId, selectedDate }: 
           </table>
         </div>
 
-        <div className="p-3 border border-slate-100 dark:border-slate-850 bg-slate-50/20 dark:bg-slate-950/15 rounded-xl text-3xs text-slate-600 dark:text-slate-400">
+        <div className="p-3 border border-slate-100 dark:border-slate-800 bg-slate-50/20 dark:bg-slate-950/15 rounded-xl text-3xs text-slate-600 dark:text-slate-400">
           <strong>Supplies Status:</strong> No consumption data available. Data will populate from inventory system.
         </div>
       </div>
@@ -693,10 +693,10 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-5 animate-fade-in">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-5 animate-fade-in">
       
       {/* Header Block with Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-150 dark:border-slate-850 pb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
         <div>
           <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest block">{timeframe} Segment Audit</span>
           <h4 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">{getTitle()}</h4>
@@ -706,13 +706,13 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
         <div className="flex gap-2">
           <button 
             onClick={() => triggerLocalExport('PDF')}
-            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition"
+            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition"
           >
             <Download size={11} /> PDF Export
           </button>
           <button 
             onClick={() => triggerLocalExport('Excel')}
-            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition"
+            className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer hover:bg-slate-100 transition"
           >
             <Layers size={11} className="text-slate-500" /> Excel Sheet
           </button>
@@ -731,7 +731,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
           onClick={() => setActiveSegment('retail')}
           className={`px-3 py-2 rounded-lg text-4xs font-mono font-black uppercase transition block shrink-0 ${
             activeSegment === 'retail'
-              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-3xs'
+              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-805'
           }`}
         >
@@ -741,7 +741,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
           onClick={() => setActiveSegment('supplies')}
           className={`px-3 py-2 rounded-lg text-4xs font-mono font-black uppercase transition block shrink-0 ${
             activeSegment === 'supplies'
-              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-3xs'
+              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-805'
           }`}
         >
@@ -751,7 +751,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
           onClick={() => setActiveSegment('reorder')}
           className={`px-3 py-2 rounded-lg text-4xs font-mono font-black uppercase transition block shrink-0 ${
             activeSegment === 'reorder'
-              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-3xs'
+              ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm'
               : 'text-slate-500 hover:text-slate-805'
           }`}
         >
@@ -762,8 +762,8 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
             onClick={() => setActiveSegment('statement')}
             className={`px-3 py-2 rounded-lg text-4xs font-mono font-black uppercase transition block shrink-0 ${
               activeSegment === 'statement'
-                ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-3xs'
-                : 'text-slate-500 hover:text-slate-850'
+                ? 'bg-white dark:bg-slate-900 text-slate-950 dark:text-white shadow-sm'
+                : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             Financial Statement
@@ -776,7 +776,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
             
-            <div className="p-4 border dark:border-slate-850 rounded-2xl space-y-3">
+            <div className="p-4 border dark:border-slate-800 rounded-xl space-y-3">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">Financial Summary Metrics</span>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-0.5">
@@ -797,7 +797,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
               
               <div className="pt-2 border-t text-3xs font-mono space-y-1 text-slate-550 select-none">
                 <p>• Best Selling: <strong className="text-slate-800 dark:text-slate-200">--</strong></p>
-                <p>• Slowest Selling: <strong className="text-slate-850">--</strong></p>
+                <p>• Slowest Selling: <strong className="text-slate-800">--</strong></p>
                 <p>• Inventory Turnover Ratio: <strong>--</strong></p>
               </div>
             </div>
@@ -826,7 +826,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            <div className="p-4 border dark:border-slate-850 rounded-2xl bg-slate-50/20 dark:bg-slate-900/10 space-y-3">
+            <div className="p-4 border dark:border-slate-800 rounded-xl bg-slate-50/20 dark:bg-slate-900/10 space-y-3">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block border-b pb-1">Supplies Cost analysis</span>
               <div className="text-3xs font-mono space-y-2">
                 <div className="flex justify-between border-b pb-1">
@@ -841,14 +841,14 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
                   <span>Register Roll & Stapler Staples:</span>
                   <strong>$0</strong>
                 </div>
-                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-350">
+                <div className="flex justify-between font-bold text-slate-700 dark:text-slate-400">
                   <span>Total Supplies Cost:</span>
                   <span>$0</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border border-slate-100/60 dark:border-slate-850/40 rounded-2xl bg-slate-500/5 space-y-3 leading-relaxed">
+            <div className="p-4 border border-slate-100/60 dark:border-slate-800/40 rounded-xl bg-slate-500/5 space-y-3 leading-relaxed">
               <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-600 block flex items-center gap-1"><AlertTriangle size={12} /> Abnormal Consumption & Waste Alerts</span>
               <div className="text-3xs font-mono space-y-2.5">
                 <div className="p-2 border border-slate-100/60 rounded-xl bg-white dark:bg-slate-950">
@@ -864,13 +864,13 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
       {/* --- SEGMENT C: REORDER & INVENTORY VALUATION (WEEKLY/MONTHLY/QUARTERLY) --- */}
       {activeSegment === 'reorder' && (
         <div className="space-y-4">
-          <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-650 block border-b pb-1">
+          <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-600 block border-b pb-1">
             {timeframe === 'weekly' ? 'Weekly Low Stock Supplies & Recommended Purchases' : timeframe === 'monthly' ? 'Monthly Inventory Valuation Review' : 'Supplies Cost Reduction Opportunities'}
           </span>
           
           {timeframe === 'weekly' ? (
-            <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden">
-              <table className="w-full text-3xs font-mono leading-normal shadow-3xs">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+              <table className="w-full text-3xs font-mono leading-normal shadow-sm">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800 text-[9px] uppercase border-b border-light font-bold text-slate-450">
                     <th className="py-2 px-3 text-left">Item Name</th>
@@ -881,7 +881,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
                     <th className="py-2 px-3 text-right">Pending Req. Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   <tr>
                     <td className="py-2 px-3 text-slate-400" colSpan={6}>No low stock items. Data will populate from inventory system.</td>
                   </tr>
@@ -890,7 +890,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
             </div>
           ) : timeframe === 'monthly' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="p-4 border dark:border-slate-850 rounded-2xl bg-white dark:bg-slate-900 space-y-3">
+              <div className="p-4 border dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-3">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">Department Valuation Summary</span>
                 <div className="text-3xs font-mono space-y-2">
                   <div className="flex justify-between border-b pb-1">
@@ -916,13 +916,13 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
                 </div>
               </div>
 
-              <div className="p-4 border border-slate-100 rounded-2xl bg-slate-50/20 text-3xs space-y-2 leading-relaxed text-slate-600">
+              <div className="p-4 border border-slate-100 rounded-xl bg-slate-50/20 text-3xs space-y-2 leading-relaxed text-slate-600">
                 <span className="font-bold text-slate-700 block border-b pb-1 uppercase tracking-wider">Turnover Multipliers</span>
                 <p>• No turnover data available. Data will populate from inventory system.</p>
               </div>
             </div>
           ) : (
-            <div className="p-4 border border-slate-150 rounded-xl bg-slate-50/10 text-3xs font-mono space-y-2 text-slate-600 dark:text-slate-400 leading-normal select-none">
+            <div className="p-4 border border-slate-200 rounded-xl bg-slate-50/10 text-3xs font-mono space-y-2 text-slate-600 dark:text-slate-400 leading-normal select-none">
               <strong className="text-slate-700 dark:text-slate-300 block uppercase border-b pb-1">Cost Saving & Material Optimizations Identified</strong>
               <p>• No optimization data available. Data will populate from inventory system.</p>
             </div>
@@ -936,7 +936,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
         <div className="space-y-6 animate-fade-in text-slate-900 dark:text-slate-100">
           
           {/* Top Info Alert */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border dark:border-slate-800 text-3xs font-mono leading-relaxed space-y-1.5 flex flex-col md:flex-row justify-between md:items-center gap-3">
+          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950 border dark:border-slate-800 text-3xs font-mono leading-relaxed space-y-1.5 flex flex-col md:flex-row justify-between md:items-center gap-3">
             <div>
               <span className="font-extrabold text-slate-600 dark:text-slate-400 uppercase tracking-widest block mb-0.5">No Financial Data Available</span>
               <p className="text-[10px] text-slate-500">Financial statement data will populate from the accounting system once transactions are recorded.</p>
@@ -954,8 +954,8 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             
             {/* INCOME STATEMENT GRID */}
-            <div className="lg:col-span-7 bg-slate-50/40 dark:bg-slate-950/20 p-5 rounded-2xl border dark:border-slate-800 space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-150 dark:border-slate-800 pb-2">
+            <div className="lg:col-span-7 bg-slate-50/40 dark:bg-slate-950/20 p-5 rounded-xl border dark:border-slate-800 space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-200 dark:border-slate-800 pb-2">
                 <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-400 block">Q3 Retail & Supplies Income Statement</span>
                 <span className="text-4xs text-slate-450 font-mono">Figures in USD ($)</span>
               </div>
@@ -1056,7 +1056,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
             <div className="lg:col-span-5 space-y-6">
               
               {/* Asset Values & Balances */}
-              <div className="p-4 border dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 space-y-3">
+              <div className="p-4 border dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-3">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block border-b pb-1">Q3 Balance Sheet & Asset Values</span>
                 <div className="text-3xs font-mono space-y-2 leading-relaxed">
                   <div className="flex justify-between">
@@ -1079,7 +1079,7 @@ export function GiftShopSuppliesDeepDiveReview({ timeframe }: DeepDiveProps) {
               </div>
 
               {/* Graphical Allocation */}
-              <div className="p-4 border dark:border-slate-800 rounded-2xl bg-white dark:bg-slate-900 space-y-3">
+              <div className="p-4 border dark:border-slate-800 rounded-xl bg-white dark:bg-slate-900 space-y-3">
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 block">Q3 Outlay Allocation Chart</span>
                 <div className="h-40 w-full flex items-center justify-center pt-2">
                   <ResponsiveContainer width="100%" height="100%">

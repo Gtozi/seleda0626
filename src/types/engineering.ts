@@ -1,7 +1,7 @@
 
-export type WorkOrderStatus = 'Logged' | 'Assigned' | 'In Progress' | 'On Hold' | 'Pending Parts' | 'Parts Received' | 'Work Completed' | 'Verification' | 'Quality Audit' | 'Signature' | 'Closed' | 'Pending' | 'Supervisor Review' | 'Technician Assigned';
+export type WorkOrderStatus = 'Draft' | 'Submitted' | 'Approved' | 'Assigned' | 'In Progress' | 'Waiting for Parts' | 'Waiting for Vendor' | 'Completed' | 'Verified' | 'Closed' | 'Cancelled';
 export type WorkOrderPriority = 'Emergency' | 'Critical' | 'High' | 'Normal' | 'Low';
-export type WorkOrderType = 'Electrical' | 'Plumbing' | 'HVAC' | 'Carpentry' | 'Furniture Repair' | 'Civil Works' | 'Painting' | 'Networking & IT' | 'Security Systems' | 'Landscaping' | 'Kitchen Equipment' | 'Laundry Equipment' | 'Swimming Pool' | 'Generator' | 'Water System';
+export type WorkOrderType = 'Electrical' | 'Plumbing' | 'HVAC' | 'Carpentry' | 'Painting' | 'Furniture' | 'Lock & Door' | 'IT Infrastructure' | 'Kitchen Equipment' | 'Elevators' | 'Fire & Life Safety';
 
 export interface WorkOrder {
   id: string;
@@ -21,6 +21,14 @@ export interface WorkOrder {
   laborHours?: number;
   partsUsed?: { partId: string; quantity: number; cost: number }[];
   totalCost?: number;
+  // New fields per specification
+  sla?: string; // Service Level Agreement
+  asset?: string; // Asset name/description
+  spareParts?: string[]; // List of spare parts names
+  cost?: number; // Total cost
+  attachments?: number; // Number of attachments
+  photos?: number; // Number of photos
+  completionNotes?: string; // Completion notes
 }
 
 export type AssetStatus = 'Operational' | 'Under Maintenance' | 'Out of Service' | 'Retired' | 'Replaced';

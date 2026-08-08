@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -133,13 +133,13 @@ export default function ReservationModal({
       onClose={onClose}
       title={title}
       subtitle={subtitle}
-      icon={<Sparkles size={20} className="text-amber-600" />}
+      icon={<Sparkles size={20} className="text-indigo-600" />}
       variant="form"
       size="xl"
       showFooter={false}
     >
             {/* Body */}
-            <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-white dark:from-stone-900/30 to-stone-50/20 dark:to-stone-900/20">
+            <div className="flex-1 overflow-hidden flex flex-col bg-gradient-to-br from-white dark:from-slate-900/30 to-slate-50/20 dark:to-slate-900/20">
               <AnimatePresence mode="wait">
                 {successMsg && (
                   <motion.div

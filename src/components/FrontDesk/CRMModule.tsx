@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -61,7 +61,7 @@ const DEFAULT_ROUTING_RULES: { name: string; applicableTo: 'Individual' | 'Group
 export default function CRMModule({ initialGuestData, onClearInitialData, viewGuestId, onClearViewGuestId, viewGroupId, onClearViewGroupId, onOnboardSuccess, onGroupOnboardSuccess }: CRMModuleProps) {
   const { push, pop } = useModalReturn();
   const {
-    guests, addGuest, updateGuest, updateGuestData, findMatchingGuest, setGuestBillingRouting,
+    guests, guestsLoading, guestsError, addGuest, updateGuest, updateGuestData, findMatchingGuest, setGuestBillingRouting,
     groupBookings, addGroupBooking, updateGroupBookingStatus,
     corporateAccounts, addCorporateAccount, updateCorporateAccount,
     reservations, updateReservation, checkInReservation,
@@ -658,12 +658,40 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
   // Filtering
   const uniqueNationalities = useMemo(() => Array.from(new Set(guests.map(g => g.nationality || 'Undetermined'))).filter(Boolean), [guests]);
 
-  const filteredGuests = useMemo(() => guests.filter(g => {
-    const matchesSearch = g.name.toLowerCase().includes(searchVal.toLowerCase()) || g.email.toLowerCase().includes(searchVal.toLowerCase()) || (g.passportNumber || '').toLowerCase().includes(searchVal.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || g.status === selectedStatus;
-    const matchesNationality = selectedNationality === 'all' || (g.nationality || 'Undetermined').toLowerCase() === selectedNationality.toLowerCase();
-    return matchesSearch && matchesStatus && matchesNationality;
-  }), [guests, searchVal, selectedStatus, selectedNationality]);
+  const filteredGuests = useMemo(() => {
+    const q = searchVal.trim().toLowerCase();
+    return guests.filter(g => {
+      // Search across every guest parameter — any field that contains the query matches.
+      const matchesSearch = !q || [
+        g.id,
+        g.name,
+        g.lastName,
+        g.email,
+        g.phone,
+        g.nationality,
+        g.passportNumber,
+        g.tin,
+        g.vatNo,
+        g.vatDate,
+        g.dateOfBirth,
+        g.status,
+        g.specialRequests,
+        g.notes,
+        g.preferences?.roomTypePreference,
+        g.preferences?.pillowPreference,
+        g.preferences?.dietaryRestrictions,
+        g.preferences?.languagePreference,
+        g.identificationDoc?.type,
+        g.identificationDoc?.number,
+        g.identificationDoc?.issuingCountry,
+        g.parentGroupId,
+        g.parentCorporateId,
+      ].some(field => (field ?? '').toString().trim().toLowerCase().includes(q));
+      const matchesStatus = selectedStatus === 'all' || g.status === selectedStatus;
+      const matchesNationality = selectedNationality === 'all' || (g.nationality || 'Undetermined').toLowerCase() === selectedNationality.toLowerCase();
+      return matchesSearch && matchesStatus && matchesNationality;
+    });
+  }, [guests, searchVal, selectedStatus, selectedNationality]);
 
   const groupedGuests = useMemo(() => ({
     individual: filteredGuests.filter(g => !g.parentGroupId && !g.parentCorporateId),
@@ -969,11 +997,11 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
       {crmTab === 'individual' && (
         <>
       {/* 📊 CRM SEGMENTATION & DEMOGRAPHICS DIAGRAM PANEL */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-6 shadow-2xl border border-slate-700/50 space-y-5 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-xl p-6 shadow-2xl border border-slate-700/50 space-y-5 backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-700/50 pb-4">
           <div className="space-y-1">
             <h3 className="text-sm font-semibold tracking-wide flex items-center gap-2">
-              <TrendingUp size={16} className="text-amber-400" />
+              <TrendingUp size={16} className="text-indigo-400" />
               <span>CRM Demographics & Account Tier Segmentations</span>
             </h3>
             <p className="text-xs text-slate-400 font-sans">
@@ -989,7 +1017,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             <div className="h-8 w-px bg-slate-700" />
             <div className="text-center sm:text-right">
               <span className="text-[10px] font-mono uppercase text-slate-400 block font-bold">VIP Concierge Ratio</span>
-              <span className="text-xl font-bold font-sans text-amber-400">{vipPercentage}% Share</span>
+              <span className="text-xl font-bold font-sans text-indigo-400">{vipPercentage}% Share</span>
             </div>
           </div>
         </div>
@@ -999,7 +1027,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
           <div className="lg:col-span-5 space-y-3 bg-slate-800/40 p-4 rounded-xl border border-slate-700/50 backdrop-blur-sm">
             <div className="flex justify-between items-center">
               <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5 font-sans">
-                <Award size={14} className="text-amber-400" /> Account Tier Distributions
+                <Award size={14} className="text-indigo-400" /> Account Tier Distributions
               </span>
               <span className="text-[10px] font-mono text-slate-400">{vipCount} VIP / {loyaltyCount} Loyalty</span>
             </div>
@@ -1112,7 +1140,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search guests..."
+                placeholder="Search by name, email, phone, passport, TIN, nationality..."
                 value={searchVal}
                 onChange={(e) => setSearchVal(e.target.value)}
                 className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-sans transition-all duration-200"
@@ -1129,7 +1157,17 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {filteredGuests.length === 0 ? (
+          {guestsLoading && guests.length === 0 ? (
+            <div className="col-span-3 p-8 text-center text-xs text-slate-400 font-mono italic bg-slate-50 rounded-xl border border-slate-100">
+              Loading guest profiles...
+            </div>
+          ) : guestsError && guests.length === 0 ? (
+            <div className="col-span-3 p-8 text-center bg-rose-50 rounded-xl border border-rose-200">
+              <AlertTriangle size={20} className="mx-auto text-rose-400 mb-2" />
+              <p className="text-xs text-rose-700 font-sans font-semibold">Failed to load guests</p>
+              <p className="text-[10px] text-rose-500 font-mono mt-1">{guestsError}</p>
+            </div>
+          ) : filteredGuests.length === 0 ? (
             <div className="col-span-3 p-8 text-center text-xs text-slate-400 font-mono italic bg-slate-50 rounded-xl border border-slate-100">
               {searchVal || selectedStatus !== 'all' || selectedNationality !== 'all' ? 'No matching profiles found.' : 'No guest profiles registered yet.'}
             </div>
@@ -1146,7 +1184,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                       <p className="text-3xs text-slate-400 font-mono">ID: {g.id}</p>
                     </div>
                   </div>
-                  <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${g.status === 'VIP' ? 'bg-amber-100 text-amber-700' : g.status === 'Loyalty Member' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
+                  <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${g.status === 'VIP' ? 'bg-indigo-100 text-indigo-700' : g.status === 'Loyalty Member' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600'}`}>
                     {g.status.replace(' Member', '')}
                   </span>
                 </div>
@@ -1155,6 +1193,9 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                   <div><span className="text-slate-400 font-mono block">Phone</span><span className="font-semibold text-slate-700">{g.phone || 'N/A'}</span></div>
                   {g.nationality && (
                     <div><span className="text-slate-400 font-mono block">Nationality</span><span className="font-semibold text-slate-700">{g.nationality}</span></div>
+                  )}
+                  {g.passportNumber && (
+                    <div><span className="text-slate-400 font-mono block">Passport</span><span className="font-semibold text-slate-700 truncate">{g.passportNumber}</span></div>
                   )}
                   <div className="col-span-2">
                     <button
@@ -1434,8 +1475,9 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl space-y-2">
               <p className="text-xs text-slate-700 font-sans">A matching profile was found based on:</p>
               <ul className="text-xs text-slate-600 font-sans list-disc list-inside space-y-1">
-                <li>Last name or email address</li>
-                <li>Passport number (if provided)</li>
+                <li>Passport number (exact match), or</li>
+                <li>Last name AND email match, or</li>
+                <li>Full name (exact match)</li>
               </ul>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
@@ -1810,7 +1852,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     />
                     <button
                       onClick={() => existingGuestIdScannerRef.current?.click()}
-                      className="w-full py-2.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm"
+                      className="w-full py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-sans text-xs font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 shadow-sm"
                     >
                       <Camera size={12} /> Upload ID Document
                     </button>
@@ -1982,10 +2024,10 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                 {/* Special Requests */}
                 <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
                   <h4 className="text-xs font-mono uppercase text-slate-500 tracking-wider font-bold flex items-center gap-1.5 mb-3">
-                    <Bookmark size={12} className="text-amber-500" />
+                    <Bookmark size={12} className="text-indigo-500" />
                     Special Requests & Preferences
                   </h4>
-                  <div className="p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl text-xs text-slate-700 leading-relaxed font-sans italic shadow-sm">
+                  <div className="p-3.5 bg-gradient-to-r from-indigo-50 to-orange-50 border border-indigo-200 rounded-xl text-xs text-slate-700 leading-relaxed font-sans italic shadow-sm">
                     "{activeGuest?.specialRequests || 'No special requests listed on file.'}"
                   </div>
                 </div>
@@ -2563,7 +2605,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
         size="xl"
         showFooter={false}
       >
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 print-area">
               {/* Success Banner */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                 <div className="flex items-center gap-2">
@@ -2686,7 +2728,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
+              <div className="flex gap-3 pt-4 border-t border-slate-200 no-print">
                 <button
                   onClick={() => {
                     setShowCheckInForm(false);
@@ -2720,7 +2762,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
         size="xl"
         showFooter={false}
       >
-            <div className="p-6 space-y-6">
+            <div className="p-6 space-y-6 print-area">
               {/* Success Banner */}
               <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
                 <div className="flex items-center gap-2">
@@ -2756,8 +2798,8 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
                     <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.contactPhone || 'N/A'}</div>
                   </div>
                   <div>
-                    <label className="text-2xs text-slate-500 font-mono block mb-1">Room Count</label>
-                    <div className="text-sm font-semibold text-slate-800">{groupCheckInData?.roomCount}</div>
+                    <label className="text-2xs text-slate-500 font-mono block mb-1">Group Reservation ID</label>
+                    <div className="text-sm font-semibold text-slate-800 font-mono">{groupCheckInData?.groupId || 'N/A'}</div>
                   </div>
                   <div>
                     <label className="text-2xs text-slate-500 font-mono block mb-1">Check-In Date</label>
@@ -2819,7 +2861,7 @@ export default function CRMModule({ initialGuestData, onClearInitialData, viewGu
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t border-slate-200">
+              <div className="flex gap-3 pt-4 border-t border-slate-200 no-print">
                 <button
                   onClick={() => {
                     setShowGroupCheckInForm(false);

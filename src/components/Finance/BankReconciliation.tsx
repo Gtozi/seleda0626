@@ -14,7 +14,11 @@ import {
   ArrowRight,
   ShieldCheck,
   Activity,
-  Plus
+  Plus,
+  Wallet,
+  ArrowRightLeft,
+  Coins,
+  HandCoins
 } from 'lucide-react';
 import { ModalSystem } from '../Shared/ModalSystem';
 import { DataTable, Column } from '../Shared/DataTable';
@@ -32,7 +36,7 @@ import {
 } from '../../services/bankReconciliationService';
 
 const BankReconciliation = () => {
-  const [activeTab, setActiveTab] = useState<'overview' | 'import' | 'match' | 'finalize'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'cash_ops' | 'import' | 'match' | 'finalize'>('overview');
   const [selectedBank, setSelectedBank] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -138,7 +142,7 @@ const BankReconciliation = () => {
           { label: 'Total Lines', value: `${statementLines.length}`, sub: 'Statement lines', icon: FileText, color: 'text-indigo-500' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-            <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
               <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -154,7 +158,7 @@ const BankReconciliation = () => {
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Bank Accounts</h3>
             <button
               onClick={() => setShowNewAccount(true)}
-              className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition"
+              className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
             >
               <Plus size={14} />
             </button>
@@ -228,7 +232,7 @@ const BankReconciliation = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Select Bank Account</label>
-                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
+                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
                   {bankAccounts.map(bank => (
                     <option key={bank.id} value={bank.id}>{bank.account_name} ({bank.account_number})</option>
                   ))}
@@ -236,7 +240,7 @@ const BankReconciliation = () => {
               </div>
               <div>
                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2">Statement Period</label>
-                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-900 dark:text-white">
+                <select className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold text-slate-900 dark:text-white">
                   <option>June 2024</option>
                   <option>May 2024</option>
                   <option>April 2024</option>
@@ -248,7 +252,7 @@ const BankReconciliation = () => {
               <Upload size={32} className="mx-auto text-slate-400 mb-4" />
               <p className="text-sm font-black text-slate-900 dark:text-white mb-2">Drop your bank statement file here</p>
               <p className="text-[10px] text-slate-500 font-bold mb-4">Supports CSV, OFX, QFX, PDF formats</p>
-              <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">
+              <button className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition">
                 Browse Files
               </button>
             </div>
@@ -295,13 +299,13 @@ const BankReconciliation = () => {
         <div className="flex items-center gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-            <input type="text" placeholder="Search transactions..." className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold w-64" />
+            <input type="text" placeholder="Search transactions..." className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold w-64" />
           </div>
-          <button className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
+          <button className="p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-slate-400 hover:text-slate-900 dark:hover:text-white transition">
             <Filter size={14} />
           </button>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase hover:bg-indigo-700 transition">
+        <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase hover:bg-indigo-700 transition">
           <RefreshCw size={14} /> Auto-Match All
         </button>
       </div>
@@ -382,6 +386,116 @@ const BankReconciliation = () => {
     </div>
   );
 
+  const renderCashOps = () => (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        {[
+          { label: 'Cash Receipts', value: '$48,200', sub: 'Today', icon: HandCoins, color: 'text-emerald-500' },
+          { label: 'Cash Payments', value: '$12,400', sub: 'Today', icon: ArrowRightLeft, color: 'text-rose-500' },
+          { label: 'Petty Cash', value: '$3,500', sub: 'Float balance', icon: Wallet, color: 'text-amber-500' },
+          { label: 'Cash Float', value: '$8,000', sub: 'Front Office', icon: Coins, color: 'text-indigo-500' },
+          { label: 'Cash Transfers', value: '2', sub: 'Pending approval', icon: ArrowRight, color: 'text-blue-500' },
+        ].map((stat, i) => (
+          <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-3xl shadow-3xs">
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+              <stat.icon size={16} />
+            </div>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
+            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-tight">{stat.value}</h3>
+            <p className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-tight">{stat.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Petty Cash Floats</h3>
+            <button className="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+              <Plus size={14} />
+            </button>
+          </div>
+          <div className="space-y-3">
+            {[
+          { dept: 'Front Office', code: 'PC-001', float: 5000, balance: 3500, custodian: 'Sarah T.' },
+          { dept: 'F&B Kitchen', code: 'PC-002', float: 3000, balance: 1200, custodian: 'Mike K.' },
+          { dept: 'Engineering', code: 'PC-003', float: 2000, balance: 850, custodian: 'James B.' },
+          { dept: 'Housekeeping', code: 'PC-004', float: 1500, balance: 420, custodian: 'Lisa M.' },
+            ].map((pc, i) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-500/10 text-amber-600">
+                    <Wallet size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-900 dark:text-white">{pc.dept}</p>
+                    <p className="text-[9px] font-mono text-slate-400">{pc.code} • {pc.custodian}</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black text-slate-900 dark:text-white">${pc.balance.toLocaleString()}</p>
+                  <p className="text-[8px] font-bold text-slate-400 uppercase">Float: ${pc.float.toLocaleString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Recent Cash Transactions</h3>
+            <button className="text-[10px] font-black text-indigo-600 uppercase hover:underline">View All</button>
+          </div>
+          <div className="space-y-3">
+            {[
+          { type: 'Receipt', desc: 'Guest cash payment — Room 412', amount: 1200, time: '10:30 AM', icon: HandCoins, color: 'text-emerald-500' },
+          { type: 'Payment', desc: 'Courier service payment', amount: -85, time: '09:15 AM', icon: ArrowRightLeft, color: 'text-rose-500' },
+          { type: 'Transfer', desc: 'FO to Petty Cash replenishment', amount: -500, time: '08:45 AM', icon: ArrowRight, color: 'text-blue-500' },
+          { type: 'Receipt', desc: 'F&B cash settlement', amount: 340, time: '08:20 AM', icon: HandCoins, color: 'text-emerald-500' },
+          { type: 'Payment', desc: 'Office supplies purchase', amount: -120, time: 'Yesterday', icon: ArrowRightLeft, color: 'text-rose-500' },
+            ].map((tx, i) => (
+              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-950/40 rounded-2xl">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg bg-white dark:bg-slate-900 ${tx.color}`}>
+                    <tx.icon size={14} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900 dark:text-white">{tx.desc}</p>
+                    <p className="text-[9px] font-mono text-slate-400">{tx.type} • {tx.time}</p>
+                  </div>
+                </div>
+                <span className={`text-xs font-black ${tx.amount > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                  {tx.amount > 0 ? '+' : ''}${Math.abs(tx.amount).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 p-5 rounded-3xl">
+        <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 mb-2">
+          <AlertCircle size={16} />
+          <span className="text-[10px] font-black uppercase">Cash Management Actions</span>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:shadow-md transition flex items-center gap-2">
+            <HandCoins size={12} /> Record Cash Receipt
+          </button>
+          <button className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:shadow-md transition flex items-center gap-2">
+            <ArrowRightLeft size={12} /> Record Cash Payment
+          </button>
+          <button className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:shadow-md transition flex items-center gap-2">
+            <ArrowRight size={12} /> Cash Transfer
+          </button>
+          <button className="px-4 py-2 bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:shadow-md transition flex items-center gap-2">
+            <Coins size={12} /> Replenish Petty Cash
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   const renderFinalize = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -435,25 +549,31 @@ const BankReconciliation = () => {
         <div className="flex bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit">
           <button 
             onClick={() => setActiveTab('overview')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'overview' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Overview
           </button>
           <button 
+            onClick={() => setActiveTab('cash_ops')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'cash_ops' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Cash Ops
+          </button>
+          <button 
             onClick={() => setActiveTab('import')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'import' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'import' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Import
           </button>
           <button 
             onClick={() => setActiveTab('match')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'match' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'match' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Match
           </button>
           <button 
             onClick={() => setActiveTab('finalize')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition ${activeTab === 'finalize' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition ${activeTab === 'finalize' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Finalize
           </button>
@@ -471,6 +591,7 @@ const BankReconciliation = () => {
       </div>
 
       {activeTab === 'overview' && renderOverview()}
+      {activeTab === 'cash_ops' && renderCashOps()}
       {activeTab === 'import' && renderImport()}
       {activeTab === 'match' && renderMatch()}
       {activeTab === 'finalize' && renderFinalize()}
@@ -491,7 +612,7 @@ const BankReconciliation = () => {
                   type="text"
                   value={newAccountForm.accountNumber}
                   onChange={(e) => setNewAccountForm({ ...newAccountForm, accountNumber: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Account number"
                 />
               </div>
@@ -502,7 +623,7 @@ const BankReconciliation = () => {
                   type="text"
                   value={newAccountForm.accountName}
                   onChange={(e) => setNewAccountForm({ ...newAccountForm, accountName: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Operating Account"
                 />
               </div>
@@ -513,7 +634,7 @@ const BankReconciliation = () => {
                   type="text"
                   value={newAccountForm.bankName}
                   onChange={(e) => setNewAccountForm({ ...newAccountForm, bankName: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Commercial Bank of Ethiopia"
                 />
               </div>
@@ -523,7 +644,7 @@ const BankReconciliation = () => {
                 <select
                   value={newAccountForm.currency}
                   onChange={(e) => setNewAccountForm({ ...newAccountForm, currency: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-lg bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="ETB">ETB - Ethiopian Birr</option>
                   <option value="USD">USD - US Dollar</option>

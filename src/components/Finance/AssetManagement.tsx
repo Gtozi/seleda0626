@@ -33,7 +33,7 @@ const AssetManagement = () => {
           { label: 'Replacement Fund', value: '$128k', sub: 'Escrow Reserve', icon: Zap, color: 'text-amber-600' },
         ].map((stat, i) => (
           <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
-            <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+            <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -48,7 +48,7 @@ const AssetManagement = () => {
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Fixed Asset Register</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Capitalized Asset Inventory & Valuation</p>
          </div>
-         <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
+         <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
             <Plus size={14} />
             Capitalize Asset
          </button>

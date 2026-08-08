@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Package,
   AlertTriangle,
@@ -79,7 +79,7 @@ const OfficeInventoryModule: React.FC = () => {
       case 'Issued': return 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300 font-bold animate-pulse';
       case 'Received': return 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 font-semibold';
       case 'Cancelled': return 'bg-rose-100 text-rose-800 dark:bg-rose-950/40 dark:text-rose-300 font-bold';
-      default: return 'bg-slate-150 text-slate-705 dark:bg-slate-800 dark:text-slate-400';
+      default: return 'bg-slate-200 text-slate-705 dark:bg-slate-800 dark:text-slate-400';
     }
   };
 
@@ -117,12 +117,12 @@ const OfficeInventoryModule: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Node selection Segment Tab */}
-      <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1 rounded-2xl w-full sm:w-fit gap-1 md:self-center">
+      <div className="flex bg-slate-100 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800 p-1 rounded-xl w-full sm:w-fit gap-1 md:self-center">
          <button
            onClick={() => { setSelectedStore('office'); setSearchQuery(''); }}
            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
              isOffice 
-               ? 'bg-white dark:bg-slate-850 text-slate-900 dark:text-white shadow-xs' 
+               ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' 
                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
            }`}
          >
@@ -133,7 +133,7 @@ const OfficeInventoryModule: React.FC = () => {
            onClick={() => { setSelectedStore('giftshop'); setSearchQuery(''); }}
            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl flex items-center justify-center gap-1.5 text-xs font-bold transition-all ${
              !isOffice 
-               ? 'bg-white dark:bg-slate-850 text-slate-900 dark:text-white shadow-xs' 
+               ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-xs' 
                : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
            }`}
          >
@@ -150,7 +150,7 @@ const OfficeInventoryModule: React.FC = () => {
         <div className="flex items-center gap-2">
            <button 
              onClick={() => setShowRaiseModal(true)}
-             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition shadow-md shadow-emerald-200 dark:shadow-none"
+             className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs transition shadow-md shadow-emerald-200 dark:shadow-none"
            >
               <Send size={14} />
               Request {isOffice ? 'Materials' : 'Souvenirs'} Restock
@@ -160,7 +160,7 @@ const OfficeInventoryModule: React.FC = () => {
 
       {/* Overview Bento cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl shadow-3xs">
+         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
             <div className="flex justify-between items-center mb-1">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Stock</span>
                <Boxes size={18} className="text-emerald-500" />
@@ -169,7 +169,7 @@ const OfficeInventoryModule: React.FC = () => {
             <p className="text-[10px] text-slate-500">Unique listed SKUs in Store</p>
          </div>
 
-         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl shadow-3xs">
+         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
             <div className="flex justify-between items-center mb-1">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest font-mono">Safety Margin</span>
                <AlertTriangle size={18} className={lowStockItems.length > 0 ? "text-amber-500 animate-bounce" : "text-slate-400"} />
@@ -180,7 +180,7 @@ const OfficeInventoryModule: React.FC = () => {
             <p className="text-[10px] text-slate-500">Requiring reorder trigger</p>
          </div>
 
-         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl shadow-3xs">
+         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm">
             <div className="flex justify-between items-center mb-1">
                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Transits</span>
                <ArrowLeftRight size={18} className="text-indigo-500" />
@@ -189,7 +189,7 @@ const OfficeInventoryModule: React.FC = () => {
             <p className="text-[10px] text-slate-500">Procurement logs in flow</p>
          </div>
 
-         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl shadow-3xs bg-gradient-to-tr from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950/50 animate-fade-in">
+         <div className="bg-white dark:bg-slate-900 p-4 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm bg-gradient-to-tr from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950/50 animate-fade-in">
             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Assigned Manager</div>
             <div className="flex items-center gap-2 mt-1.5">
                <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-xs font-black text-slate-700 dark:text-slate-300">
@@ -210,7 +210,7 @@ const OfficeInventoryModule: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
          {/* Internal Stock Balances */}
          <div className="lg:col-span-2 space-y-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-3xs">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm">
                <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
                   <div>
                      <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">
@@ -227,13 +227,13 @@ const OfficeInventoryModule: React.FC = () => {
                        placeholder={`Filter ${isOffice ? 'materials' : 'souvenirs'}...`} 
                        value={searchQuery}
                        onChange={(e) => setSearchQuery(e.target.value)}
-                       className="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
+                       className="w-full pl-9 pr-4 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
                      />
                   </div>
                </div>
 
                {currentStoreItems.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl">
+                  <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
                      <Package size={36} className="mx-auto text-slate-300 mb-2" />
                      <span className="text-xs font-bold text-slate-400 block">
                         No matching {isOffice ? 'desk' : 'gift shop'} inventory items found in node.
@@ -245,7 +245,7 @@ const OfficeInventoryModule: React.FC = () => {
                         const isLow = item.currentStock <= item.minStock;
                         const stockPercentage = Math.min(100, (item.currentStock / item.maxStock) * 100);
                         return (
-                           <div key={item.id} className="p-4 border border-slate-150 dark:border-slate-800/80 rounded-2xl hover:border-emerald-300 dark:hover:border-emerald-700/50 transition bg-slate-50/20 dark:bg-slate-950/10 space-y-3">
+                           <div key={item.id} className="p-4 border border-slate-200 dark:border-slate-800/80 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-700/50 transition bg-slate-50/20 dark:bg-slate-950/10 space-y-3">
                               <div className="flex justify-between items-start">
                                  <div>
                                     <span className="text-[9px] font-mono font-black text-slate-400 tracking-wider">#{item.code}</span>
@@ -269,7 +269,7 @@ const OfficeInventoryModule: React.FC = () => {
                                  </div>
                               </div>
 
-                              <div className="grid grid-cols-2 pt-1 border-t border-slate-100 dark:border-slate-850 text-[9px] font-bold text-slate-400">
+                              <div className="grid grid-cols-2 pt-1 border-t border-slate-100 dark:border-slate-800 text-[9px] font-bold text-slate-400">
                                  <span>Min Safety: {item.minStock}</span>
                                  <span className="text-right">Reorder level: {item.reorderLevel}</span>
                               </div>
@@ -283,21 +283,21 @@ const OfficeInventoryModule: React.FC = () => {
 
          {/* Materials Requisitions & Transit Log */}
          <div className="space-y-4">
-            <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 rounded-3xl p-6 shadow-3xs space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4">
                <div>
                   <h3 className="text-base font-sans font-black text-slate-900 dark:text-white leading-tight">Courier & Reorders Log</h3>
                   <p className="text-xs text-slate-400">Requisitions dispatched to Mother Node</p>
                </div>
 
                {currentStoreRequisitions.length === 0 ? (
-                  <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-850 rounded-2xl">
-                     <ClipboardList size={30} className="mx-auto text-slate-350 mb-2" />
+                  <div className="text-center py-12 border border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+                     <ClipboardList size={30} className="mx-auto text-slate-400 mb-2" />
                      <span className="text-2xs font-bold text-slate-400 uppercase tracking-wider block">No transit activities recorded</span>
                   </div>
                ) : (
                   <div className="space-y-3 max-h-[460px] overflow-y-auto pr-1 no-scrollbar animate-fade-in">
                      {currentStoreRequisitions.map((req) => (
-                        <div key={req.id} className="p-3 border border-slate-150 dark:border-slate-850 rounded-2xl bg-slate-50/20 dark:bg-slate-950/20 space-y-2 text-xs">
+                        <div key={req.id} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20 dark:bg-slate-950/20 space-y-2 text-xs">
                            <div className="flex justify-between items-center">
                               <span className="font-mono font-black text-[10px] text-slate-400">#{req.number}</span>
                               <span className={`px-2 py-0.5 rounded-lg text-[8px] uppercase tracking-tight ${getStatusBadgeClass(req.status)}`}>
@@ -360,7 +360,7 @@ const OfficeInventoryModule: React.FC = () => {
                      <select 
                        value={reqItemCode}
                        onChange={(e) => setReqItemCode(e.target.value)}
-                       className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-bold"
+                       className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-bold"
                      >
                         {mainStoreCatalogItems.map(item => (
                            <option key={item.id} value={item.code}>
@@ -379,7 +379,7 @@ const OfficeInventoryModule: React.FC = () => {
                           max="200"
                           value={reqQty}
                           onChange={(e) => setReqQty(Number(e.target.value))}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
                         />
                      </div>
                      <div className="space-y-1">
@@ -387,7 +387,7 @@ const OfficeInventoryModule: React.FC = () => {
                         <select 
                           value={reqPriority}
                           onChange={(e: any) => setReqPriority(e.target.value)}
-                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-semibold"
+                          className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white font-semibold"
                         >
                            <option value="Normal">Normal Delivery</option>
                            <option value="High">High Priority</option>
@@ -403,7 +403,7 @@ const OfficeInventoryModule: React.FC = () => {
                        value={requesterName}
                        onChange={(e) => setRequesterName(e.target.value)}
                        placeholder="Enter requesting name"
-                       className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
+                       className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl text-xs outline-none text-slate-800 dark:text-white"
                      />
                   </div>
 
@@ -411,7 +411,7 @@ const OfficeInventoryModule: React.FC = () => {
                      <button 
                        type="button" 
                        onClick={() => setShowRaiseModal(false)}
-                       className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-850 transition"
+                       className="bg-slate-50 dark:bg-slate-950 text-slate-500 dark:text-slate-400 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                      >
                        Cancel
                      </button>

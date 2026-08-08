@@ -904,10 +904,10 @@ router.get('/monitoring/realtime/:propertyId', authenticate, async (req, res) =>
     timestamp: new Date().toISOString(),
     occupancy: {
       totalRooms: (rooms || []).length,
-      occupiedRooms: (rooms || []).filter(r => r.status === 'occupied').length,
-      availableRooms: (rooms || []).filter(r => r.status === 'available').length,
-      occupancyRate: (rooms || []).length > 0 
-        ? ((rooms || []).filter(r => r.status === 'occupied').length / (rooms || []).length) * 100 
+      occupiedRooms: (rooms || []).filter(r => typeof r.status === 'string' && r.status.includes('Occupied')).length,
+      availableRooms: (rooms || []).filter(r => r.status === 'Vacant Clean' || r.status === 'Vacant Dirty').length,
+      occupancyRate: (rooms || []).length > 0
+        ? ((rooms || []).filter(r => typeof r.status === 'string' && r.status.includes('Occupied')).length / (rooms || []).length) * 100
         : 0,
     },
     reservations: {

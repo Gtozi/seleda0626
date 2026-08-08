@@ -878,4 +878,396 @@ export class RevenueManagementEngine {
       }
     }
   }
+
+  // ============================================
+  // NEW MODULE METHODS - Enhanced RMS Architecture
+  // ============================================
+
+  // Dynamic Pricing Strategies
+  static async getDynamicPricingStrategies(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('dynamic_pricing_strategies')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async createDynamicPricingStrategy(strategy: any): Promise<string> {
+    const { data, error } = await supabase
+      .from('dynamic_pricing_strategies')
+      .insert({
+        name: strategy.name,
+        strategy_type: strategy.strategyType,
+        parameters: strategy.parameters,
+        active: true
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
+  }
+
+  static async updateDynamicPricingStrategy(id: string, strategy: any): Promise<void> {
+    const { error } = await supabase
+      .from('dynamic_pricing_strategies')
+      .update({
+        name: strategy.name,
+        parameters: strategy.parameters,
+        active: strategy.active
+      })
+      .eq('id', id);
+    
+    if (error) throw error;
+  }
+
+  // Rate Management
+  static async getRatePlans(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('rate_plans')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async createRatePlan(plan: any): Promise<string> {
+    const { data, error } = await supabase
+      .from('rate_plans')
+      .insert({
+        name: plan.name,
+        room_type_id: plan.roomTypeId,
+        base_rate: plan.baseRate,
+        seasonal_rates: plan.seasonalRates,
+        active: true
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
+  }
+
+  // Inventory Controls
+  static async getInventoryAllocations(roomTypeId: string, date: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('inventory_allocations')
+      .select('*')
+      .eq('room_type_id', roomTypeId)
+      .eq('date', date);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async updateInventoryAllocation(allocation: any): Promise<void> {
+    const { error } = await supabase
+      .from('inventory_allocations')
+      .upsert({
+        room_type_id: allocation.roomTypeId,
+        date: allocation.date,
+        allocated_rooms: allocation.allocatedRooms,
+        sell_limit: allocation.sellLimit,
+        stop_sell: allocation.stopSell
+      });
+    
+    if (error) throw error;
+  }
+
+  // Yield Management
+  static async getYieldScenarios(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('yield_scenarios')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async runYieldOptimization(params: any): Promise<any> {
+    // Mock optimization logic
+    return {
+      optimized: true,
+      recommendations: [],
+      projectedRevenueIncrease: 0
+    };
+  }
+
+  // Market Segmentation
+  static async getMarketSegmentation(startDate: string, endDate: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('market_segments')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Channel Performance
+  static async getChannelPerformance(startDate: string, endDate: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('channel_performance')
+      .select('*')
+      .gte('date', startDate)
+      .lte('date', endDate);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  // Distribution Management
+  static async getDistributionChannels(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('distribution_channels')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async syncDistributionChannels(params: any): Promise<void> {
+    // Mock sync logic
+    console.log('Syncing distribution channels:', params);
+  }
+
+  // Group Evaluation
+  static async getGroupEvaluations(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('group_evaluations')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async evaluateGroupInquiry(inquiry: any): Promise<any> {
+    // Mock evaluation logic
+    return {
+      recommended: true,
+      projectedRevenue: inquiry.rooms * inquiry.nights * 150,
+      displacementAnalysis: {}
+    };
+  }
+
+  // Displacement Analysis
+  static async runDisplacementAnalysis(params: any): Promise<any> {
+    // Mock displacement analysis
+    return {
+      revenueLost: 0,
+      revenueGained: 0,
+      opportunityCost: 0,
+      recommendation: 'accept'
+    };
+  }
+
+  // Overbooking Management
+  static async getOverbookingLimits(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('overbooking_limits')
+      .select('*');
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async updateOverbookingLimits(limits: any): Promise<void> {
+    const { error } = await supabase
+      .from('overbooking_limits')
+      .upsert({
+        room_type_id: limits.roomTypeId,
+        limit_percentage: limits.limitPercentage,
+        wash_percentage: limits.washPercentage
+      });
+    
+    if (error) throw error;
+  }
+
+  // Restrictions Management
+  static async getRestrictions(roomTypeId: string, date: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('restrictions')
+      .select('*')
+      .eq('room_type_id', roomTypeId)
+      .lte('start_date', date)
+      .gte('end_date', date);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async createRestriction(restriction: any): Promise<string> {
+    const { data, error } = await supabase
+      .from('restrictions')
+      .insert({
+        room_type_id: restriction.roomTypeId,
+        restriction_type: restriction.restrictionType,
+        start_date: restriction.startDate,
+        end_date: restriction.endDate,
+        value: restriction.value
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
+  }
+
+  // Package Pricing
+  static async getPackages(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async createPackage(pkg: any): Promise<string> {
+    const { data, error } = await supabase
+      .from('packages')
+      .insert({
+        name: pkg.name,
+        package_type: pkg.packageType,
+        price: pkg.price,
+        components: pkg.components,
+        active: true
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
+  }
+
+  // Promotions Analysis
+  static async getPromotions(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('promotions')
+      .select('*')
+      .eq('active', true);
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async getPromotionAnalytics(promotionId: string, startDate: string, endDate: string): Promise<any> {
+    // Mock analytics
+    return {
+      promotionId,
+      revenue: 0,
+      bookings: 0,
+      roi: 0
+    };
+  }
+
+  // Business Intelligence
+  static async getBIAnalytics(startDate: string, endDate: string, metrics: string): Promise<any> {
+    // Mock BI analytics
+    return {
+      revenue: 0,
+      occupancy: 0,
+      adr: 0,
+      revpar: 0
+    };
+  }
+
+  static async getBITrends(metric: string, period: string): Promise<any[]> {
+    // Mock trends
+    return [];
+  }
+
+  // AI Recommendations
+  static async getAIRecommendations(category: string, limit: string): Promise<any[]> {
+    // Mock AI recommendations
+    return [];
+  }
+
+  static async generateAIRecommendations(params: any): Promise<any[]> {
+    // Mock AI generation
+    return [];
+  }
+
+  // Scenario Planning
+  static async getScenarios(): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('scenarios')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async createScenario(scenario: any): Promise<string> {
+    const { data, error } = await supabase
+      .from('scenarios')
+      .insert({
+        name: scenario.name,
+        scenario_type: scenario.scenarioType,
+        parameters: scenario.parameters
+      })
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
+  }
+
+  static async compareScenarios(params: any): Promise<any> {
+    // Mock comparison
+    return {
+      scenarios: [],
+      comparison: {}
+    };
+  }
+
+  // Reports
+  static async getReports(category?: string): Promise<any[]> {
+    let query = supabase.from('reports').select('*');
+    if (category) {
+      query = query.eq('category', category);
+    }
+    const { data, error } = await query;
+    
+    if (error) throw error;
+    return data || [];
+  }
+
+  static async generateReport(params: any): Promise<any> {
+    // Mock report generation
+    return {
+      id: 'mock-report-id',
+      url: '',
+      generatedAt: new Date().toISOString()
+    };
+  }
+
+  // Configuration Management (Enhanced)
+  static async getAllConfig(): Promise<any> {
+    const { data, error } = await supabase
+      .from('rms_config')
+      .select('*');
+    
+    if (error) throw error;
+    const config: any = {};
+    data?.forEach(item => {
+      config[item.key] = item.value;
+    });
+    return config;
+  }
+
+  static async updateBatchConfig(config: any, userId: string): Promise<void> {
+    for (const [key, value] of Object.entries(config)) {
+      await this.updateConfig(key, value, userId);
+    }
+  }
 }

@@ -402,7 +402,7 @@ const ItemMasterModule: React.FC = () => {
         size="xl"
         showFooter={false}
       >
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 print-area">
               {filteredItems.map((item) => (
                 <div key={item.id} className="border border-slate-200 dark:border-slate-700 rounded-xl p-3 bg-white dark:bg-slate-950 flex flex-col items-center gap-2">
                   <div className="w-full h-8 bg-slate-900 dark:bg-white rounded flex items-center justify-center gap-1 overflow-hidden">
@@ -418,7 +418,7 @@ const ItemMasterModule: React.FC = () => {
                 </div>
               ))}
             </div>
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 no-print">
               <button onClick={() => setShowPrintModal(false)} className="bg-slate-50 dark:bg-slate-950 text-slate-500 text-xs font-bold py-2.5 px-4 rounded-xl hover:bg-slate-100">Close</button>
               <button onClick={() => window.print()} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl transition flex items-center gap-2"><Printer size={14} /> Print All</button>
             </div>

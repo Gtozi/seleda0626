@@ -327,7 +327,42 @@ router.get('/group-profiles/:id/members', authenticate, requirePermission('repor
     });
 
     if (error) return res.status(500).json({ error: error.message });
-    return res.json({ members: data || [] });
+    // Normalize the RPC column names (guest_id, guest_name, guest_email,
+    // relationship_type, is_primary_contact) to the camelCase shape the
+    // frontend member cards expect (id, name, email, relationshipType,
+    // isPrimaryContact) so member.id / member.name resolve correctly.
+    const members = (data || []).map((m: any) => ({
+      ...m,
+      id: m.guest_id ?? m.id,
+      name: m.guest_name ?? m.name,
+      email: m.guest_email ?? m.email,
+      relationshipType: m.relationship_type ?? m.relationshipType,
+      isPrimaryContact: m.is_primary_contact ?? m.isPrimaryContact,
+    }));
+    return res.json({ members });
+  }
+
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// ── Guest → Active Groups (for reservation auto-suggest & guest profile) ──
+
+router.get('/group-profiles/guest/:guestId/groups', authenticate, requirePermission('reports:view'), async (req, res) => {
+  const guestId = req.params.guestId;
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.rpc('get_guest_active_groups', {
+      p_guest_id: guestId,
+    });
+
+    if (error) {
+      // Fail soft if the RPC is not deployed yet.
+      if (error.code === '42883' || error.code === '42P01') {
+        return res.json({ groups: [] });
+      }
+      return res.status(500).json({ error: error.message });
+    }
+    return res.json({ groups: data || [] });
   }
 
   return res.status(503).json({ error: 'Database not configured' });

@@ -5,7 +5,9 @@ import crypto from 'crypto';
 import { authenticate, requirePermission } from '../middleware/auth';
 import { hasSupabaseAdminConfig, supabaseAdmin } from '../supabaseAdmin';
 import { validatePassword } from '../../lib/passwordPolicy';
-import { enrichUserWithDerivedPermissions, fetchPasswordPolicy, writeAuditEvent, mapSystemUserFromDb } from '../services/sharedServices';
+import { enrichUserWithDerivedPermissions, fetchPasswordPolicy, writeAuditEvent, mapSystemUserFromDb, camelToSnakeRecord, snakeToCamelRecord, filterKnownColumns, ensurePendingAdminChangesTable } from '../services/sharedServices';
+import { getGlobalSettings, invalidateGlobalSettingsCache } from '../services/settingsService';
+import { processApiIntegrationsOnRead, processApiIntegrationsOnWrite } from '../services/sessionService';
 import { userApiSchema, roleApiSchema } from '../../schemas/userSchema';
 
 const router = Router();
@@ -1516,6 +1518,344 @@ router.patch('/api-keys/:id', authenticate, requirePermission('settings:manage')
   if (error) return res.status(500).json({ error: error.message });
   await writeAuditEvent({ req, user: req.user!, action: 'apikey.updated', entityType: 'ApiKey', entityId: req.params.id, module: 'admin' });
   return res.json({ key: data });
+});
+
+// ── Settings ───────────────────────────────────────────────────
+
+router.get('/settings', authenticate, requirePermission('settings:update'), async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const data = await getGlobalSettings();
+    if (data) {
+      // Mask API keys on read
+      const encryptedIntegrations = data.encrypted_api_integrations || data.api_integrations;
+      data.api_integrations = processApiIntegrationsOnRead(encryptedIntegrations);
+      if (data.encrypted_api_integrations) data.encrypted_api_integrations = undefined;
+    }
+    return res.json({ settings: data ? snakeToCamelRecord(data) : {} });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/settings', authenticate, requirePermission('settings:update'), async (req, res) => {
+  const updates = await filterKnownColumns(camelToSnakeRecord(req.body || {}));
+
+  // Encrypt API integration keys before storing
+  if (updates.api_integrations) {
+    try {
+      const encrypted = processApiIntegrationsOnWrite(updates.api_integrations);
+      updates.encrypted_api_integrations = encrypted;
+      updates.api_integrations = [];
+    } catch (e) {
+      console.error('[CRYPTO] Failed to encrypt API integrations on write:', e);
+    }
+  }
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data: existing } = await supabaseAdmin.from('global_settings').select('id').maybeSingle();
+    if (existing) {
+      const { data, error } = await supabaseAdmin.from('global_settings').update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user!.id
+      }).eq('id', existing.id).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      invalidateGlobalSettingsCache();
+      await writeAuditEvent({ req, user: req.user!, action: 'settings.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: Object.keys(updates) } });
+      return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
+    } else {
+      const newId = crypto.randomUUID();
+      const { data, error } = await supabaseAdmin.from('global_settings').insert({
+        id: newId,
+        ...filterKnownColumns(updates),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        created_by: req.user!.id,
+        updated_by: req.user!.id
+      }).select().single();
+      if (error) return res.status(500).json({ error: error.message });
+      invalidateGlobalSettingsCache();
+      await writeAuditEvent({ req, user: req.user!, action: 'settings.created', entityType: 'GlobalSettings', entityId: newId, module: 'admin', details: { updates: Object.keys(updates) } });
+      return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
+    }
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// ── Bookings ───────────────────────────────────────────────────
+
+// Admin atomic booking endpoint — mirrors /api/public/bookings but allows
+// the front desk to specify channel/status (e.g. Walk-In → Confirmed).
+router.post('/bookings', authenticate, requirePermission('reservation:create'), async (req, res) => {
+  if (!hasSupabaseAdminConfig || !supabaseAdmin) {
+    return res.status(503).json({ error: 'Database not configured' });
+  }
+
+  const payload = req.body || {};
+  const required = ['p_guest_name', 'p_guest_email', 'p_check_in', 'p_check_out', 'p_items'];
+  const missing = required.filter(k => !payload[k]);
+  if (missing.length > 0) {
+    return res.status(400).json({ error: `Missing required fields: ${missing.join(', ')}` });
+  }
+
+  if (!Array.isArray(payload.p_items) || payload.p_items.length === 0) {
+    return res.status(400).json({ error: 'p_items must be a non-empty array' });
+  }
+
+  // create_booking_atomic does not know about voucher fields; strip them and
+  // handle them after the booking is created.
+  const { p_voucher_code, p_voucher_discount, ...rpcPayload } = payload;
+  const operatorId = payload.p_operator_id || null;
+
+  const { data: rpcResult, error: rpcError } = await supabaseAdmin.rpc('create_booking_atomic', rpcPayload);
+
+  if (rpcError) {
+    const msg: string = rpcError.message || '';
+    console.error('Admin atomic booking RPC error:', { message: msg, details: rpcError.details, hint: rpcError.hint, code: rpcError.code, payload });
+    if (msg.includes('AVAILABILITY_ERROR:')) {
+      return res.status(409).json({ error: msg.replace('AVAILABILITY_ERROR:', '').trim() });
+    }
+    return res.status(500).json({ error: 'Booking failed. Please try again.', details: msg });
+  }
+
+  const result = rpcResult as any;
+  const reservationIds = result.reservationIds || [];
+  const groupId = result.groupId || null;
+  const firstReservationId = reservationIds[0];
+
+  // Apply voucher discount and mark voucher as redeemed.
+  if (firstReservationId && p_voucher_code) {
+    try {
+      const { data: redeemData, error: redeemError } = await supabaseAdmin.rpc('redeem_voucher', {
+        p_voucher_no: p_voucher_code,
+        p_reservation_id: firstReservationId,
+        p_redeemed_by: req.user!.name || req.user!.email || 'staff'
+      });
+      if (!redeemError && redeemData) {
+        const redeemResult = redeemData as any;
+        const voucherDiscount = Number(redeemResult.net_value || p_voucher_discount || 0);
+        const { data: firstRes } = await supabaseAdmin
+          .from('reservations')
+          .select('total_amount, charges')
+          .eq('id', firstReservationId)
+          .single();
+        if (firstRes) {
+          const newTotal = Math.max(0, Number(firstRes.total_amount) - voucherDiscount);
+          const newCharges = Array.isArray(firstRes.charges) ? [...firstRes.charges] : [];
+          newCharges.push({
+            description: 'Voucher discount',
+            amount: -voucherDiscount,
+            date: new Date().toISOString()
+          });
+          await supabaseAdmin
+            .from('reservations')
+            .update({ total_amount: newTotal, charges: newCharges })
+            .eq('id', firstReservationId);
+        }
+      } else if (redeemError) {
+        console.error('Admin voucher redeem failed:', redeemError);
+      }
+    } catch (e) {
+      console.error('Voucher redemption error:', e);
+    }
+  }
+
+  // Record operator allotment pickup for each item/day.
+  if (firstReservationId && operatorId) {
+    try {
+      const { data: allotments } = await supabaseAdmin
+        .from('allotments')
+        .select('*')
+        .eq('operator_id', operatorId)
+        .gte('stay_date', payload.p_check_in)
+        .lt('stay_date', payload.p_check_out);
+
+      if (allotments && allotments.length > 0) {
+        const checkIn = new Date(payload.p_check_in);
+        const checkOut = new Date(payload.p_check_out);
+        const current = new Date(checkIn);
+        while (current < checkOut) {
+          const dateStr = current.toISOString().split('T')[0];
+          for (const item of payload.p_items) {
+            const roomTypeId = item.roomTypeId;
+            const qty = item.qty || 1;
+            const allotment = (allotments as any[]).find((a: any) =>
+              a.room_type_id === roomTypeId && a.stay_date === dateStr
+            );
+            if (allotment) {
+              await supabaseAdmin.from('allotment_pickup_log').insert({
+                allotment_id: allotment.id,
+                reservation_id: firstReservationId,
+                pickup_date: dateStr,
+                quantity: qty,
+                picked_up_by: req.user!.name || req.user!.email || 'staff',
+                notes: 'Admin group booking'
+              });
+              await supabaseAdmin.from('allotments')
+                .update({ picked_up_qty: (allotment.picked_up_qty || 0) + qty })
+                .eq('id', allotment.id);
+            }
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    } catch (e) {
+      console.error('Allotment pickup error:', e);
+    }
+  }
+
+  return res.status(201).json({
+    reservationIds: reservationIds,
+    guestIds: result.guestIds || [],
+    groupId: groupId,
+  });
+});
+
+// ── Public Booking Content ─────────────────────────────────────
+
+// Endpoint specifically for updating public page content
+router.patch('/public-booking-content', authenticate, requirePermission('settings:update'), async (req, res) => {
+
+  console.log('User attempting to update public content:', req.user!.id, req.user!.role, req.user!.username);
+
+  const { publicPageContent } = req.body || {};
+  console.log('Received publicPageContent:', JSON.stringify(publicPageContent, null, 2));
+
+  if (!publicPageContent) {
+    return res.status(400).json({ error: 'publicPageContent is required' });
+  }
+
+  // Convert camelCase to snake_case for database
+  const convertedContent = camelToSnakeRecord(publicPageContent);
+  console.log('Converted content for database:', JSON.stringify(convertedContent, null, 2));
+
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data: existing } = await supabaseAdmin.from('global_settings').select('id').maybeSingle();
+    if (existing) {
+      const { data, error } = await supabaseAdmin.from('global_settings').update({
+        public_page_content: convertedContent,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user!.id
+      }).eq('id', existing.id).select().single();
+      if (error) {
+        console.error('Error updating public content:', error);
+        return res.status(500).json({ error: error.message });
+      }
+      console.log('Successfully updated public content. Result:', JSON.stringify(data, null, 2));
+      invalidateGlobalSettingsCache();
+      await writeAuditEvent({ req, user: req.user!, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: existing.id, module: 'admin', details: { updates: 'publicPageContent' } });
+      return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
+    } else {
+      const { data, error } = await supabaseAdmin.from('global_settings').insert({
+        public_page_content: convertedContent,
+        updated_at: new Date().toISOString(),
+        updated_by: req.user!.id
+      }).select().single();
+      if (error) {
+        console.error('Error inserting public content:', error);
+        return res.status(500).json({ error: error.message });
+      }
+      console.log('Successfully inserted public content. Result:', JSON.stringify(data, null, 2));
+      invalidateGlobalSettingsCache();
+      await writeAuditEvent({ req, user: req.user!, action: 'public_content.updated', entityType: 'GlobalSettings', entityId: data.id, module: 'admin', details: { updates: 'publicPageContent' } });
+      return res.json({ success: true, settings: data ? snakeToCamelRecord(data) : {} });
+    }
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// ── Pending Admin Changes — Executive Governance Approval Queue ──
+
+router.get('/pending-changes', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    let { data, error } = await supabaseAdmin
+      .from('pending_admin_changes')
+      .select('*')
+      .order('submitted_at', { ascending: false });
+    if (error && error.code === '42P01') {
+      // Table missing — attempt to create it inline
+      await ensurePendingAdminChangesTable();
+      const result = await supabaseAdmin
+        .from('pending_admin_changes')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+      data = result.data;
+      error = result.error;
+    }
+    if (error) return res.status(500).json({ error: error.message });
+    const mapped = (data || []).map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      description: r.description,
+      changeType: r.change_type,
+      submittedAt: r.submitted_at,
+      submittedBy: r.submitted_by,
+      status: r.status,
+      payload: r.payload,
+    }));
+    return res.json(mapped);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/pending-changes', authenticate, async (req, res) => {
+  const body = req.body || {};
+  if (!body.id || !body.title || !body.changeType || !body.payload) {
+    return res.status(400).json({ error: 'id, title, changeType, and payload are required' });
+  }
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    let result = await supabaseAdmin.from('pending_admin_changes').insert({
+      id: body.id,
+      title: body.title,
+      description: body.description || '',
+      change_type: body.changeType,
+      submitted_at: body.submittedAt || new Date().toISOString(),
+      submitted_by: body.submittedBy || req.user!.name || req.user!.email,
+      status: 'Pending',
+      payload: body.payload,
+    });
+    if (result.error && result.error.code === '42P01') {
+      await ensurePendingAdminChangesTable();
+      result = await supabaseAdmin.from('pending_admin_changes').insert({
+        id: body.id,
+        title: body.title,
+        description: body.description || '',
+        change_type: body.changeType,
+        submitted_at: body.submittedAt || new Date().toISOString(),
+        submitted_by: body.submittedBy || req.user!.name || req.user!.email,
+        status: 'Pending',
+        payload: body.payload,
+      });
+    }
+    if (result.error) return res.status(500).json({ error: result.error.message });
+    await writeAuditEvent({ req, user: req.user, action: 'admin_change.submitted', module: 'governance', details: { changeId: body.id, title: body.title, changeType: body.changeType } });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/pending-changes/:id', authenticate, requirePermission('settings:update'), async (req, res) => {
+  const changeId = req.params.id;
+  const { status } = req.body || {};
+  if (status !== 'Approved' && status !== 'Declined') {
+    return res.status(400).json({ error: 'status must be Approved or Declined' });
+  }
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    let result = await supabaseAdmin
+      .from('pending_admin_changes')
+      .update({ status })
+      .eq('id', changeId);
+    if (result.error && result.error.code === '42P01') {
+      await ensurePendingAdminChangesTable();
+      result = await supabaseAdmin
+        .from('pending_admin_changes')
+        .update({ status })
+        .eq('id', changeId);
+    }
+    if (result.error) return res.status(500).json({ error: result.error.message });
+    await writeAuditEvent({ req, user: req.user, action: `admin_change.${status.toLowerCase()}`, module: 'governance', details: { changeId, status } });
+    return res.json({ success: true });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
 });
 
 export default router;

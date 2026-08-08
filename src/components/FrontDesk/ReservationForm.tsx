@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -377,7 +377,7 @@ export default function ReservationForm({
       tax: Math.round(feeBreakdown.vat_amount || 0),
       serviceCharge: Math.round(feeBreakdown.service_charge_total || 0),
       additionalFees: Math.round(feeBreakdown.non_vat_fees || 0),
-      grandTotal: Math.round(feeBreakdown.total_amount || finalTotals.subtotal)
+      grandTotal: Math.round(feeBreakdown.total_amount || totals.subtotal)
     };
   }, [totals, feeBreakdown]);
 
@@ -462,29 +462,29 @@ export default function ReservationForm({
                 disabled={idx > currentStepIndex && !touchedSteps.has(step.id)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold transition-all border ${
                   isActive
-                    ? 'bg-amber-50 text-amber-700 border-amber-200 shadow-sm'
+                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200 shadow-sm'
                     : isCompleted
                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                     : hasError
                     ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : 'bg-stone-50 text-stone-500 border-transparent hover:bg-stone-100'
+                    : 'bg-slate-50 text-slate-500 border-transparent hover:bg-slate-100'
                 } ${idx > currentStepIndex && !touchedSteps.has(step.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
               >
                 <span className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] ${
                   isActive
-                    ? 'bg-amber-200 text-amber-700'
+                    ? 'bg-indigo-200 text-indigo-700'
                     : isCompleted
                     ? 'bg-emerald-200 text-emerald-700'
                     : hasError
                     ? 'bg-rose-200 text-rose-700'
-                    : 'bg-stone-200 text-stone-500'
+                    : 'bg-slate-200 text-slate-500'
                 }`}>
                   <step.icon size={12} />
                 </span>
                 {step.label}
               </button>
               {idx < steps.length - 1 && (
-                <div className={`flex-1 h-0.5 rounded-full ${idx < currentStepIndex ? 'bg-emerald-300' : 'bg-stone-200'}`} />
+                <div className={`flex-1 h-0.5 rounded-full ${idx < currentStepIndex ? 'bg-emerald-300' : 'bg-slate-200'}`} />
               )}
             </React.Fragment>
           );
@@ -682,31 +682,91 @@ export default function ReservationForm({
               formatAmount={formatAmount}
               onDepositAmountChange={(value) => setFieldValue('depositAmount', value)}
               onDepositPaidChange={(value) => setFieldValue('isDepositPaid', value)}
+              grandTotal={Math.max(0, finalTotals.grandTotal - (formData.voucherDiscount || 0))}
             />
           </div>
         )}
       </motion.div>
+
+      {/* Sticky Live Total Bar */}
+      {finalTotals.grandTotal > 0 && currentStep !== 'summary' && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="sticky bottom-0 z-10 -mx-6 px-6 py-3 bg-white/95 backdrop-blur-sm border-t border-slate-200 shadow-lg shadow-slate-900/5"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Live Estimate</p>
+                <p className="text-lg font-black text-slate-900">
+                  {formatAmount(Math.max(0, finalTotals.grandTotal - (formData.voucherDiscount || 0)))}
+                </p>
+              </div>
+              {finalTotals.nights > 0 && (
+                <div className="h-8 w-px bg-slate-200" />
+              )}
+              {finalTotals.nights > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Per Night</p>
+                  <p className="text-sm font-bold text-indigo-600">
+                    {formatAmount(Math.round(Math.max(0, finalTotals.grandTotal - (formData.voucherDiscount || 0)) / finalTotals.nights))}
+                  </p>
+                </div>
+              )}
+              {(formData.roomSelections?.length || 0) > 0 && (
+                <>
+                  <div className="h-8 w-px bg-slate-200" />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Rooms</p>
+                    <p className="text-sm font-bold text-slate-700">
+                      {formData.roomSelections?.reduce((sum, rs) => sum + (rs.count || 0), 0) || 0}
+                    </p>
+                  </div>
+                </>
+              )}
+              {finalTotals.nights > 0 && (
+                <>
+                  <div className="h-8 w-px bg-slate-200" />
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Nights</p>
+                    <p className="text-sm font-bold text-slate-700">{finalTotals.nights}</p>
+                  </div>
+                </>
+              )}
+            </div>
+            {(formData.packageIds?.length || 0) > 0 && (
+              <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 border border-indigo-100 rounded-full">
+                <PackageIcon size={12} className="text-indigo-500" />
+                <span className="text-[10px] font-bold text-indigo-700">
+                  {(formData.packageIds?.length || 0) + (formData.guestServiceIds?.length || 0)} add-ons
+                </span>
+              </div>
+            )}
+          </div>
+        </motion.div>
+      )}
 
       {/* Navigation */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.15, duration: 0.35, ease: 'easeOut' }}
-        className="flex justify-between items-center gap-3 pt-5 border-t border-stone-200/60 dark:border-stone-700"
+        className="flex justify-between items-center gap-3 pt-5 border-t border-slate-200/60 dark:border-slate-700"
       >
         <div className="relative">
           {showDiscardConfirm && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute bottom-full mb-2 right-0 w-64 p-3 bg-white dark:bg-stone-900/30 border border-stone-200 dark:border-stone-700 rounded-xl shadow-lg dark:shadow-stone-900/20 z-10"
+              className="absolute bottom-full mb-2 right-0 w-64 p-3 bg-white dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg dark:shadow-slate-900/20 z-10"
             >
-              <p className="text-[11px] text-stone-700 dark:text-stone-300 font-medium mb-2">Unsaved changes will be lost. Discard anyway?</p>
+              <p className="text-[11px] text-slate-700 dark:text-slate-300 font-medium mb-2">Unsaved changes will be lost. Discard anyway?</p>
               <div className="flex gap-2">
                 <button
                   type="button"
                   onClick={() => setShowDiscardConfirm(false)}
-                  className="flex-1 px-3 py-1.5 bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 text-[10px] font-bold rounded-lg hover:bg-stone-200 dark:hover:bg-stone-700 transition"
+                  className="flex-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] font-bold rounded-lg hover:bg-slate-200 dark:hover:bg-slate-700 transition"
                 >
                   Keep Editing
                 </button>
@@ -723,7 +783,7 @@ export default function ReservationForm({
           <button
             type="button"
             onClick={handleDiscardClick}
-            className="px-6 py-2.5 bg-white dark:bg-stone-900/30 border border-stone-200/80 dark:border-stone-700 text-stone-600 dark:text-stone-300 font-sans font-bold text-xs rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/50 hover:border-stone-300 dark:hover:border-stone-600 transition-all duration-200 hover:shadow-sm dark:hover:shadow-stone-900/20 active:scale-[0.98]"
+            className="px-6 py-2.5 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-sans font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-sm dark:hover:shadow-slate-900/20 active:scale-[0.98]"
           >
             Discard Changes
           </button>
@@ -734,7 +794,7 @@ export default function ReservationForm({
             <button
               type="button"
               onClick={handleBack}
-              className="px-6 py-2.5 bg-white dark:bg-stone-900/30 border border-stone-200/80 dark:border-stone-700 text-stone-600 dark:text-stone-300 font-sans font-bold text-xs rounded-xl hover:bg-stone-50 dark:hover:bg-stone-800/50 hover:border-stone-300 dark:hover:border-stone-600 transition-all duration-200 hover:shadow-sm dark:hover:shadow-stone-900/20 active:scale-[0.98]"
+              className="px-6 py-2.5 bg-white dark:bg-slate-900/30 border border-slate-200/80 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-sans font-bold text-xs rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 hover:shadow-sm dark:hover:shadow-slate-900/20 active:scale-[0.98]"
             >
               Back
             </button>
@@ -743,7 +803,7 @@ export default function ReservationForm({
             <button
               type="button"
               onClick={handleNext}
-              className="px-8 py-2.5 bg-stone-900 hover:bg-stone-800 text-white font-sans font-bold text-xs rounded-xl hover:shadow-lg active:scale-[0.98] shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.02]"
+              className="px-8 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-sans font-bold text-xs rounded-xl hover:shadow-lg active:scale-[0.98] shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.02]"
             >
               Continue
               <ArrowRight size={14} />
@@ -753,7 +813,7 @@ export default function ReservationForm({
               type="submit"
               disabled={isSubmitting || !isValid}
               title={!isValid ? 'Fix validation errors before submitting' : undefined}
-              className="px-8 py-2.5 bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:cursor-not-allowed text-white font-sans font-bold text-xs rounded-xl hover:shadow-lg active:scale-[0.98] shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.02] disabled:shadow-sm"
+              className="px-8 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-sans font-bold text-xs rounded-xl hover:shadow-lg active:scale-[0.98] shadow-md flex items-center gap-2 transition-all duration-200 hover:scale-[1.02] disabled:shadow-sm"
             >
               {isSubmitting ? 'Synchronizing...' : initialData?.id ? 'Commit Updates to PMS' : 'Finalize Reservation'}
               <ArrowRight size={14} />

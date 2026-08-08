@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { useERP } from '../../context/ERPContext';
 import { RoomType, Reservation, BookingChannel, ReservationStatus } from '../../types/erp';
-import { rangesOverlap } from '../../services/allocationService';
+import { rangesOverlap, findAvailableRoomForType } from '../../services/allocationService';
 import { toISODate } from '../../utils/date';
 import ReservationsForecasting from './ReservationsForecasting';
 import ModernCalendar from './ModernCalendar';
@@ -313,6 +313,12 @@ export default function ReservationsModule({
     return Math.max(1, Math.round(diff / (1000 * 60 * 60 * 24)));
   };
 
+  // Check-in is only permitted on the reservation's check-in date.
+  // Returns true when the reservation's check-in date matches the current system date.
+  const isCheckInAllowedToday = (checkInDate: string): boolean => {
+    return checkInDate === currentSystemDate;
+  };
+
   // Find a vacant clean room matching selected type for rapid walkin,
   // excluding rooms already assigned to a confirmed/checked-in reservation with overlapping dates.
   const walkInCheckIn = currentSystemDate;
@@ -341,7 +347,7 @@ export default function ReservationsModule({
     return roomOfType?.rate || 150;
   };
 
-  const handleWalkinSubmit = (e: React.FormEvent) => {
+  const handleWalkinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!waName || !waEmail || !availableRoomForWalkin) return;
 
@@ -384,30 +390,45 @@ export default function ReservationsModule({
       });
     }
 
-    // Rate calculations
-    const baseRaw = waType === 'Single' ? 120 : waType === 'Double' ? 180 : waType === 'Suite' ? 350 : waType === 'Deluxe' ? 260 : 650;
-    const base = Math.round(baseRaw * getYieldMultiplier());
-    const total = base * waNights;
+    // Rate calculations — use the same rate-plan + seasonal + yield logic as the
+    // reservation form so walk-in totals stay consistent with quoted rates.
+    const typeRate = getDailyRateForType(waType);
+    let total = 0;
+    for (let idx = 0; idx < waNights; idx++) {
+      const d = new Date(walkInCheckIn);
+      d.setDate(d.getDate() + idx);
+      const multi = getSeasonalMultiplier(toISODate(d), seasons);
+      total += typeRate * multi * getYieldMultiplier();
+    }
+    total = Math.round(total);
+    const base = waNights > 0 ? Math.round(total / waNights) : Math.round(typeRate * getYieldMultiplier());
 
     // Create reservation
-    const resId = addReservation({
-      guestName: waName,
-      guestEmail: waEmail,
-      guestPhone: waPhone,
-      guestStatus: 'Regular',
-      roomType: waType,
-      roomNumber: availableRoomForWalkin.number,
-      checkInDate: checkInStr,
-      checkOutDate: checkOutStr,
-      adults: 1,
-      children: 0,
-      status: 'Confirmed',
-      rate: base,
-      totalAmount: total,
-      channel: 'Walk-In',
-      paymentStatus: 'Unpaid',
-      notes: 'Direct Walk-In Desk Check'
-    });
+    let resId: string;
+    try {
+      resId = await addReservation({
+        guestName: waName,
+        guestEmail: waEmail,
+        guestPhone: waPhone,
+        guestStatus: 'Regular',
+        roomType: waType,
+        roomNumber: availableRoomForWalkin.number,
+        checkInDate: checkInStr,
+        checkOutDate: checkOutStr,
+        adults: 1,
+        children: 0,
+        status: 'Confirmed',
+        rate: base,
+        totalAmount: total,
+        channel: 'Walk-In',
+        paymentStatus: 'Unpaid',
+        notes: 'Direct Walk-In Desk Check'
+      });
+    } catch (err: any) {
+      setWaSuccess(`Cannot check in: ${err?.message || 'Room is already booked for the selected dates.'}`);
+      setTimeout(() => setWaSuccess(''), 6000);
+      return;
+    }
 
     // Check-in immediately!
     checkInReservation(resId, availableRoomForWalkin.number);
@@ -572,7 +593,7 @@ export default function ReservationsModule({
     return (
       <div className="flex flex-wrap gap-1">
         {items.map((item, i) => (
-          <span key={i} className="px-1.5 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-semibold rounded border border-amber-200/60">
+          <span key={i} className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 text-[10px] font-semibold rounded border border-indigo-200/60">
             {item.label}{item.quantity > 1 ? ` ×${item.quantity}` : ''}
           </span>
         ))}
@@ -588,12 +609,29 @@ export default function ReservationsModule({
     if (editingReservation) {
       const firstSelection = data.roomSelections && data.roomSelections.length > 0 ? data.roomSelections[0] : null;
       const selectedRoomFromNights = firstSelection?.roomNights?.flat().find(r => r && r.trim() !== '') || undefined;
+      const explicitRoomNumber = selectedRoomFromNights || firstSelection?.roomNumbers?.[0] || undefined;
+      const effectiveRoomType = firstSelection ? firstSelection.roomType : data.roomType;
+      // Auto-assign an appropriate room when none was explicitly selected.
+      // Only confirmed-consuming statuses (Confirmed / CheckedIn) should grab a
+      // physical room; Waitlisted bookings get a room during promotion flow.
+      const shouldAutoAssign = !explicitRoomNumber &&
+        (editingReservation.status === 'Confirmed' || editingReservation.status === 'CheckedIn');
+      const autoRoomNumber = shouldAutoAssign
+        ? findAvailableRoomForType(
+            effectiveRoomType as string,
+            data.checkInDate,
+            data.checkOutDate,
+            rooms,
+            reservations.filter(r => r.id !== editingReservation.id),
+            new Set(editingReservation.roomNumber ? [editingReservation.roomNumber] : [])
+          ) || undefined
+        : undefined;
       updateReservation(editingReservation.id, {
         guestName: data.guestName,
         guestEmail: data.guestEmail,
         guestPhone: data.guestPhone || '',
-        roomType: firstSelection ? firstSelection.roomType : data.roomType,
-        roomNumber: selectedRoomFromNights || firstSelection?.roomNumbers?.[0] || undefined,
+        roomType: effectiveRoomType,
+        roomNumber: explicitRoomNumber || autoRoomNumber,
         roomNights: firstSelection?.roomNights || undefined,
         checkInDate: data.checkInDate,
         checkOutDate: data.checkOutDate,
@@ -614,7 +652,7 @@ export default function ReservationsModule({
         guestVatDate: data.guestVatDate,
         isGroup: data.bookingType === 'Group',
         bookingGroupId: data.bookingGroupId || undefined,
-        groupBookingId: data.groupName || undefined,
+        groupBookingId: data.bookingGroupId || undefined,
         corporateAccountId: data.corporateAccountId || undefined,
         operatorId: data.operatorId || undefined
       });
@@ -672,11 +710,27 @@ export default function ReservationsModule({
           }
         }
         
-        // Update each reservation with form data and room assignment, then promote
+        // Update each reservation with form data and room assignment, then promote.
+        // Auto-assign an appropriate room when none was explicitly selected, since
+        // these reservations are being promoted to Confirmed (consuming inventory).
+        const groupAutoAssigned = new Set<string>();
         groupReservations.forEach((res, idx) => {
-          const assignedRoom = roomAssignmentMap.get(res.id) || 
+          const explicitRoom = roomAssignmentMap.get(res.id) ||
             (data.roomSelections && data.roomSelections.length > 0 && data.roomSelections[0].roomNumbers && data.roomSelections[0].roomNumbers[idx]) ||
             undefined;
+          const assignedRoom = (explicitRoom && explicitRoom.trim() !== '')
+            ? explicitRoom
+            : (findAvailableRoomForType(
+                data.roomType as string,
+                data.checkInDate,
+                data.checkOutDate,
+                rooms,
+                reservations.filter(r => r.id !== res.id),
+                groupAutoAssigned
+              ) || undefined);
+          if (assignedRoom) {
+            groupAutoAssigned.add(assignedRoom);
+          }
           
           // Find or create guest profile with proper group linkage
           let guestId = guests.find(g => 
@@ -739,7 +793,7 @@ export default function ReservationsModule({
             guestVatDate: data.guestVatDate,
             isGroup: true,
             bookingGroupId: finalGroupId,
-            groupBookingId: data.groupName || res.groupBookingId,
+            groupBookingId: finalGroupId || res.groupBookingId,
             corporateAccountId: data.corporateAccountId || undefined,
             operatorId: data.operatorId || undefined
           });
@@ -757,6 +811,19 @@ export default function ReservationsModule({
           const selections = data.roomSelections && data.roomSelections.length > 0
             ? data.roomSelections
             : [{ roomType: data.roomType, count: 1, roomNumbers: [], roomNights: [] }];
+
+          // Availability guard: only confirmed (Walk-In) bookings consume physical
+          // inventory. Mirror the local-fallback check so a client-side mistake
+          // can't push an overbooking to the server RPC.
+          if (data.channel === 'Walk-In') {
+            for (const sel of selections) {
+              const availability = getTypeAvailability(sel.roomType, data.checkInDate, data.checkOutDate);
+              if (availability.available < (sel.count || 1)) {
+                alert(`Cannot create confirmed booking: only ${availability.available} ${sel.roomType} room(s) available for ${data.checkInDate} → ${data.checkOutDate}. You requested ${sel.count || 1}.`);
+                return;
+              }
+            }
+          }
 
           let roomSubtotal = 0;
           const p_items = selections.map((sel) => {
@@ -845,19 +912,36 @@ export default function ReservationsModule({
             await updateGroupBookingStatus(atomicGroupId, 'Confirmed');
           }
 
+          // Auto-assign rooms only for confirmed (Walk-In) bookings, which
+          // consume physical inventory. Waitlisted bookings stay unassigned.
+          const isConfirmedBatch = data.channel === 'Walk-In';
+          const autoAssignedInBatch = new Set<string>();
+
           let currentIdIndex = 0;
           for (const sel of selections) {
             const count = sel.count || 1;
-            if (sel.roomNumbers && Array.isArray(sel.roomNumbers)) {
-              for (let i = 0; i < count && currentIdIndex < reservationIds.length; i++) {
-                const roomNumber = sel.roomNumbers[i];
-                if (roomNumber) {
-                  await supabase.from('reservations').update({ room_number: roomNumber }).eq('id', reservationIds[currentIdIndex]);
-                }
-                currentIdIndex++;
+            const hasRoomNumbers = !!(sel.roomNumbers && Array.isArray(sel.roomNumbers));
+            const selRoomNumbers = sel.roomNumbers || [];
+            for (let i = 0; i < count && currentIdIndex < reservationIds.length; i++) {
+              const roomNumber = hasRoomNumbers ? selRoomNumbers[i] : undefined;
+              const finalRoomNumber = roomNumber && roomNumber.trim() !== ''
+                ? roomNumber
+                : (isConfirmedBatch
+                    ? findAvailableRoomForType(
+                        sel.roomType,
+                        data.checkInDate,
+                        data.checkOutDate,
+                        rooms,
+                        reservations,
+                        autoAssignedInBatch
+                      ) || undefined
+                    : undefined);
+
+              if (finalRoomNumber) {
+                await supabase.from('reservations').update({ room_number: finalRoomNumber }).eq('id', reservationIds[currentIdIndex]);
+                autoAssignedInBatch.add(finalRoomNumber);
               }
-            } else {
-              currentIdIndex += count;
+              currentIdIndex++;
             }
           }
 
@@ -1049,6 +1133,10 @@ export default function ReservationsModule({
 
       let createdCount = 0;
       const createdIds: string[] = [];
+      // Track rooms auto-assigned within this batch so we don't double-assign
+      // the same physical room to multiple reservations in one submission.
+      const autoAssignedInBatch = new Set<string>();
+      const isConfirmedBatch = data.channel === 'Walk-In';
 
       for (const sel of selections) {
         const typeRate = getDailyRateForType(sel.roomType, data.ratePlanId, data.promoCode);
@@ -1078,7 +1166,50 @@ export default function ReservationsModule({
         const totalAmount = Math.round(roomTotal + packageTotal + serviceTotal);
 
         for (let i = 0; i < sel.count; i++) {
-          const roomNumber = sel.roomNumbers && sel.roomNumbers.length > i ? sel.roomNumbers[i] : undefined;
+          const explicitRoomNumber = sel.roomNumbers && sel.roomNumbers.length > i ? sel.roomNumbers[i] : undefined;
+          // Auto-assign an appropriate room when none was explicitly selected.
+          // Only confirmed (Walk-In) bookings consume physical inventory, so
+          // waitlisted bookings are left unassigned for later promotion.
+          const roomNumber = (explicitRoomNumber && explicitRoomNumber.trim() !== '')
+            ? explicitRoomNumber
+            : (isConfirmedBatch
+                ? findAvailableRoomForType(
+                    sel.roomType,
+                    data.checkInDate,
+                    data.checkOutDate,
+                    rooms,
+                    reservations,
+                    autoAssignedInBatch
+                  ) || undefined
+                : undefined);
+
+          // Guard against double-assigning a room within the same batch
+          // (explicit selection could collide with an earlier auto/explicit pick).
+          if (roomNumber && autoAssignedInBatch.has(roomNumber)) {
+            setSuccessMsg(`Room ${roomNumber} was already assigned to another room in this booking. Please choose a different room.`);
+            setTimeout(() => setSuccessMsg(''), 6000);
+            return;
+          }
+
+          // For confirmed bookings, also check the room isn't already booked by
+          // an existing reservation (the addReservation guard uses a stale
+          // closure during batch loops, so check here with fresh data too).
+          if (roomNumber && isConfirmedBatch) {
+            const conflict = reservations.find(r =>
+              r.roomNumber === roomNumber &&
+              (r.status === 'Confirmed' || r.status === 'CheckedIn') &&
+              rangesOverlap(data.checkInDate, data.checkOutDate, r.checkInDate, r.checkOutDate)
+            );
+            if (conflict) {
+              setSuccessMsg(`Room ${roomNumber} is already booked by reservation ${conflict.id} (${conflict.guestName}). Please choose a different room.`);
+              setTimeout(() => setSuccessMsg(''), 6000);
+              return;
+            }
+          }
+
+          if (roomNumber) {
+            autoAssignedInBatch.add(roomNumber);
+          }
 
           // For group bookings, create a guest profile for each room
           let roomGuestId = guestId;
@@ -1126,39 +1257,46 @@ export default function ReservationsModule({
             guestIdsForRooms.push(roomGuestId);
           }
 
-          const resId = addReservation({
-            guestName: data.guestName,
-            guestEmail: data.guestEmail,
-            guestPhone: data.guestPhone || '',
-            guestStatus: 'Regular',
-            roomType: sel.roomType,
-            roomNumber,
-            checkInDate: data.checkInDate,
-            checkOutDate: data.checkOutDate,
-            adults: data.adults,
-            children: data.children,
-            status: data.channel === 'Walk-In' ? 'Confirmed' : 'Waitlisted',
-            rate: typeRate,
-            totalAmount,
-            channel: data.channel as BookingChannel,
-            paymentStatus: 'Unpaid',
-            notes: data.specialRequests,
-            depositAmount: data.depositAmount,
-            isDepositPaid: data.isDepositPaid,
-            ratePlanId: data.ratePlanId,
-            packageIds: data.packageIds,
-            guestServiceIds: data.guestServiceIds,
-            additionalGuestIds: data.bookingType === 'Group' && data.groupName ? guestIdsForRooms : data.additionalGuestIds,
-            guestId: roomGuestId || guestId,
-            guestTin: data.guestTin,
-            guestVatNo: data.guestVatNo,
-            guestVatDate: data.guestVatDate,
-            isGroup: data.bookingType === 'Group',
-            bookingGroupId: groupId,
-            groupId,
-            groupBookingId: data.groupName || undefined,
-            corporateAccountId: data.corporateAccountId || undefined
-          });
+          let resId: string;
+          try {
+            resId = await addReservation({
+              guestName: data.guestName,
+              guestEmail: data.guestEmail,
+              guestPhone: data.guestPhone || '',
+              guestStatus: 'Regular',
+              roomType: sel.roomType,
+              roomNumber,
+              checkInDate: data.checkInDate,
+              checkOutDate: data.checkOutDate,
+              adults: data.adults,
+              children: data.children,
+              status: data.channel === 'Walk-In' ? 'Confirmed' : 'Waitlisted',
+              rate: typeRate,
+              totalAmount,
+              channel: data.channel as BookingChannel,
+              paymentStatus: 'Unpaid',
+              notes: data.specialRequests,
+              depositAmount: data.depositAmount,
+              isDepositPaid: data.isDepositPaid,
+              ratePlanId: data.ratePlanId,
+              packageIds: data.packageIds,
+              guestServiceIds: data.guestServiceIds,
+              additionalGuestIds: data.bookingType === 'Group' && data.groupName ? guestIdsForRooms : data.additionalGuestIds,
+              guestId: roomGuestId || guestId,
+              guestTin: data.guestTin,
+              guestVatNo: data.guestVatNo,
+              guestVatDate: data.guestVatDate,
+              isGroup: data.bookingType === 'Group',
+              bookingGroupId: groupId,
+              groupId,
+              groupBookingId: groupId || undefined,
+              corporateAccountId: data.corporateAccountId || undefined
+            });
+          } catch (err: any) {
+            setSuccessMsg(`Cannot create reservation: ${err?.message || 'Room is already booked for the selected dates.'}`);
+            setTimeout(() => setSuccessMsg(''), 6000);
+            return;
+          }
           createdCount++;
           createdIds.push(resId);
         }
@@ -1234,7 +1372,7 @@ export default function ReservationsModule({
   return (
     <div className="space-y-6" id="reservations-module-container block">
       {/* Reservations Sub tabs */}
-      <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 text-[10px] sm:text-xs font-mono font-medium text-slate-500 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/50 rounded-2xl p-1 sm:p-1.5 border border-slate-200/80 dark:border-slate-700/80 card-shadow">
+      <div className="flex gap-1 sm:gap-1.5 overflow-x-auto pb-1 text-[10px] sm:text-xs font-mono font-medium text-slate-500 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-900/50 dark:to-slate-800/50 rounded-xl p-1 sm:p-1.5 border border-slate-200/80 dark:border-slate-700/80 card-shadow">
         <button
           onClick={() => setActiveTab('walkin')}
           className={`px-2 sm:px-4 py-2 sm:py-2.5 flex items-center gap-1 sm:gap-2 rounded-xl transition-all duration-200 relative group smooth-transition ${
@@ -1243,10 +1381,10 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <UserPlus size={12} sm:size={14} className={activeTab === 'walkin' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <UserPlus size={12} sm:size={14} className={activeTab === 'walkin' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Walk-in Check-in</span>
           <span className="sm:hidden">Walk-in</span>
-          {activeTab === 'walkin' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'walkin' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
           onClick={() => {
@@ -1262,10 +1400,10 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <List size={12} sm:size={14} className={activeTab === 'form' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <List size={12} sm:size={14} className={activeTab === 'form' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Bookings Registry</span>
           <span className="sm:hidden">Bookings</span>
-          {activeTab === 'form' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'form' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
           onClick={() => {
@@ -1281,10 +1419,10 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <Calendar size={12} sm:size={14} className={activeTab === 'calendar' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <Calendar size={12} sm:size={14} className={activeTab === 'calendar' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Rooms Outlook</span>
           <span className="sm:hidden">Outlook</span>
-          {activeTab === 'calendar' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'calendar' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
           onClick={() => setActiveTab('ota')}
@@ -1294,10 +1432,10 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <Globe size={12} sm:size={14} className={activeTab === 'ota' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <Globe size={12} sm:size={14} className={activeTab === 'ota' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Channel Manager</span>
           <span className="sm:hidden">OTA</span>
-          {activeTab === 'ota' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'ota' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
           onClick={() => setActiveTab('forecast')}
@@ -1320,10 +1458,10 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <DollarSign size={12} sm:size={14} className={activeTab === 'revenue' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <DollarSign size={12} sm:size={14} className={activeTab === 'revenue' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Revenue & Sales</span>
           <span className="sm:hidden">Revenue</span>
-          {activeTab === 'revenue' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'revenue' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
         <button
           onClick={() => setActiveTab('series')}
@@ -1333,16 +1471,16 @@ export default function ReservationsModule({
               : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-700/50'
           }`}
         >
-          <Repeat size={12} sm:size={14} className={activeTab === 'series' ? 'text-amber-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
+          <Repeat size={12} sm:size={14} className={activeTab === 'series' ? 'text-indigo-500' : 'text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300'} />
           <span className="hidden sm:inline">Recurring Series</span>
           <span className="sm:hidden">Series</span>
-          {activeTab === 'series' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-500 rounded-full mx-1 sm:mx-2" />}
+          {activeTab === 'series' && <div className="absolute inset-x-0 bottom-0 h-0.5 bg-gradient-to-r from-indigo-400 to-indigo-500 rounded-full mx-1 sm:mx-2" />}
         </button>
       </div>
 
       {/* RENDER ACTIVE SCREEN */}
       {activeTab === 'walkin' && (
-        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-6 card-shadow hover:card-shadow-hover transition-all duration-300 space-y-4 sm:space-y-5 animate-fade-in smooth-transition" id="walkin-view">
+        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl p-4 sm:p-6 card-shadow hover:card-shadow-hover transition-all duration-300 space-y-4 sm:space-y-5 animate-fade-in smooth-transition" id="walkin-view">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
               <h3 className="text-sm sm:text-base font-sans font-black text-slate-900 dark:text-white tracking-tight">Rapid Walk-In Registry</h3>
@@ -1456,7 +1594,7 @@ export default function ReservationsModule({
       )}
 
       {activeTab === 'form' && (
-        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm hover:shadow-md transition-all duration-300 space-y-5 animate-fade-in" id="bookings-registry-view">
+        <div className="bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-950/30 border border-slate-200 dark:border-slate-800 rounded-xl p-6 shadow-sm hover:shadow-md transition-all duration-300 space-y-5 animate-fade-in" id="bookings-registry-view">
           {/* Header row */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
@@ -1473,7 +1611,7 @@ export default function ReservationsModule({
                   setPromotingGroupRes(null);
                   setIsNewBookingOpen(true);
                 }}
-                className="px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-900 font-sans font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="px-5 py-2.5 bg-gradient-to-r from-indigo-400 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-slate-900 font-sans font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Plus size={14} className="stroke-[3]" /> Create New Reservation
               </button>
@@ -1481,16 +1619,16 @@ export default function ReservationsModule({
 
           <>
               {/* Filters shelf */}
-          <div className="p-5 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-800/50 dark:to-slate-900/30 border border-slate-200/80 dark:border-slate-700/80 rounded-2xl shadow-sm flex flex-col items-center gap-4 space-y-4 md:space-y-0">
+          <div className="p-5 bg-gradient-to-br from-slate-50 to-slate-100/50 dark:from-slate-800/50 dark:to-slate-900/30 border border-slate-200/80 dark:border-slate-700/80 rounded-xl shadow-sm flex flex-col items-center gap-4 space-y-4 md:space-y-0">
             <div className="w-full flex flex-col md:flex-row items-center gap-3">
               <div className="w-full md:flex-1 relative group">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors" />
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                 <input
                   type="text"
                   placeholder="Search by guest name, email, phone, or reservation reference ID..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-200 shadow-sm"
+                  className="w-full pl-9 pr-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-200 shadow-sm"
                 />
               </div>
 
@@ -1499,7 +1637,7 @@ export default function ReservationsModule({
                   <select
                     value={viewMode}
                     onChange={(e) => setViewMode(e.target.value as 'all' | 'individual' | 'groups')}
-                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 cursor-pointer transition-all duration-200 shadow-sm appearance-none"
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 cursor-pointer transition-all duration-200 shadow-sm appearance-none"
                   >
                     <option value="all">All Bookings</option>
                     <option value="individual">Individual Only</option>
@@ -1553,7 +1691,7 @@ export default function ReservationsModule({
                   <select
                     value={filterRoomType}
                     onChange={(e) => setFilterRoomType(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 cursor-pointer transition-all duration-200 shadow-sm appearance-none"
+                    className="w-full px-3 py-2.5 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-sans font-medium text-slate-600 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 cursor-pointer transition-all duration-200 shadow-sm appearance-none"
                   >
                     <option value="All">All Categories</option>
                     {uniqueRoomTypes.map(type => (
@@ -1569,23 +1707,23 @@ export default function ReservationsModule({
                   <span className="text-[10px] font-mono uppercase text-slate-500 dark:text-slate-400 font-bold shrink-0">Dates:</span>
                   <div className="flex items-center gap-2 flex-1">
                     <div className="relative flex-1 group">
-                      <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors pointer-events-none" />
+                      <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
                       <input 
                         type="date"
                         value={filterCheckInDate}
                         onChange={(e) => setFilterCheckInDate(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 transition-all duration-200 shadow-sm"
+                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 transition-all duration-200 shadow-sm"
                         title="Filter by Check-In Date"
                       />
                     </div>
                     <span className="text-slate-400 dark:text-slate-500 font-light">→</span>
                     <div className="relative flex-1 group">
-                      <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors pointer-events-none" />
+                      <Calendar size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors pointer-events-none" />
                       <input 
                         type="date"
                         value={filterCheckOutDate}
                         onChange={(e) => setFilterCheckOutDate(e.target.value)}
-                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 dark:focus:border-amber-500 transition-all duration-200 shadow-sm"
+                        className="w-full pl-8 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 dark:focus:border-indigo-500 transition-all duration-200 shadow-sm"
                         title="Filter by Check-Out Date"
                       />
                     </div>
@@ -1610,7 +1748,7 @@ export default function ReservationsModule({
           </div>
 
           {/* Bookings Table / Grid */}
-          <div className="w-full max-w-full overflow-x-auto rounded-2xl border border-slate-200/60 dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/20 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm">
+          <div className="w-full max-w-full overflow-x-auto rounded-xl border border-slate-200/60 dark:border-slate-700 shadow-lg shadow-slate-200/50 dark:shadow-slate-900/20 bg-white/50 dark:bg-slate-900/30 backdrop-blur-sm">
             <table className="w-full text-left text-sm text-slate-700 dark:text-slate-200 border-collapse table-fixed" style={{ tableLayout: 'fixed' }}>
               <thead>
                 <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/60 dark:border-slate-700 font-sans text-xs font-semibold text-slate-500 dark:text-slate-400 tracking-wide">
@@ -1725,19 +1863,26 @@ export default function ReservationsModule({
                                   className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 transition-colors"
                                 >
                                   {isExpanded ? <ChevronDown size={16} /> : <ChevronRightIcon size={16} />}
-                                  <span className="font-mono font-bold text-sm">{groupId}</span>
+                                  <span className="font-mono text-[10px] font-bold uppercase tracking-wide text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200/60">GROUP</span>
                                 </button>
                               </td>
                               <td className="py-3 px-5">
-                                <div className="flex items-center gap-2">
-                                  <Users2 size={14} className="text-indigo-500" />
-                                  <span className="font-semibold text-indigo-700">{group?.groupName || 'No Group'}</span>
+                                <div className="flex items-center gap-1" title="Group Reservation ID">
+                                  <Users2 size={12} className="text-indigo-500" />
+                                  <span className="font-mono font-semibold text-xs text-indigo-700 bg-indigo-50/80 px-2.5 py-1 rounded-lg border border-indigo-200/60">{groupId}</span>
                                 </div>
                               </td>
                               <td className="py-3 px-5">
-                                <div className="text-xs text-slate-600">
-                                  <div className="font-semibold">{totalRooms} Rooms</div>
-                                  <div className="text-slate-500">{totalGuests} Guests</div>
+                                <div className="flex flex-col gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                    <Users2 size={14} className="text-indigo-500" />
+                                    <span className="font-semibold text-indigo-700">{group?.groupName || 'No Group'}</span>
+                                  </div>
+                                  <div className="text-xs text-slate-600">
+                                    <span className="font-semibold">{totalRooms} Rooms</span>
+                                    <span className="text-slate-400 mx-1">·</span>
+                                    <span className="text-slate-500">{totalGuests} Guests</span>
+                                  </div>
                                 </div>
                               </td>
                               <td className="py-3 px-5 text-xs text-slate-600 italic">—</td>
@@ -1956,7 +2101,13 @@ export default function ReservationsModule({
                                               onClick={() => {
                                                 onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                                               }}
-                                              className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                                              disabled={!isCheckInAllowedToday(res.checkInDate)}
+                                              title={isCheckInAllowedToday(res.checkInDate) ? 'Check In' : `Check-in is only allowed on ${res.checkInDate}. Today is ${currentSystemDate}.`}
+                                              className={`px-3 py-1.5 font-sans font-semibold text-xs rounded-lg shadow-sm transition-all duration-200 ${
+                                                isCheckInAllowedToday(res.checkInDate)
+                                                  ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-md cursor-pointer'
+                                                  : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                              }`}
                                             >
                                               Check In
                                             </button>
@@ -1968,7 +2119,7 @@ export default function ReservationsModule({
                                                 setPromotingGroupRes(null);
                                                 setIsNewBookingOpen(true);
                                               }}
-                                              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
+                                              className="px-3 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-semibold rounded-lg transition-colors"
                                             >
                                               Assign Rm
                                             </button>
@@ -2019,7 +2170,7 @@ export default function ReservationsModule({
                                       {res.status === 'Cancelled' && (
                                         <button
                                           onClick={() => updateReservationStatus(res.id, 'Confirmed')}
-                                          className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                                          className="px-3 py-1.5 bg-gradient-to-r from-indigo-400 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-slate-950 font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                                           title="Approve Booking"
                                         >
                                           Approve
@@ -2092,7 +2243,7 @@ export default function ReservationsModule({
                               </span>
                             )}
                             <span className={`px-2 py-0.5 font-mono text-[10px] font-semibold rounded-md uppercase ${
-                              res.guestStatus === 'VIP' ? 'bg-amber-100 text-amber-900 border border-amber-200/60' :
+                              res.guestStatus === 'VIP' ? 'bg-indigo-100 text-indigo-900 border border-indigo-200/60' :
                               res.guestStatus === 'Loyalty Member' ? 'bg-indigo-100 text-indigo-950 border border-indigo-200/60' : 'bg-slate-100 text-slate-600 border border-slate-200/60'
                             }`}>
                               {res.guestStatus}
@@ -2110,14 +2261,14 @@ export default function ReservationsModule({
                                   <div className="flex items-center gap-1 text-[10px] text-indigo-600 font-mono">
                                     <Users2 size={10} />
                                     <span className="font-semibold">{guest.parentGroupId}</span>
-                                    {guest.isPrimaryContact && <Star size={8} className="text-amber-500 fill-amber-500" />}
+                                    {guest.isPrimaryContact && <Star size={8} className="text-indigo-500 fill-indigo-500" />}
                                   </div>
                                 )}
                                 {guest.parentCorporateId && (
                                   <div className="flex items-center gap-1 text-[10px] text-emerald-600 font-mono">
                                     <Building2 size={10} />
                                     <span className="font-semibold">{corporateAccounts.find(c => c.id === guest.parentCorporateId)?.companyName || guest.parentCorporateId}</span>
-                                    {guest.isPrimaryContact && <Star size={8} className="text-amber-500 fill-amber-500" />}
+                                    {guest.isPrimaryContact && <Star size={8} className="text-indigo-500 fill-indigo-500" />}
                                   </div>
                                 )}
                               </div>
@@ -2157,7 +2308,7 @@ export default function ReservationsModule({
                         </td>
 
                         {/* Nights */}
-                        <td className="py-4 px-5 text-center font-mono text-sm font-semibold text-amber-600">
+                        <td className="py-4 px-5 text-center font-mono text-sm font-semibold text-indigo-600">
                           {nights}
                         </td>
 
@@ -2195,7 +2346,7 @@ export default function ReservationsModule({
                               </span>
                             ) : (
                               <div className="space-y-1.5">
-                                <span className="px-2.5 py-1 bg-amber-50/80 text-amber-800 font-mono text-xs font-semibold rounded-md block text-center border border-amber-200/60 uppercase tracking-wider">
+                                <span className="px-2.5 py-1 bg-indigo-50/80 text-indigo-800 font-mono text-xs font-semibold rounded-md block text-center border border-indigo-200/60 uppercase tracking-wider">
                                   Unassigned
                                 </span>
                                 {res.status === 'Confirmed' && vacantRoomsOfType.length > 0 && (
@@ -2204,7 +2355,7 @@ export default function ReservationsModule({
                                       const rmNum = e.target.value;
                                       if (rmNum) assignRoomToReservation(res.id, rmNum);
                                     }}
-                                    className="w-full px-2 py-1.5 bg-white border border-slate-200/60 rounded-md text-xs font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-400 cursor-pointer transition-all duration-200"
+                                    className="w-full px-2 py-1.5 bg-white border border-slate-200/60 rounded-md text-xs font-mono text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 cursor-pointer transition-all duration-200"
                                     defaultValue=""
                                   >
                                     <option value="">Assign...</option>
@@ -2247,7 +2398,7 @@ export default function ReservationsModule({
                           <div className="font-semibold text-slate-900 text-sm">{formatAmount(safeNumber(res.totalAmount))}</div>
                           <span className={`mt-1 inline-block px-2 py-0.5 font-mono text-[10px] font-semibold rounded-md uppercase ${
                             res.paymentStatus === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/60' :
-                            res.paymentStatus === 'Partial' ? 'bg-amber-100 text-amber-800 border border-amber-200/60' : 'bg-rose-100 text-rose-800 border border-rose-200/60'
+                            res.paymentStatus === 'Partial' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200/60' : 'bg-rose-100 text-rose-800 border border-rose-200/60'
                           }`}>
                             {res.paymentStatus}
                           </span>
@@ -2266,7 +2417,7 @@ export default function ReservationsModule({
                                 className={`px-2.5 py-1 rounded-lg font-sans font-semibold text-xs uppercase inline-block w-fit cursor-pointer transition-all duration-200 hover:shadow-sm ${
                                   res.isDepositPaid
                                     ? 'bg-emerald-50/80 text-emerald-700 border border-emerald-200/60 hover:bg-emerald-100'
-                                    : 'bg-amber-50/80 text-amber-700 border border-amber-200/60 hover:bg-amber-100'
+                                    : 'bg-indigo-50/80 text-indigo-700 border border-indigo-200/60 hover:bg-indigo-100'
                                 }`}
                               >
                                 {res.isDepositPaid ? 'Received' : 'Pending'}
@@ -2298,7 +2449,7 @@ export default function ReservationsModule({
                             res.status === 'CheckedIn' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/60' :
                             res.status === 'Confirmed' ? 'bg-sky-50 text-sky-700 border border-sky-200/60' :
                             res.status === 'Cancelled' ? 'bg-rose-50 text-rose-700 border border-rose-200/60' :
-                            res.status === 'Waitlisted' ? 'bg-amber-100 text-amber-800 border border-amber-200/60' :
+                            res.status === 'Waitlisted' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200/60' :
                             'bg-slate-100 text-slate-700 border border-slate-200/60'
                           }`}>
                             {res.status === 'Confirmed' ? 'Confirmed' :
@@ -2352,8 +2503,10 @@ export default function ReservationsModule({
                                       // Auto-create group profile if it doesn't exist
                                       let group = groupBookings.find(g => g.id === res.bookingGroupId);
                                       if (!group) {
+                                        // Use the guest name as the group name fallback — never the group ID.
+                                        const fallbackGroupName = res.guestName || 'Group Booking';
                                         await addGroupBooking({
-                                          groupName: res.groupBookingId || res.bookingGroupId!,
+                                          groupName: fallbackGroupName,
                                           contactName: res.guestName,
                                           contactEmail: res.guestEmail,
                                           contactPhone: res.guestPhone || '',
@@ -2366,7 +2519,7 @@ export default function ReservationsModule({
                                         });
                                         group = groupBookings.find(g => g.id === res.bookingGroupId) || {
                                           id: res.bookingGroupId!,
-                                          groupName: res.groupBookingId || res.bookingGroupId!,
+                                          groupName: fallbackGroupName,
                                           contactName: res.guestName,
                                           contactEmail: res.guestEmail,
                                           contactPhone: res.guestPhone || '',
@@ -2430,7 +2583,7 @@ export default function ReservationsModule({
                                       // Also trigger the group check-in flow for CRM
                                       onGroupCheckIn?.({
                                         id: res.bookingGroupId!,
-                                        groupName: res.groupBookingId || res.bookingGroupId!,
+                                        groupName: group?.groupName || res.guestName || 'Group Booking',
                                         contactName: res.guestName,
                                         contactEmail: res.guestEmail,
                                         contactPhone: res.guestPhone || '',
@@ -2447,7 +2600,13 @@ export default function ReservationsModule({
                                     onClick={() => {
                                       onNavigateToCRM?.({ id: res.id, roomNumber: res.roomNumber, guestName: res.guestName, guestEmail: res.guestEmail, guestPhone: res.guestPhone, checkInDate: res.checkInDate, pendingCheckIn: true });
                                     }}
-                                    className="px-3 py-1.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                                    disabled={!isCheckInAllowedToday(res.checkInDate)}
+                                    title={isCheckInAllowedToday(res.checkInDate) ? 'Check In' : `Check-in is only allowed on ${res.checkInDate}. Today is ${currentSystemDate}.`}
+                                    className={`px-3 py-1.5 font-sans font-semibold text-xs rounded-lg shadow-sm transition-all duration-200 ${
+                                      isCheckInAllowedToday(res.checkInDate)
+                                        ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white hover:shadow-md cursor-pointer'
+                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
+                                    }`}
                                   >
                                     Check In
                                   </button>
@@ -2482,7 +2641,7 @@ export default function ReservationsModule({
                             {res.status === 'Cancelled' && (
                               <button
                                 onClick={() => updateReservationStatus(res.id, 'Confirmed')}
-                                className="px-3 py-1.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
+                                className="px-3 py-1.5 bg-gradient-to-r from-indigo-400 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-slate-950 font-sans font-semibold text-xs rounded-lg shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
                                 title="Approve Booking"
                               >
                                 Approve
@@ -2559,7 +2718,7 @@ export default function ReservationsModule({
 
               if (groupsToShow.length === 0 && individualsToShow.length === 0) {
                 return (
-                  <div className="py-12 text-center text-slate-400 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/20 rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 mt-2 space-y-1">
+                  <div className="py-12 text-center text-slate-400 dark:text-slate-400 bg-slate-50/50 dark:bg-slate-900/20 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 mt-2 space-y-1">
                     <Users size={28} className="mx-auto text-slate-300 dark:text-slate-500 pb-1" />
                     <p className="font-sans font-bold text-slate-750 dark:text-slate-300">No Bookings Found</p>
                     <p className="font-sans text-xs text-slate-400 dark:text-slate-400 max-w-xs mx-auto">There are no profile reservations matching the search query or filtered status tags in database buffers.</p>
@@ -2605,7 +2764,7 @@ export default function ReservationsModule({
               <button
                 onClick={handleSyncAll}
                 disabled={syncAllLoading}
-                className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-850 text-white font-mono rounded-lg text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                className="px-4 py-2 bg-slate-900 border border-slate-800 hover:bg-slate-800 text-white font-mono rounded-lg text-xs transition flex items-center justify-center gap-1.5 disabled:opacity-50"
               >
                 <RefreshCw size={14} className={syncAllLoading ? 'animate-spin' : ''} /> Sync All Channels
               </button>
@@ -2625,7 +2784,7 @@ export default function ReservationsModule({
                     <div className="flex items-center gap-2">
                       <span className="font-sans font-bold text-slate-800 text-sm">{ch.channel_name}</span>
                       <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono rounded uppercase text-slate-500 bg-slate-200">{ch.channel_type}</span>
-                      {ch.test_mode && <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono rounded uppercase text-amber-700 bg-amber-100">TEST</span>}
+                      {ch.test_mode && <span className="px-1.5 py-0.5 text-[9px] font-bold font-mono rounded uppercase text-indigo-700 bg-indigo-100">TEST</span>}
                     </div>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input type="checkbox" checked={ch.active} onChange={() => handleToggleChannel(ch.id, ch.active)} className="sr-only peer" />
@@ -2640,7 +2799,7 @@ export default function ReservationsModule({
                   <div className="text-2xs font-mono text-slate-400 space-y-0.5">
                     <div>Sync interval: <span className="text-slate-600">{ch.sync_interval_minutes}min</span></div>
                     <div>Last sync: <span className="text-slate-600">{ch.last_sync_at ? new Date(ch.last_sync_at).toLocaleString() : 'Never'}</span></div>
-                    <div>Status: <span className={ch.last_sync_status === 'success' ? 'text-emerald-600' : ch.last_sync_status === 'partial' ? 'text-amber-600' : 'text-slate-500'}>{ch.last_sync_status || 'never'}</span></div>
+                    <div>Status: <span className={ch.last_sync_status === 'success' ? 'text-emerald-600' : ch.last_sync_status === 'partial' ? 'text-indigo-600' : 'text-slate-500'}>{ch.last_sync_status || 'never'}</span></div>
                   </div>
                   <div className="flex gap-1.5 pt-1">
                     <button onClick={() => handleSyncChannel(ch.id, 'inventory')} disabled={!ch.active || channelSyncing === `${ch.id}-inventory`} className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-mono rounded disabled:opacity-40 transition flex items-center gap-1">
@@ -2665,7 +2824,7 @@ export default function ReservationsModule({
                           <div key={b.id} className="text-2xs font-mono text-slate-600 bg-white rounded p-2 border border-slate-100">
                             <div className="flex justify-between">
                               <span className="font-semibold text-slate-700">{b.guest_name}</span>
-                              <span className={b.booking_status === 'confirmed' ? 'text-emerald-600' : b.booking_status === 'cancelled' ? 'text-red-600' : 'text-amber-600'}>{b.booking_status}</span>
+                              <span className={b.booking_status === 'confirmed' ? 'text-emerald-600' : b.booking_status === 'cancelled' ? 'text-red-600' : 'text-indigo-600'}>{b.booking_status}</span>
                             </div>
                             <div className="text-slate-400">{b.check_in_date} → {b.check_out_date} | {b.channel_currency} {b.total_amount}</div>
                           </div>
@@ -2726,26 +2885,26 @@ export default function ReservationsModule({
                 </h4>
                 <p className="text-xs text-slate-405">Verifiably track confirmation emails and guest portal linkages triggered upon manual waitlist promotion.</p>
               </div>
-              <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-150 rounded-lg text-indigo-700 text-3xs font-bold font-mono tracking-wide">
+              <span className="px-2 py-0.5 bg-indigo-50 border border-indigo-200 rounded-lg text-indigo-700 text-3xs font-bold font-mono tracking-wide">
                 SYSTEM FEED: ONLINE/OTA CHANNELS
               </span>
             </div>
 
             {dispatchedEmails.length === 0 ? (
-              <div className="p-6 bg-slate-50 border border-slate-150 rounded-2xl text-center space-y-2">
+              <div className="p-6 bg-slate-50 border border-slate-200 rounded-xl text-center space-y-2">
                 <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center mx-auto text-slate-400">
                   <Send size={14} />
                 </div>
                 <h5 className="text-xs font-sans font-semibold text-slate-700">Comms Outbox Empty</h5>
                 <p className="text-2xs text-slate-450 max-w-md mx-auto">
-                  When guest bookings are simulated by booking on-line or importing via Expedia & Booking.com, they land as <span className="font-semibold text-amber-600">Waitlisted</span>. 
+                  When guest bookings are simulated by booking on-line or importing via Expedia & Booking.com, they land as <span className="font-semibold text-indigo-600">Waitlisted</span>. 
                   Once you click the <span className="font-semibold text-emerald-600">"Promote"</span> button on any waitlisted reservation inside the registry grid, the system automatically dispatches its formal approval email and companion credentials here.
                 </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                 {dispatchedEmails.map((email) => (
-                  <div key={email.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between hover:border-slate-350 transition-colors shadow-2xs">
+                  <div key={email.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between hover:border-slate-400 transition-colors shadow-2xs">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-0.5">
@@ -2762,12 +2921,12 @@ export default function ReservationsModule({
                         </span>
                       </div>
 
-                      <div className="bg-white border border-slate-150 rounded-xl p-3 text-[11px] font-mono text-slate-650 h-32 overflow-y-auto whitespace-pre-line leading-relaxed">
+                      <div className="bg-white border border-slate-200 rounded-xl p-3 text-[11px] font-mono text-slate-600 h-32 overflow-y-auto whitespace-pre-line leading-relaxed">
                         {email.body}
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-slate-150 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+                    <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
                       <span className="text-2xs font-mono text-indigo-650 font-semibold bg-indigo-50/70 border border-indigo-100 px-1.5 py-0.5 rounded">
                         Companion Access Link: {email.linkUrl}
                       </span>
@@ -2927,7 +3086,7 @@ export default function ReservationsModule({
                 {/* Guest Profile Details */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-mono uppercase text-slate-450 dark:text-slate-405 font-extrabold block">Primary Guest Information</span>
-                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-2xl flex items-start justify-between">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800/80 rounded-xl flex items-start justify-between">
                     <div>
                       <strong className="text-slate-900 dark:text-white text-sm block">{liveRes.guestName}</strong>
                       <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400 block mt-0.5">{liveRes.guestEmail}</span>
@@ -2971,7 +3130,7 @@ export default function ReservationsModule({
                         <span className="text-slate-400 dark:text-slate-500">Out:</span> 
                         <span className="text-slate-805 dark:text-slate-200">{liveRes.checkOutDate}</span>
                       </div>
-                      <div className="text-[10px] text-amber-600 dark:text-amber-400 font-bold border-t border-slate-100 dark:border-slate-800 pt-1 flex justify-between">
+                      <div className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold border-t border-slate-100 dark:border-slate-800 pt-1 flex justify-between">
                         <span>Duration:</span>
                         <span>{nights} Nights ({nights + 1} Days)</span>
                       </div>
@@ -3004,23 +3163,23 @@ export default function ReservationsModule({
                 {/* Billing Summary */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-mono uppercase text-slate-455 dark:text-slate-405 font-extrabold block">Financial & Posting Ledger</span>
-                  <div className="p-4 bg-slate-50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/50 rounded-2xl space-y-3">
+                  <div className="p-4 bg-slate-50 dark:bg-slate-800/20 border border-slate-100 dark:border-slate-800/50 rounded-xl space-y-3">
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-slate-500 dark:text-slate-400 font-medium">Daily Booked Rate:</span>
                       <span className="font-mono font-black text-slate-800 dark:text-slate-200">{formatAmount(liveRes.rate)} <span className="text-[9px] text-slate-400 font-sans font-normal">/ night</span></span>
                     </div>
                     
-                    <div className="flex justify-between items-center border-t border-slate-150/40 dark:border-slate-800/65 pt-2.5">
+                    <div className="flex justify-between items-center border-t border-slate-200/40 dark:border-slate-800/65 pt-2.5">
                       <span className="text-slate-900 dark:text-white font-bold text-sm">Total Quote:</span>
                       <span className="font-mono font-extrabold text-indigo-600 dark:text-indigo-400 text-lg">{formatAmount(liveRes.totalAmount)}</span>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-150/45 dark:border-slate-800/65">
+                    <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-200/45 dark:border-slate-800/65">
                       <div className="flex items-center gap-1">
                         <span className="text-2xs text-slate-400 uppercase font-mono">Invoice:</span>
                         <span className={`px-1.5 py-0.5 text-3xs font-mono font-black rounded uppercase ${
                           liveRes.paymentStatus === 'Paid' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-450' :
-                          liveRes.paymentStatus === 'Partial' ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-850 dark:text-amber-455' : 
+                          liveRes.paymentStatus === 'Partial' ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-850 dark:text-indigo-455' : 
                           'bg-rose-100 dark:bg-rose-900/40 text-rose-800 dark:text-rose-455'
                         }`}>
                           {liveRes.paymentStatus}
@@ -3038,7 +3197,7 @@ export default function ReservationsModule({
                             className={`px-2 py-0.5 rounded-full text-3xs font-mono font-bold uppercase transition cursor-pointer ${
                               liveRes.isDepositPaid 
                                 ? 'bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/40' 
-                                : 'bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40'
+                                : 'bg-indigo-50 dark:bg-indigo-950/20 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-950/40'
                             }`}
                           >
                             {liveRes.isDepositPaid ? 'DEPOSIT PAID / RECV' : 'DEPOSIT PENDING'}
@@ -3053,9 +3212,9 @@ export default function ReservationsModule({
                 <div className="space-y-2">
                   <span className="text-[10px] font-mono uppercase text-slate-455 dark:text-slate-405 font-extrabold block">Room Allocation Status</span>
                   {liveRes.roomNumber ? (
-                    <div className="p-3 bg-emerald-50/10 dark:bg-emerald-950/5 border border-emerald-100 dark:border-emerald-900/40 rounded-2xl flex items-center justify-between font-sans">
+                    <div className="p-3 bg-emerald-50/10 dark:bg-emerald-950/5 border border-emerald-100 dark:border-emerald-900/40 rounded-xl flex items-center justify-between font-sans">
                       <div className="flex items-center gap-2">
-                        <span className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-mono text-sm font-black shadow-3xs">
+                        <span className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl font-mono text-sm font-black shadow-sm">
                           Rm {liveRes.roomNumber}
                         </span>
                         <div>
@@ -3080,13 +3239,13 @@ export default function ReservationsModule({
                       )}
                     </div>
                   ) : (
-                    <div className="p-4 bg-amber-500/5 dark:bg-amber-500/3 border border-amber-200/55 dark:border-amber-900/55 rounded-2xl space-y-3">
+                    <div className="p-4 bg-indigo-500/5 dark:bg-indigo-500/3 border border-indigo-200/55 dark:border-indigo-900/55 rounded-xl space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <strong className="text-amber-800 dark:text-amber-450 text-xs block">Unassigned Hold Block</strong>
+                          <strong className="text-indigo-800 dark:text-indigo-450 text-xs block">Unassigned Hold Block</strong>
                           <span className="text-[10px] text-slate-450 dark:text-slate-400 block font-sans">A room assignment is required before check-in.</span>
                         </div>
-                        <span className="px-2 py-0.5 bg-amber-100 dark:bg-amber-950/40 text-amber-800 dark:text-amber-400 rounded-full text-3xs font-mono font-extrabold uppercase animate-pulse">
+                        <span className="px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-800 dark:text-indigo-400 rounded-full text-3xs font-mono font-extrabold uppercase animate-pulse">
                           No Assign
                         </span>
                       </div>
@@ -3099,7 +3258,7 @@ export default function ReservationsModule({
                               const val = e.target.value;
                               if (val) assignRoomToReservation(liveRes.id, val);
                             }}
-                            className="w-full px-2.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono rounded-xl focus:ring-1 focus:ring-amber-500 cursor-pointer text-slate-800 dark:text-slate-100"
+                            className="w-full px-2.5 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono rounded-xl focus:ring-1 focus:ring-indigo-500 cursor-pointer text-slate-800 dark:text-slate-100"
                             defaultValue=""
                           >
                             <option value="">-- Choose Vacant {liveRes.roomType} Room --</option>
@@ -3143,7 +3302,7 @@ export default function ReservationsModule({
                             key={i}
                             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border ${
                               item.kind === 'package'
-                                ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50'
                                 : 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/30 dark:text-indigo-400 dark:border-indigo-900/50'
                             }`}
                           >
@@ -3161,7 +3320,7 @@ export default function ReservationsModule({
                 {liveRes.notes && (
                   <div className="space-y-1.5">
                     <span className="text-[10px] font-mono uppercase text-slate-455 dark:text-slate-405 font-extrabold block">(Special Requests & Booking Notes)</span>
-                    <div className="p-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-650 dark:text-slate-300 italic font-sans leading-relaxed">
+                    <div className="p-3 bg-slate-50 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-600 dark:text-slate-300 italic font-sans leading-relaxed">
                       {liveRes.notes}
                     </div>
                   </div>
@@ -3224,7 +3383,13 @@ export default function ReservationsModule({
                             checkInDate: liveRes.checkInDate 
                           });
                         }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-750 text-white text-xs font-sans font-bold rounded-xl transition shadow-3xs cursor-pointer"
+                        disabled={!isCheckInAllowedToday(liveRes.checkInDate)}
+                        title={isCheckInAllowedToday(liveRes.checkInDate) ? 'Check In Guest' : `Check-in is only allowed on ${liveRes.checkInDate}. Today is ${currentSystemDate}.`}
+                        className={`px-5 py-2 text-xs font-sans font-bold rounded-xl transition shadow-sm ${
+                          isCheckInAllowedToday(liveRes.checkInDate)
+                            ? 'bg-emerald-600 hover:bg-emerald-800 text-white cursor-pointer'
+                            : 'bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+                        }`}
                       >
                         Check In Guest
                       </button>
@@ -3232,7 +3397,7 @@ export default function ReservationsModule({
                       <button
                         type="button"
                         disabled
-                        className="px-5 py-2 bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-650 text-xs font-sans font-medium rounded-xl cursor-not-allowed"
+                        className="px-5 py-2 bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-600 text-xs font-sans font-medium rounded-xl cursor-not-allowed"
                         title="You must allocate a room number first"
                       >
                         Check In (No Room)
@@ -3262,7 +3427,7 @@ export default function ReservationsModule({
                       }
                       setSelectedCalendarRes(null);
                     }}
-                    className="px-5 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 text-xs font-sans font-bold rounded-xl transition shadow-3xs cursor-pointer"
+                    className="px-5 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 hover:bg-slate-800 dark:hover:bg-slate-200 text-xs font-sans font-bold rounded-xl transition shadow-sm cursor-pointer"
                   >
                     Check Out Guest
                   </button>
@@ -3283,7 +3448,7 @@ export default function ReservationsModule({
                         updateReservationStatus(liveRes.id, 'Confirmed');
                       }
                     }}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-sans font-bold rounded-xl transition shadow-3xs cursor-pointer"
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-sans font-bold rounded-xl transition shadow-sm cursor-pointer"
                   >
                     {liveRes.status === 'Waitlisted' ? 'Promote / Confirm' : 'Re-confirm Booking'}
                   </button>

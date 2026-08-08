@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { Moon, AlertTriangle, CheckCircle2, X, ChevronRight, ChevronLeft, Loader2, Printer } from 'lucide-react';
 import { ModalSystem } from '../Shared/ModalSystem';
 
@@ -109,7 +109,7 @@ export function NightAuditChecklistModal({
         size="sm"
         showFooter={false}
       >
-          <Loader2 size={32} className="animate-spin text-amber-500 mx-auto" />
+          <Loader2 size={32} className="animate-spin text-indigo-500 mx-auto" />
           <p className="text-4xs text-slate-400 font-mono text-center">Posting charges • Reconciling ledgers • Rolling business date</p>
       </ModalSystem>
     );
@@ -126,7 +126,7 @@ export function NightAuditChecklistModal({
         size="md"
         showFooter={false}
       >
-          <div className="p-3 bg-emerald-50/30 border border-emerald-200 dark:border-emerald-900/40 rounded-xl space-y-1 text-3xs font-mono">
+          <div className="p-3 bg-emerald-50/30 border border-emerald-200 dark:border-emerald-900/40 rounded-xl space-y-1 text-3xs font-mono print-area">
             <p><strong>Previous Date:</strong> {result.date}</p>
             <p><strong>New Date:</strong> {result.newDate || result.date}</p>
             <p><strong>Revenue Posted:</strong> {formatAmount(result.revenuePosted || 0)}</p>
@@ -138,7 +138,7 @@ export function NightAuditChecklistModal({
             <p><strong>Message:</strong> {result.message}</p>
           </div>
           {result.exceptions && result.exceptions.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 print-area">
               <span className="text-4xs uppercase font-bold text-amber-600 tracking-widest">GL Posting Exceptions</span>
               <div className="border border-amber-200 rounded-xl overflow-hidden">
                 <table className="w-full text-3xs text-left border-collapse">
@@ -151,19 +151,19 @@ export function NightAuditChecklistModal({
             </div>
           )}
           {exceptions.length > 0 && (
-            <div className="space-y-1">
+            <div className="space-y-1 print-area">
               <span className="text-4xs uppercase font-bold text-slate-400 tracking-widest">Documented Exceptions</span>
-              <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <table className="w-full text-3xs text-left border-collapse">
-                  <thead><tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150"><th className="py-2 px-3">#</th><th className="py-2 px-3">Issue</th><th className="py-2 px-3 text-right">Owner</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                  <thead><tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200"><th className="py-2 px-3">#</th><th className="py-2 px-3">Issue</th><th className="py-2 px-3 text-right">Owner</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {exceptions.map((e, i) => <tr key={e.id} className="hover:bg-slate-50/50"><td className="py-2 px-3 font-mono text-slate-400">{i + 1}</td><td className="py-2 px-3 text-slate-700 dark:text-slate-300">{e.text}</td><td className="py-2 px-3 text-right"><span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-4xs font-bold">{e.owner}</span></td></tr>)}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
-          <div className="flex gap-2 pt-2">
+          <div className="flex gap-2 pt-2 no-print">
             <button onClick={reset} className="flex-1 py-2.5 bg-slate-50 dark:bg-slate-950 text-slate-500 text-3xs font-black rounded-xl border border-transparent hover:bg-slate-100 transition">Close</button>
             <button onClick={() => window.print()} className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-3xs font-black rounded-xl transition flex items-center justify-center gap-1"><Printer size={11} /> Print Handover</button>
           </div>
@@ -177,7 +177,7 @@ export function NightAuditChecklistModal({
       onClose={reset}
       title="Night Audit Checklist"
       subtitle={`Operating Date: ${currentSystemDate}`}
-      icon={<Moon size={20} className="text-amber-600" />}
+      icon={<Moon size={20} className="text-indigo-600" />}
       variant="form"
       size="xl"
       showFooter={false}
@@ -193,9 +193,9 @@ export function NightAuditChecklistModal({
             if (item.id === 4) { const cash = reservations.reduce((sum, r) => sum + (r.payments || []).filter((p: any) => !p.isVoided && p.method === 'Cash').reduce((s: number, p: any) => s + p.amount, 0), 0); issues.push(`Cash on hand: ${formatAmount(cash)}`); }
 
             return (
-              <div key={item.id} className={`p-4 border rounded-2xl transition ${done ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/20 dark:bg-emerald-950/10' : 'border-slate-150 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30'}`}>
+              <div key={item.id} className={`p-4 border rounded-xl transition ${done ? 'border-emerald-200 dark:border-emerald-900/40 bg-emerald-50/20 dark:bg-emerald-950/10' : 'border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30'}`}>
                 <div className="flex items-start gap-3">
-                  <button onClick={() => toggle(item.id)} className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition shrink-0 ${done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-amber-400'}`}>
+                  <button onClick={() => toggle(item.id)} className={`mt-0.5 w-5 h-5 rounded-md border flex items-center justify-center transition shrink-0 ${done ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300 dark:border-slate-600 hover:border-indigo-400'}`}>
                     {done && <CheckCircle2 size={12} />}
                   </button>
                   <div className="flex-1 space-y-1">
@@ -231,16 +231,16 @@ export function NightAuditChecklistModal({
 
           {/* High Balance Folio Alert */}
           {hasHighBalance && (
-            <div className="p-4 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 rounded-2xl space-y-3">
+            <div className="p-4 border border-rose-200 dark:border-rose-900/40 bg-rose-50/20 dark:bg-rose-950/10 rounded-xl space-y-3">
               <div className="flex items-center gap-2">
                 <AlertTriangle size={14} className="text-rose-500" />
                 <h4 className="font-bold text-xs text-slate-900 dark:text-white">High-Balance Folio Validation</h4>
                 <span className="ml-auto px-1.5 py-0.5 bg-rose-100 text-rose-700 rounded text-4xs font-bold">{highBalance.length} flagged</span>
               </div>
-              <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <table className="w-full text-3xs text-left border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150">
+                    <tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200">
                       <th className="py-2 px-3">Room</th>
                       <th className="py-2 px-3">Guest</th>
                       <th className="py-2 px-2 text-center">Charges</th>
@@ -249,7 +249,7 @@ export function NightAuditChecklistModal({
                       <th className="py-2 px-2 text-right">Action</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {highBalance.map((r: any) => {
                       const chg = (r.charges || []).reduce((s: number, c: any) => s + (c.isVoided ? 0 : c.amount), 0);
                       const pay = (r.payments || []).reduce((s: number, p: any) => s + (p.isVoided ? 0 : p.amount), 0);
@@ -284,7 +284,7 @@ export function NightAuditChecklistModal({
           )}
 
           {/* Audit Notes */}
-          <div className="p-4 border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30 rounded-2xl space-y-3">
+          <div className="p-4 border border-slate-200 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/30 rounded-xl space-y-3">
             <div className="flex items-center gap-2">
               <AlertTriangle size={14} className="text-indigo-500" />
               <h4 className="font-bold text-xs text-slate-900 dark:text-white">Night Audit Notes</h4>
@@ -299,23 +299,23 @@ export function NightAuditChecklistModal({
           </div>
 
           {/* Exception log */}
-          <div className="p-4 border border-amber-100 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/10 rounded-2xl space-y-3">
+          <div className="p-4 border border-amber-100 dark:border-amber-900/30 bg-amber-50/10 dark:bg-amber-950/10 rounded-xl space-y-3">
             <div className="flex items-center gap-2">
               <AlertTriangle size={14} className="text-amber-500" />
               <h4 className="font-bold text-xs text-slate-900 dark:text-white">Exception Log</h4>
             </div>
             <div className="flex gap-2">
-              <input value={excText} onChange={e => setExcText(e.target.value)} placeholder="Describe discrepancy..." className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-3xs outline-none focus:border-amber-500" />
+              <input value={excText} onChange={e => setExcText(e.target.value)} placeholder="Describe discrepancy..." className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-3xs outline-none focus:border-indigo-500" />
               <select value={excOwner} onChange={e => setExcOwner(e.target.value)} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-2 py-2 text-3xs font-mono outline-none">
                 <option>Front Office Manager</option><option>Night Auditor</option><option>Housekeeping Supervisor</option><option>Finance</option>
               </select>
               <button onClick={addExc} className="px-3 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 text-3xs font-black rounded-xl transition">Log</button>
             </div>
             {exceptions.length > 0 && (
-              <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
                 <table className="w-full text-3xs text-left border-collapse">
-                  <thead><tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-150"><th className="py-2 px-3">#</th><th className="py-2 px-3">Description</th><th className="py-2 px-3 text-right">Owner</th></tr></thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                  <thead><tr className="bg-slate-50 dark:bg-slate-800 uppercase text-[9px] text-slate-450 border-b border-slate-200"><th className="py-2 px-3">#</th><th className="py-2 px-3">Description</th><th className="py-2 px-3 text-right">Owner</th></tr></thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {exceptions.map((e, i) => <tr key={e.id} className="hover:bg-slate-50/50"><td className="py-2 px-3 font-mono text-slate-400">{i + 1}</td><td className="py-2 px-3 text-slate-700 dark:text-slate-300">{e.text}</td><td className="py-2 px-3 text-right"><span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded text-4xs font-bold">{e.owner}</span></td></tr>)}
                   </tbody>
                 </table>
@@ -334,7 +334,7 @@ export function NightAuditChecklistModal({
             </div>
             <div className="flex gap-2">
               <button onClick={reset} className="px-4 py-2.5 bg-slate-50 dark:bg-slate-950 text-slate-500 text-3xs font-black rounded-xl border border-transparent hover:bg-slate-100 transition">Discard</button>
-              <button onClick={execute} disabled={!allDone} className={`px-5 py-2.5 text-3xs font-black rounded-xl transition flex items-center gap-1.5 ${allDone ? 'bg-amber-500 text-slate-950 hover:bg-amber-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              <button onClick={execute} disabled={!allDone} className={`px-5 py-2.5 text-3xs font-black rounded-xl transition flex items-center gap-1.5 ${allDone ? 'bg-indigo-500 text-slate-950 hover:bg-indigo-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
                 <Moon size={12} fill="currentColor" /> Execute Night Audit Roll
               </button>
             </div>

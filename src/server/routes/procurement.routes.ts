@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { authenticate, requirePermission } from '../middleware/auth';
 import { hasSupabaseAdminConfig, supabaseAdmin } from '../supabaseAdmin';
 import { cacheService } from '../services/cacheService';
@@ -769,6 +770,204 @@ router.post('/inventory/consume-fefo', authenticate, async (req, res) => {
     remainingToConsume,
     consumptionLog,
   });
+});
+
+// =====================
+// GRNs (Goods Received Notes)
+// =====================
+router.get('/grns', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('inventory_grns').select('*').order('received_date', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/grns', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { number, supplierId, supplierName, purchaseOrderId, deliveryNote, invoiceNumber, receivedDate, items, totalValue } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const grnId = crypto.randomUUID();
+    const { data, error } = await supabaseAdmin.from('inventory_grns')
+      .insert({
+        id: grnId, number, supplier_id: supplierId, supplier_name: supplierName,
+        purchase_order_id: purchaseOrderId, delivery_note: deliveryNote, invoice_number: invoiceNumber,
+        received_date: receivedDate, receiver: req.user!.name || req.user!.id,
+        items: items || [], total_value: totalValue || 0,
+      })
+      .select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Auto-create AP bill draft
+    const { data: apResult, error: apError } = await supabaseAdmin.rpc('create_ap_bill_from_grn', { p_grn_id: grnId, p_created_by: req.user!.id });
+    if (apError) console.error('AP bill creation failed:', apError.message);
+
+    return res.json({ success: true, grn: data, apBillId: apResult?.[0]?.ap_bill_id || null });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/grns/:id/discrepancy', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { discrepancyStatus, discrepancyNotes } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('inventory_grns')
+      .update({ discrepancy_status: discrepancyStatus, discrepancy_notes: discrepancyNotes })
+      .eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json({ success: true, grn: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Stock Counts
+router.get('/stock-counts', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('stock_counts')
+      .select('*, stock_count_lines(*)').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/stock-counts', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { locationId, countDate, notes, lines } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const scId = crypto.randomUUID();
+    const { error: scError } = await supabaseAdmin.from('stock_counts')
+      .insert({ id: scId, location_id: locationId, count_date: countDate, counted_by: req.user!.id, status: 'In Progress', notes });
+    if (scError) return res.status(500).json({ error: scError.message });
+
+    if (lines && lines.length > 0) {
+      const scLines = lines.map((l: any) => ({
+        stock_count_id: scId,
+        item_id: l.itemId,
+        item_name: l.itemName,
+        ingredient_id: l.ingredientId,
+        expected_quantity: l.expectedQuantity,
+        counted_quantity: l.countedQuantity,
+        unit: l.unit,
+        variance_quantity: (l.countedQuantity || 0) - (l.expectedQuantity || 0),
+        variance_value: l.varianceValue || 0,
+        notes: l.notes,
+      }));
+      const { error: linesError } = await supabaseAdmin.from('stock_count_lines').insert(scLines);
+      if (linesError) return res.status(500).json({ error: linesError.message });
+    }
+
+    return res.json({ success: true, stockCountId: scId });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/stock-counts/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { status, lines } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = { status };
+    if (status === 'Approved') { updateData.approved_by = req.user!.id; }
+
+    const { data, error } = await supabaseAdmin.from('stock_counts').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Update counted lines if provided
+    if (lines && lines.length > 0) {
+      for (const line of lines) {
+        await supabaseAdmin.from('stock_count_lines')
+          .update({ counted_quantity: line.countedQuantity, variance_quantity: (line.countedQuantity || 0) - (line.expectedQuantity || 0) })
+          .eq('id', line.id);
+      }
+    }
+
+    // If approved, post stock adjustments
+    if (status === 'Approved') {
+      const { data: scLines } = await supabaseAdmin.from('stock_count_lines').select('*').eq('stock_count_id', req.params.id);
+      for (const line of scLines || []) {
+        if (line.variance_quantity && line.variance_quantity !== 0) {
+          // Post stock transaction for the adjustment
+          await supabaseAdmin.from('stock_transactions').insert({
+            ingredient_id: line.ingredient_id,
+            location_id: data.location_id,
+            transaction_type: 'Adjustment',
+            quantity: line.variance_quantity,
+            unit: line.unit,
+            cost_per_unit: 0,
+            total_value: line.variance_value || 0,
+            reference_doc: data.id,
+            reference_type: 'StockCount',
+            notes: `Stock count adjustment: ${line.item_name || line.ingredient_id}`,
+          });
+        }
+      }
+    }
+
+    return res.json({ success: true, stockCount: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+// Requisitions
+router.get('/requisitions', authenticate, async (_req, res) => {
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const { data, error } = await supabaseAdmin.from('requisitions')
+      .select('*, requisition_lines(*)').order('created_at', { ascending: false });
+    if (error) return res.status(500).json({ error: error.message });
+    return res.json(data);
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.post('/requisitions', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { fromLocationId, toOutletId, department, priority, requiredDate, notes, lines } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const reqId = crypto.randomUUID();
+    const reqNumber = `REQ-${Date.now().toString().slice(-6)}`;
+    const { error: reqError } = await supabaseAdmin.from('requisitions')
+      .insert({
+        id: reqId, req_number: reqNumber, from_location_id: fromLocationId, to_outlet_id: toOutletId,
+        department, priority: priority || 'Normal', required_date: requiredDate,
+        status: 'Draft', requested_by: req.user!.id, notes,
+      });
+    if (reqError) return res.status(500).json({ error: reqError.message });
+
+    if (lines && lines.length > 0) {
+      const reqLines = lines.map((l: any) => ({
+        requisition_id: reqId,
+        item_id: l.itemId,
+        item_name: l.itemName,
+        quantity: l.quantity,
+        unit: l.unit,
+        notes: l.notes,
+      }));
+      const { error: linesError } = await supabaseAdmin.from('requisition_lines').insert(reqLines);
+      if (linesError) return res.status(500).json({ error: linesError.message });
+    }
+
+    return res.json({ success: true, requisitionId: reqId, reqNumber });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
+});
+
+router.patch('/requisitions/:id', authenticate, requirePermission('fb:kitchen:write'), async (req, res) => {
+  const { status, fulfilledLines } = req.body;
+  if (hasSupabaseAdminConfig && supabaseAdmin) {
+    const updateData: any = { status };
+    if (status === 'Approved') { updateData.approved_by = req.user!.id; updateData.approved_at = new Date().toISOString(); }
+    if (status === 'Fulfilled') { updateData.fulfilled_by = req.user!.id; updateData.fulfilled_at = new Date().toISOString(); }
+
+    const { data, error } = await supabaseAdmin.from('requisitions').update(updateData).eq('id', req.params.id).select().single();
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Update fulfilled quantities if provided
+    if (fulfilledLines && fulfilledLines.length > 0) {
+      for (const line of fulfilledLines) {
+        await supabaseAdmin.from('requisition_lines')
+          .update({ fulfilled_quantity: line.fulfilledQuantity }).eq('id', line.id);
+      }
+    }
+
+    return res.json({ success: true, requisition: data });
+  }
+  return res.status(503).json({ error: 'Database not configured' });
 });
 
 export default router;

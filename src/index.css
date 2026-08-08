@@ -720,6 +720,12 @@
 .accent-operations .focus\:ring-blue-500:focus {
   --tw-ring-color: var(--color-accent-operations) !important;
 }
+.accent-operations .shadow-indigo-500\/20,
+.accent-operations .shadow-indigo-500\/30,
+.accent-operations .shadow-indigo-500\/40,
+.accent-operations .shadow-indigo-500\/50 {
+  --tw-shadow-color: var(--color-accent-operations) !important;
+}
 
 /* Finance & Compliance (brass) */
 .accent-finance {
@@ -885,4 +891,78 @@
 }
 .text-on-info {
   color: #FAF6EF;
+}
+
+/* ───────────────────────────────────────────
+   PRINT SCOPING
+   Only elements marked with `.print-area` (and their
+   descendants) are sent to the printer. Everything
+   else on the page (header, sidebar, other cards,
+   modal chrome) is removed from the print flow.
+
+   Usage:
+     • Wrap the printable table/card/form in
+       `className="... print-area"`.
+     • Add `no-print` (or Tailwind's `print:hidden`) to
+       any control inside a print-area that should not
+       appear on paper (e.g. action buttons).
+   ─────────────────────────────────────────── */
+@media print {
+  /* Hide everything EXCEPT:
+     • the .print-area itself,
+     • its descendants (.print-area *),
+     • its ancestors (:has(.print-area)).
+     Without preserving descendants, the print-area container
+     survives but its children get hidden → blank page.
+     Using display:none (not visibility:hidden) avoids blank
+     pages caused by hidden elements still occupying space. */
+  body *:not(:is(.print-area, .print-area *, :has(.print-area))) {
+    display: none !important;
+  }
+
+  /* Neutralize every ancestor of the print-area so the
+     content escapes fixed/sticky overlays (modals, drawers)
+     and flows into the document at the top of the page. */
+  *:has(.print-area) {
+    position: static !important;
+    inset: auto !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    transform: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    flex: initial !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+  }
+
+  /* The print-area itself renders at full width, top of page. */
+  .print-area {
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    max-height: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    inset: auto !important;
+  }
+
+  /* Explicit no-print flag for controls inside a print-area. */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Clean page margins for the printed output. */
+  @page {
+    margin: 1.2cm;
+  }
 }

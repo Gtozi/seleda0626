@@ -55,7 +55,7 @@ const TrialBalance = () => {
               type="date"
               value={asOfDate}
               onChange={(e) => setAsOfDate(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ const TrialBalance = () => {
               type="date"
               value={periodStart}
               onChange={(e) => setPeriodStart(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
               placeholder="Start"
             />
             <span className="text-slate-400">to</span>
@@ -72,7 +72,7 @@ const TrialBalance = () => {
               type="date"
               value={periodEnd}
               onChange={(e) => setPeriodEnd(e.target.value)}
-              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-bold text-slate-900 dark:text-white"
+              className="px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-[10px] font-bold text-slate-900 dark:text-white"
               placeholder="End"
             />
           </div>
@@ -117,7 +117,7 @@ const TrialBalance = () => {
               },
             ].map((stat, i) => (
               <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-3xl shadow-3xs">
-                <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
+                <div className={`p-2 w-fit rounded-lg bg-slate-50 dark:bg-slate-800 ${stat.color} mb-3`}>
                   <stat.icon size={18} />
                 </div>
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>

@@ -1,4 +1,4 @@
-import { motion, AnimatePresence } from 'motion/react';
+﻿import { motion, AnimatePresence } from 'motion/react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useERP } from '../../context/ERPContext';
 import { ModalSystem } from '../Shared/ModalSystem';
@@ -378,9 +378,9 @@ export default function GiftShopPOS() {
             .text-center { text-align: center; }
             .font-mono { font-family: ui-monospace, monospace; }
             .font-black { font-weight: 900; }
-            .rounded-xl, .rounded-2xl, .rounded-lg { border-radius: 8px; }
+            .rounded-xl, .rounded-xl, .rounded-lg { border-radius: 8px; }
             .border { border: 1px solid #e2e8f0; }
-            .shadow-3xs { box-shadow: none; }
+            .shadow-sm { box-shadow: none; }
             .space-y-4 > * + * { margin-top: 16px; }
             .p-5 { padding: 20px; }
             .pb-4 { padding-bottom: 16px; }
@@ -391,11 +391,11 @@ export default function GiftShopPOS() {
             .bg-slate-50 { background: #f8fafc; }
             .bg-indigo-50 { background: #eef2ff; }
             .bg-emerald-50 { background: #ecfdf5; }
-            .bg-amber-50 { background: #fffbeb; }
+            .bg-indigo-50 { background: #fffbeb; }
             .bg-rose-50 { background: #fff1f2; }
             .text-indigo-600 { color: #4f46e5; }
             .text-emerald-600 { color: #059669; }
-            .text-amber-600 { color: #d97706; }
+            .text-indigo-600 { color: #d97706; }
             .text-rose-600 { color: #e11d48; }
             .text-slate-900 { color: #0f172a; }
             .text-slate-500 { color: #64748b; }
@@ -1007,9 +1007,9 @@ export default function GiftShopPOS() {
   return (
     <div className="space-y-6 container mx-auto animate-fade-in text-slate-700 dark:text-slate-300" id="giftshop-pos-container">
       
-      <div className="flex items-center justify-between bg-slate-900 text-white p-6 rounded-3xl border border-slate-800 shadow-xl">
+      <div className="flex items-center justify-between bg-slate-900 text-white p-6 rounded-xl border border-slate-800 shadow-xl">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20">
+          <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center text-slate-950 shadow-lg shadow-indigo-500/20">
             <ShoppingBag size={24} />
           </div>
           <div>
@@ -1023,19 +1023,19 @@ export default function GiftShopPOS() {
         <div className="flex bg-slate-800 p-1 rounded-xl">
           <button 
             onClick={() => setActiveTab('pos')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'pos' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'pos' ? 'bg-indigo-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
           >
             Checkout Desk
           </button>
           <button 
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'history' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${activeTab === 'history' ? 'bg-indigo-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
           >
             Shift Journal
           </button>
           <button 
             onClick={() => setActiveTab('issues')}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'issues' ? 'bg-amber-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${activeTab === 'issues' ? 'bg-indigo-500 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'}`}
           >
             <Ban size={13} /> Damaged & Lost
           </button>
@@ -1068,7 +1068,7 @@ export default function GiftShopPOS() {
           <div className="lg:col-span-8 flex flex-col space-y-4">
             
             {/* Search and Category Badges */}
-            <div className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-xs space-y-3 flex flex-col md:flex-row gap-4 items-center">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 p-4 rounded-xl shadow-xs space-y-3 flex flex-col md:flex-row gap-4 items-center">
               <div className="relative flex-1 w-full">
                 <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
                 <input
@@ -1076,12 +1076,12 @@ export default function GiftShopPOS() {
                   placeholder="Search craft items, souvenirs, postcards, local honey..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-1 focus:ring-amber-500 text-slate-900 dark:text-white font-medium"
+                  className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-xs bg-slate-50 dark:bg-slate-950 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-900 dark:text-white font-medium"
                 />
               </div>
               <button 
                 onClick={() => setShowAddModal(true)}
-                className="w-full md:w-auto px-4 py-2 bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-slate-950 dark:text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-amber-500/20"
+                className="w-full md:w-auto px-4 py-2 bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-slate-950 dark:text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-indigo-500/20"
               >
                 <Plus size={14} /> Add Item
               </button>
@@ -1110,7 +1110,7 @@ export default function GiftShopPOS() {
 
             {/* PRODUCT CARD GRID */}
             {filteredProducts.length === 0 ? (
-              <div className="bg-white dark:bg-slate-905 border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center rounded-2xl flex flex-col items-center justify-center space-y-4">
+              <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 p-12 text-center rounded-xl flex flex-col items-center justify-center space-y-4">
                 <ShoppingBag size={44} className="text-slate-300 dark:text-slate-700 animate-pulse" />
                 <div>
                   <h4 className="font-sans font-extrabold text-slate-900 dark:text-white uppercase text-xs">No Boutique Products Found</h4>
@@ -1128,11 +1128,11 @@ export default function GiftShopPOS() {
                   return (
                     <div 
                       key={prod.id}
-                      className="bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-amber-400 dark:hover:border-amber-400/60 transition-all duration-200 group relative hover:shadow-2xs"
+                      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl p-4 flex flex-col justify-between hover:border-indigo-400 dark:hover:border-indigo-400/60 transition-all duration-200 group relative hover:shadow-2xs"
                     >
                       {/* Thumbnail Placeholder or category icons */}
                       <div className="flex items-start justify-between gap-2">
-                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-950/60 border border-slate-200/40 dark:border-slate-800 flex items-center justify-center text-slate-650 dark:text-amber-500/80 shrink-0 select-none shadow-3xs">
+                        <div className="w-10 h-10 rounded-lg bg-slate-100 dark:bg-slate-950/60 border border-slate-200/40 dark:border-slate-800 flex items-center justify-center text-slate-600 dark:text-indigo-500/80 shrink-0 select-none shadow-sm">
                           <ProdIcon className="w-4 h-4 group-hover:scale-110 transition duration-150" />
                         </div>
                         <div className="text-right">
@@ -1142,7 +1142,7 @@ export default function GiftShopPOS() {
                       </div>
 
                       <div className="mt-3.5 space-y-1">
-                        <h4 className="text-xs font-sans font-bold text-slate-900 dark:text-stone-100 uppercase tracking-tight leading-tight group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
+                        <h4 className="text-xs font-sans font-bold text-slate-900 dark:text-slate-100 uppercase tracking-tight leading-tight group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
                           {prod.name}
                         </h4>
                         <p className="text-[10px] text-slate-400 dark:text-slate-500 font-sans leading-relaxed line-clamp-2">
@@ -1151,7 +1151,7 @@ export default function GiftShopPOS() {
                       </div>
 
                       {/* Stock controls & action */}
-                      <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 dark:border-slate-850/50 pt-3">
+                      <div className="mt-4 flex items-center justify-between gap-2 border-t border-slate-50 dark:border-slate-800/50 pt-3">
                         <span className={`text-[9px] font-mono uppercase font-black ${
                           prod.stock === 0
                             ? 'text-rose-600'
@@ -1184,7 +1184,7 @@ export default function GiftShopPOS() {
                                     setEditingPriceCode(null);
                                   }
                                 }}
-                                className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-amber-500"
+                                className="w-16 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 text-[10px] font-mono font-bold text-slate-900 dark:text-white outline-none focus:ring-1 focus:ring-indigo-500"
                               />
                               <button
                                 onClick={() => {
@@ -1216,7 +1216,7 @@ export default function GiftShopPOS() {
                                   setEditingPriceValue(String(prod.priceUsd));
                                 }}
                                 title="Edit retail price"
-                                className="p-1 text-slate-300 hover:text-amber-500 transition cursor-pointer"
+                                className="p-1 text-slate-300 hover:text-indigo-500 transition cursor-pointer"
                               >
                                 <Tag size={12} />
                               </button>
@@ -1233,17 +1233,17 @@ export default function GiftShopPOS() {
                               </button>
 
                               {inCartItem ? (
-                                <div className="flex items-center bg-amber-400 text-slate-950 rounded-lg border border-amber-500/30 overflow-hidden font-bold text-xs shadow-3xs">
+                                <div className="flex items-center bg-indigo-400 text-slate-950 rounded-lg border border-indigo-500/30 overflow-hidden font-bold text-xs shadow-sm">
                                   <button
                                     onClick={() => updateQuantity(prod.id, -1)}
-                                    className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/40 transition cursor-pointer"
+                                    className="px-2 py-1 bg-indigo-500/20 hover:bg-indigo-500/40 transition cursor-pointer"
                                   >
                                     <Minus size={11} strokeWidth={3} />
                                   </button>
                                   <span className="px-2 font-mono">{inCartItem.quantity}</span>
                                   <button
                                     onClick={() => updateQuantity(prod.id, 1)}
-                                    className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/40 transition cursor-pointer"
+                                    className="px-2 py-1 bg-indigo-500/20 hover:bg-indigo-500/40 transition cursor-pointer"
                                   >
                                     <Plus size={11} strokeWidth={3} />
                                   </button>
@@ -1255,7 +1255,7 @@ export default function GiftShopPOS() {
                                   className={`px-3 py-1 text-4xs font-mono tracking-wider font-extrabold uppercase rounded-lg border transition cursor-pointer select-none ${
                                     prod.stock === 0
                                       ? 'bg-slate-100 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-400 line-through'
-                                      : 'bg-white hover:bg-slate-950 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-350 hover:text-white hover:border-slate-300 dark:hover:border-slate-705 shadow-3xs'
+                                      : 'bg-white hover:bg-slate-950 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-white hover:border-slate-300 dark:hover:border-slate-705 shadow-sm'
                                   }`}
                                 >
                                   Add +1
@@ -1272,21 +1272,21 @@ export default function GiftShopPOS() {
             )}
           </div>
 
-          <div className="lg:col-span-4 bg-white dark:bg-slate-905 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm flex flex-col overflow-hidden" id="pos-billing-cart">
+          <div className="lg:col-span-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm flex flex-col overflow-hidden" id="pos-billing-cart">
             
             {/* ACTIVE TABS SELECTOR PANEL */}
             <div className="p-6 border-b border-slate-100 dark:border-slate-800 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-tight text-sm">Boutique Active Tab</h3>
-                  <p className="text-[9px] font-mono font-bold text-amber-500 uppercase tracking-wider">
+                  <p className="text-[9px] font-mono font-bold text-indigo-500 uppercase tracking-wider">
                     {selectedTabId === 'quick-sale' ? 'Direct checkout (No tab)' : `Tab Code: ${selectedTabId}`}
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowNewTabModal(true)}
-                  className="px-2 py-1.5 bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer"
+                  className="px-2 py-1.5 bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-lg transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <Plus size={10} /> Name Tab
                 </button>
@@ -1306,7 +1306,7 @@ export default function GiftShopPOS() {
                         onClick={() => handleSelectTab(tab.id)}
                         className={`group px-2.5 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-all ${
                           isSelected
-                            ? 'bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-700 border-amber-500 dark:border-amber-600 text-slate-950 shadow-sm'
+                            ? 'bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-700 border-indigo-500 dark:border-indigo-600 text-slate-950 shadow-sm'
                             : 'bg-slate-50 dark:bg-slate-950 hover:bg-slate-100 dark:hover:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300'
                         }`}
                       >
@@ -1383,7 +1383,7 @@ export default function GiftShopPOS() {
 
             {/* Pricing Summary Block */}
             <div className="bg-slate-50 dark:bg-slate-950/50 border-t border-slate-900">
-              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-150 dark:border-slate-850 space-y-2 text-xs">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 space-y-2 text-xs">
                 <div className="flex justify-between items-center text-slate-600 dark:text-slate-400 text-3xs font-semibold uppercase">
                 <span>Subtotal Items</span>
                 <span className="font-mono">{formatAmount(subtotalUsd)}</span>
@@ -1401,7 +1401,7 @@ export default function GiftShopPOS() {
                     setDiscountPercent(val);
                     updateTabField(selectedTabId, 'discountPercent', val);
                   }}
-                  className="px-2 py-0.5 text-4xs font-mono font-bold uppercase rounded border border-slate-200 dark:border-slate-850 bg-white dark:bg-slate-950 focus:outline-none"
+                  className="px-2 py-0.5 text-4xs font-mono font-bold uppercase rounded border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 focus:outline-none"
                 >
                   <option value={0}>0% Off</option>
                   <option value={5}>5% Off</option>
@@ -1426,21 +1426,21 @@ export default function GiftShopPOS() {
 
               <div className="flex justify-between items-center font-black pb-0.5 border-t border-dashed border-slate-200 dark:border-slate-800 pt-2">
                 <span className="text-slate-900 dark:text-white uppercase text-[11px]">Total Invoice</span>
-                <span className="font-mono text-indigo-650 dark:text-amber-400 text-sm">{formatAmount(totalUsd)}</span>
+                <span className="font-mono text-indigo-650 dark:text-indigo-400 text-sm">{formatAmount(totalUsd)}</span>
               </div>
             </div>
 
             {/* Client Specifications Module */}
-            <div className="bg-slate-950/20 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-2xl p-3.5 space-y-3 text-2xs font-sans transition-all hover:border-slate-350 dark:hover:border-white/10 group/specs text-slate-900 dark:text-white">
+            <div className="bg-slate-950/20 dark:bg-slate-900/50 border border-slate-200 dark:border-white/5 rounded-xl p-3.5 space-y-3 text-2xs font-sans transition-all hover:border-slate-400 dark:hover:border-white/10 group/specs text-slate-900 dark:text-white">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 group-hover/specs:text-amber-500/90 transition-colors">
-                    <UserPlus size={11} className="text-amber-500" />
+                  <div className="flex items-center gap-2 font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 group-hover/specs:text-indigo-500/90 transition-colors">
+                    <UserPlus size={11} className="text-indigo-500" />
                     <span>Billing Specifications</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowClientInfoFields(!showClientInfoFields)}
-                    className="text-[9px] text-amber-500 font-black uppercase tracking-widest bg-slate-200 hover:bg-slate-300 dark:bg-white/5 px-2 py-0.5 rounded-full dark:hover:bg-amber-500 dark:hover:text-slate-950 transition-all cursor-pointer"
+                    className="text-[9px] text-indigo-500 font-black uppercase tracking-widest bg-slate-200 hover:bg-slate-300 dark:bg-white/5 px-2 py-0.5 rounded-full dark:hover:bg-indigo-500 dark:hover:text-slate-950 transition-all cursor-pointer"
                   >
                     {showClientInfoFields ? 'Collapse' : 'Add Details'}
                   </button>
@@ -1455,7 +1455,7 @@ export default function GiftShopPOS() {
                         value={walkInClientName}
                         onChange={(e) => setWalkInClientName(e.target.value)}
                         placeholder="Guest Name"
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-amber-500/30 outline-none transition-all"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-indigo-500/30 outline-none transition-all"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-3">
@@ -1466,7 +1466,7 @@ export default function GiftShopPOS() {
                           value={walkInClientTIN}
                           onChange={(e) => setWalkInClientTIN(e.target.value)}
                           placeholder="TIN-000-000"
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-amber-500/30 outline-none transition-all"
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-indigo-500/30 outline-none transition-all"
                         />
                       </div>
                       <div className="space-y-1">
@@ -1476,7 +1476,7 @@ export default function GiftShopPOS() {
                           value={walkInClientVATNo}
                           onChange={(e) => setWalkInClientVATNo(e.target.value)}
                           placeholder="VAT-000-000"
-                          className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-amber-500/30 outline-none transition-all"
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-indigo-500/30 outline-none transition-all"
                         />
                       </div>
                     </div>
@@ -1486,7 +1486,7 @@ export default function GiftShopPOS() {
                         type="date"
                         value={walkInClientVATDate}
                         onChange={(e) => setWalkInClientVATDate(e.target.value)}
-                        className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-amber-500/30 outline-none font-mono transition-all"
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-[10px] focus:ring-1 focus:ring-indigo-500/30 outline-none font-mono transition-all"
                       />
                     </div>
                   </div>
@@ -1494,12 +1494,12 @@ export default function GiftShopPOS() {
               </div>
 
               {/* UNIFIED PAYMENT SYSTEM - Using folio-style payment component */}
-              <div className="p-3 bg-slate-900 rounded-2xl border border-slate-800 space-y-2.5 font-sans text-white">
+              <div className="p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-2.5 font-sans text-white">
                 <button
                   type="button"
                   disabled={cart.length === 0}
                   onClick={() => setShowPaymentModal(true)}
-                  className="w-full py-2 bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full py-2 bg-indigo-400 hover:bg-indigo-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <CreditCard size={12} /> Process Payment
                 </button>
@@ -1571,7 +1571,7 @@ export default function GiftShopPOS() {
                     setAddItemPrice(item ? String(item.retailPrice || item.salePrice || item.lastCost * 1.5) : '');
                     setAddItemCategory(item ? (item.subcategory || item.category || outletCategories[0] || 'General') : '');
                   }}
-                  className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                  className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-900 dark:text-white"
                 >
                   <option value="">-- Choose an item from Gift Shop store --</option>
                   {inventoryItems
@@ -1592,7 +1592,7 @@ export default function GiftShopPOS() {
                   <select
                     value={addItemCategory}
                     onChange={(e) => setAddItemCategory(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-900 dark:text-white"
                   >
                     {outletCategories.map(cat => (
                       <option key={cat} value={cat}>{cat}</option>
@@ -1609,14 +1609,14 @@ export default function GiftShopPOS() {
                     value={addItemPrice}
                     onChange={(e) => setAddItemPrice(e.target.value)}
                     placeholder="e.g. 24.99"
-                    className="w-full bg-slate-50 dark:bg-slate-850 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-amber-500 font-semibold text-slate-900 dark:text-white"
+                    className="w-full bg-slate-50 dark:bg-slate-800 border dark:border-slate-800 p-2.5 rounded-xl text-xs outline-none focus:ring-1 focus:ring-indigo-500 font-semibold text-slate-900 dark:text-white"
                   />
                 </div>
               </div>
               <button
                 type="submit"
                 disabled={!selectedAddItemCode}
-                className="w-full py-3 bg-amber-500 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-amber-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="w-full py-3 bg-indigo-500 text-slate-950 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Add to POS Catalog
               </button>
@@ -1625,8 +1625,8 @@ export default function GiftShopPOS() {
       </>
       ) : activeTab === 'history' ? (
         /* SOUVENIR TRANSACTION history dockets */
-        <div ref={shiftJournalRef} className="bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-3xs space-y-4" id="historical-pos-records">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+        <div ref={shiftJournalRef} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm space-y-4" id="historical-pos-records">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <span className="text-[9px] font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-0.5 rounded uppercase tracking-wider font-extrabold">Core Ledgers</span>
               <h4 className="text-base font-sans font-black tracking-tight text-slate-900 dark:text-white uppercase mt-1">
@@ -1729,7 +1729,7 @@ export default function GiftShopPOS() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start animate-fade-in" id="damaged-lost-workspace">
           
           {/* Form left panel */}
-          <div className="lg:col-span-1 bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-3xs space-y-4">
+          <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm space-y-4">
             <div>
               <span className="text-[9px] font-mono text-rose-600 dark:text-rose-400 bg-rose-500/10 px-2.5 py-0.5 rounded uppercase tracking-wider font-extrabold">Boutique Inventory Adjustment</span>
               <h4 className="text-base font-sans font-black tracking-tight text-slate-900 dark:text-white uppercase mt-1">
@@ -1750,7 +1750,7 @@ export default function GiftShopPOS() {
                     setSelectedProductIdIssue(e.target.value);
                     setIssueQuantity(1);
                   }}
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-1 focus:ring-amber-400 font-sans"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-sans"
                   required
                 >
                   <option value="">-- Choose Boutique Item --</option>
@@ -1768,7 +1768,7 @@ export default function GiftShopPOS() {
                   <select
                     value={issueType}
                     onChange={(e) => setIssueType(e.target.value as any)}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-1 focus:ring-amber-400 font-mono font-bold"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-mono font-bold"
                   >
                     <option value="Damaged">⚠️ Damaged</option>
                     <option value="Broken">💥 Broken</option>
@@ -1784,7 +1784,7 @@ export default function GiftShopPOS() {
                     max={selectedProductIdIssue ? products.find(p => p.id === selectedProductIdIssue)?.stock || 1 : 100}
                     value={issueQuantity}
                     onChange={(e) => setIssueQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-250 font-mono"
+                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-300 font-mono"
                     required
                   />
                 </div>
@@ -1797,7 +1797,7 @@ export default function GiftShopPOS() {
                   value={issueReporter}
                   onChange={(e) => setIssueReporter(e.target.value)}
                   placeholder="Cashier or Front Desk Agent"
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-250"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-300"
                   required
                 />
               </div>
@@ -1809,14 +1809,14 @@ export default function GiftShopPOS() {
                   onChange={(e) => setIssueNotes(e.target.value)}
                   rows={3}
                   placeholder="Provide context e.g., 'Dropped during restocking' or 'Unaccounted physical count discrepancy'"
-                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-250 focus:outline-none focus:ring-1 focus:ring-amber-400 font-sans"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-400 font-sans"
                   required
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-amber-400 dark:text-slate-950 dark:hover:bg-amber-500 text-white rounded-xl font-sans font-black uppercase text-3xs tracking-wider transition-all cursor-pointer"
+                className="w-full py-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-400 dark:text-slate-950 dark:hover:bg-indigo-500 text-white rounded-xl font-sans font-black uppercase text-3xs tracking-wider transition-all cursor-pointer"
               >
                 Post Write-off Entry
               </button>
@@ -1824,8 +1824,8 @@ export default function GiftShopPOS() {
           </div>
 
           {/* List right panel */}
-          <div ref={damagedLostRef} className="lg:col-span-2 bg-white dark:bg-slate-905 border border-slate-205 dark:border-slate-800 p-5 rounded-2xl shadow-3xs space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-850 pb-4">
+          <div ref={damagedLostRef} className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-xl shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
                 <span className="text-[9px] font-mono text-zinc-500 bg-zinc-500/10 px-2.5 py-0.5 rounded uppercase tracking-wider font-extrabold">Boutique Inventory Adjustment Log</span>
                 <h4 className="text-base font-sans font-black tracking-tight text-slate-900 dark:text-white uppercase mt-1">
@@ -1875,7 +1875,7 @@ export default function GiftShopPOS() {
             </div>
 
             {giftShopIssues.length === 0 ? (
-              <div className="py-20 text-center text-slate-400 space-y-4 border border-dashed border-slate-250 dark:border-slate-800/60 rounded-xl">
+              <div className="py-20 text-center text-slate-400 space-y-4 border border-dashed border-slate-300 dark:border-slate-800/60 rounded-xl">
                 <Ban size={40} className="mx-auto text-slate-300 dark:text-slate-800" />
                 <div>
                   <h5 className="font-sans font-bold text-slate-900 dark:text-white uppercase text-xs">No write-offs on file</h5>
@@ -1885,7 +1885,7 @@ export default function GiftShopPOS() {
                 </div>
               </div>
             ) : (
-              <div className="border border-slate-150 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-3xs overflow-x-auto font-sans">
+              <div className="border border-slate-200 dark:border-slate-800/80 rounded-xl overflow-hidden shadow-sm overflow-x-auto font-sans">
                 <table className="w-full text-left text-xs border-collapse min-w-[600px]">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-900 font-mono text-[9px] uppercase text-slate-405 sticky top-0 border-b border-slate-200 dark:border-slate-805">
@@ -1898,7 +1898,7 @@ export default function GiftShopPOS() {
                       <th className="py-2.5 px-4 font-bold text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-300">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-300">
                     {giftShopIssues.map((iss) => (
                       <tr key={iss.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 text-[11px]">
                         <td className="py-3 px-4 font-mono text-[10px] text-slate-500 whitespace-nowrap">
@@ -1916,7 +1916,7 @@ export default function GiftShopPOS() {
                         <td className="py-3 px-3 text-center">
                           <span className={`inline-block px-2 py-0.5 rounded text-[9px] font-mono font-black uppercase ${
                             iss.type === 'Damaged' 
-                              ? 'bg-amber-100 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' 
+                              ? 'bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400' 
                               : iss.type === 'Broken'
                               ? 'bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400'
                               : 'bg-zinc-100 dark:bg-zinc-805/40 text-zinc-650 dark:text-zinc-400'
@@ -1931,7 +1931,7 @@ export default function GiftShopPOS() {
                         <td className="py-3 px-4 text-right whitespace-nowrap">
                           <button
                             onClick={() => handleDeleteIssue(iss.id)}
-                            className="p-1 hover:bg-slate-205 dark:hover:bg-slate-800 rounded text-rose-500 transition cursor-pointer"
+                            className="p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded text-rose-500 transition cursor-pointer"
                             title="Reclaim entry and replenish stock"
                           >
                             <Trash2 size={13} />
@@ -2026,14 +2026,14 @@ export default function GiftShopPOS() {
                         placeholder="e.g. Table 4 / Lounge VIP / Guest Smith"
                         value={newTabName}
                         onChange={(e) => setNewTabName(e.target.value)}
-                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-amber-400"
+                        className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-indigo-400"
                      />
                   </div>
                </div>
-               <div className="p-6 bg-slate-50 dark:bg-slate-850 border-t dark:border-slate-800 flex flex-col pt-4">
+               <div className="p-6 bg-slate-50 dark:bg-slate-800 border-t dark:border-slate-800 flex flex-col pt-4">
                   <button 
                     type="submit"
-                    className="py-2.5 bg-amber-400 hover:bg-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition cursor-pointer"
+                    className="py-2.5 bg-indigo-400 hover:bg-indigo-500 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition cursor-pointer"
                   >
                      Register &amp; Activate
                   </button>

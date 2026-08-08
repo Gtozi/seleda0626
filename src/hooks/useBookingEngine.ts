@@ -320,7 +320,7 @@ export function useBookingEngine() {
         const individualTotalWithActivity = individualNightPrice * getDays() + Math.round(addonsPriceTotal / (totalBookedCount > 0 ? totalBookedCount : 1));
 
         for (let i = 0; i < qty; i++) {
-          const resId = addReservation({
+          const resId = await addReservation({
             guestName: gName,
             guestEmail: gEmail,
             guestPhone: gPhone,

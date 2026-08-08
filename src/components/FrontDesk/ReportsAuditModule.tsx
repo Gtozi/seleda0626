@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
@@ -1374,7 +1374,7 @@ export default function ReportsAuditModule() {
       
       {/* Alert Top Strip if unresolved critical flags are active */}
       {activeAlertsCount > 0 && (
-        <div className="bg-slate-500/10 dark:bg-slate-400/5 border border-slate-500/20 text-slate-800 dark:text-slate-400 p-3 rounded-2xl flex items-center justify-between gap-4 animate-pulse">
+        <div className="bg-slate-500/10 dark:bg-slate-400/5 border border-slate-500/20 text-slate-800 dark:text-slate-400 p-3 rounded-xl flex items-center justify-between gap-4 animate-pulse">
           <div className="flex items-center gap-2 text-xs">
             <BadgeAlert size={16} className="text-slate-600 dark:text-slate-400 shrink-0" />
             <span className="font-bold uppercase tracking-wider">Manager System Warnings Triggered</span>
@@ -1393,7 +1393,7 @@ export default function ReportsAuditModule() {
       )}
 
       {/* Primary Navigation Breadcrumb Hub */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-3xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-6 shadow-sm">
         <div>
           <span className="bg-slate-100 dark:bg-slate-950/60 text-slate-800 dark:text-slate-400 text-[10px] font-mono font-black px-2.5 py-0.5 rounded-full border border-slate-200 dark:border-slate-900 uppercase tracking-widest inline-block">
             Hotel Reporting & Audit Suite
@@ -1408,7 +1408,7 @@ export default function ReportsAuditModule() {
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowAuditConfirm(true)}
-            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-2xl text-[11px] flex items-center gap-1.5 transition shadow-xs cursor-pointer"
+            className="px-4 py-2 bg-slate-600 hover:bg-slate-700 text-white font-bold rounded-xl text-[11px] flex items-center gap-1.5 transition shadow-xs cursor-pointer"
           >
             <Moon size={13} fill="currentColor" />
             <span>Overnight Night Audit</span>
@@ -1432,7 +1432,7 @@ export default function ReportsAuditModule() {
               }, 1500);
             }}
             disabled={aiAnalysisRunning}
-            className="px-4 py-2 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-sans font-black rounded-2xl text-[11px] flex items-center gap-1.5 hover:bg-slate-800 dark:hover:bg-slate-100 transition duration-150 cursor-pointer"
+            className="px-4 py-2 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-sans font-black rounded-xl text-[11px] flex items-center gap-1.5 hover:bg-slate-800 dark:hover:bg-slate-100 transition duration-150 cursor-pointer"
           >
             <BrainCircuit size={13} className={aiAnalysisRunning ? "animate-spin text-slate-500" : "text-slate-400 dark:text-slate-600"} />
             <span>Generate Strategic AI Plan</span>
@@ -1441,7 +1441,7 @@ export default function ReportsAuditModule() {
       </div>
 
       {auditFeedback && (
-        <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-start gap-3 animate-slide-in">
+        <div className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-slate-800 rounded-xl flex items-start gap-3 animate-slide-in">
           <CheckCircle className="text-slate-600 dark:text-slate-400 shrink-0 p-1 bg-slate-100 dark:bg-slate-900 rounded-full" size={24} />
           <div>
             <strong className="text-slate-900 dark:text-white font-sans text-xs flex items-center gap-1.5">
@@ -1455,7 +1455,7 @@ export default function ReportsAuditModule() {
       )}
 
       {exportTrigger && (
-        <div className="fixed bottom-6 right-6 p-4 bg-slate-950 text-white dark:bg-white dark:text-slate-950 border border-slate-800 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-bounce">
+        <div className="fixed bottom-6 right-6 p-4 bg-slate-950 text-white dark:bg-white dark:text-slate-950 border border-slate-800 rounded-xl shadow-xl flex items-center gap-3 z-50 animate-bounce">
           <Activity size={16} className="text-slate-400 animate-spin" />
           <span className="text-3xs font-mono font-bold uppercase tracking-wider">
             {exportTrigger.type === 'PDF' && `Generating PDF Download for ${exportTrigger.reportName}...`}
@@ -1467,7 +1467,7 @@ export default function ReportsAuditModule() {
       )}
 
       {exportFeedback && (
-        <div className={`fixed bottom-6 right-6 p-4 rounded-2xl shadow-xl flex items-center gap-3 z-50 animate-fade-in max-w-md border ${
+        <div className={`fixed bottom-6 right-6 p-4 rounded-xl shadow-xl flex items-center gap-3 z-50 animate-fade-in max-w-md border ${
           exportFeedback.ok
             ? 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-900 text-slate-800 dark:text-slate-200'
             : 'bg-slate-50 dark:bg-slate-950/40 border-slate-200 dark:border-slate-900 text-slate-800 dark:text-slate-200'
@@ -1478,7 +1478,7 @@ export default function ReportsAuditModule() {
       )}
 
       {/* Main Mode Navigation Sliders */}
-      <div className="flex bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200/50 dark:border-slate-850 rounded-2xl w-full xl:w-max gap-1 overflow-x-auto no-scrollbar">
+      <div className="flex bg-slate-100 dark:bg-slate-950 p-1 border border-slate-200/50 dark:border-slate-800 rounded-xl w-full xl:w-max gap-1 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setActiveTab('dashboard')}
           className={`px-4 py-2.5 rounded-xl text-[11px] font-sans font-bold flex items-center gap-1.5 transition ${
@@ -1586,19 +1586,19 @@ export default function ReportsAuditModule() {
               </div>
               <button
                 onClick={() => triggerPrint('Manager Dashboard', 'dashboard-report-content')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Printer size={11} /> Print
               </button>
               <button
                 onClick={() => triggerExport('PDF', 'Manager Dashboard')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Download size={11} /> PDF
               </button>
               <button
                 onClick={() => triggerExport('Excel', 'Manager Dashboard')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Sliders size={11} className="text-slate-500" /> Excel
               </button>
@@ -1607,7 +1607,7 @@ export default function ReportsAuditModule() {
 
           {/* KPI BENTO GRID - 17 DYNAMIC METRICS FOR ENTERPRISE TRACKING */}
           <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-4 summary-section" id="dashboard-summary-section">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Dashboard KPI Summary</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Real-time operational metrics and performance indicators</p>
@@ -1615,13 +1615,13 @@ export default function ReportsAuditModule() {
               <div className="flex gap-1">
                 <button
                   onClick={() => triggerPrint('Dashboard KPI Summary', 'dashboard-summary-section')}
-                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                 >
                   <Printer size={11} /> Print
                 </button>
                 <button
                   onClick={() => triggerExport('PDF', 'Dashboard KPI Summary')}
-                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                 >
                   <Download size={11} /> PDF
                 </button>
@@ -1629,77 +1629,77 @@ export default function ReportsAuditModule() {
             </div>
             
             {/* Occupancy card */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Occupancy Rate</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.occupancyRate}%</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Of {metrics.sellableRooms} Active Rooms</span>
             </div>
 
             {/* Rooms Available */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Rooms Available</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.availableRooms}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Vacant Clean Beds</span>
             </div>
 
             {/* Rooms Occupied */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Rooms Occupied</span>
               <strong className="text-2xl font-sans font-black block text-slate-900 dark:text-white mt-2">{metrics.occupiedRooms}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Registered In-House</span>
             </div>
 
             {/* Out Of Order */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Out Of Order</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.oooRoomsCount}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Maintenance Hold</span>
             </div>
 
             {/* Arrivals Today */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block font-medium">Arrivals Today</span>
               <strong className="text-2xl font-sans font-black block text-slate-900 dark:text-white mt-2">{metrics.arrivalsToday}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Under Active Folios</span>
             </div>
 
             {/* Departures Today */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Departures today</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.departuresToday}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Settle Balances</span>
             </div>
 
             {/* Stayovers */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Stayovers</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.stayovers}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Unchanged rooms</span>
             </div>
 
             {/* VIP Guests */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] bg-gradient-to-tr from-slate-500/5 to-slate-500/5">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px] bg-gradient-to-tr from-slate-500/5 to-slate-500/5">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">VIP Guests</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{metrics.vipGuests}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Premium Escort Set</span>
             </div>
 
             {/* No-Shows */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">No-Shows</span>
               <strong className="text-2xl font-sans font-black block text-slate-500 mt-2">{metrics.noShows}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Auto prior logs</span>
             </div>
 
             {/* Walk-Ins */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Walk-Ins</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 dark:text-slate-400 mt-2">{metrics.walkIns}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Direct Desk Books</span>
             </div>
 
             {/* Room Revenue */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Room Revenue</span>
               <strong className="text-xl font-sans font-black block text-slate-900 dark:text-white mt-2 truncate">
                 {formatAmount(metrics.roomRevenueTotal)}
@@ -1708,42 +1708,42 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* ADR */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block font-mono">Average Daily Rate</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{formatAmount(metrics.adrRate)}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Rev / Occupied Beds</span>
             </div>
 
             {/* RevPAR */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] xl:col-span-1">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px] xl:col-span-1">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block font-mono">RevPAR</span>
               <strong className="text-2xl font-sans font-black block text-slate-600 mt-2">{formatAmount(metrics.revParRate)}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">Rev / Market Beds</span>
             </div>
 
             {/* Guest Satisfaction */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Satisfaction Score</span>
               <strong className="text-2.5xl font-sans font-black block text-slate-600 mt-2">{metrics.guestSatisfactionScore}%</strong>
               <span className="text-4xs text-slate-400 font-semibold mt-1 block">No data</span>
             </div>
 
             {/* Open Complaints */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Open Complaints</span>
               <strong className="text-2.5xl font-sans font-black block text-slate-500 mt-2">{metrics.openComplaintsCount}</strong>
               <span className="text-4xs text-slate-400 font-semibold mt-1 block">No data</span>
             </div>
 
             {/* Maintenance Requests */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px]">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px]">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Pending Maintenances</span>
               <strong className="text-2.5xl font-sans font-black block text-slate-500 mt-2">{metrics.pendingMaintenanceCount}</strong>
               <span className="text-4xs text-slate-400 font-mono mt-1 block">No data</span>
             </div>
 
             {/* Staff on Duty */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-4 rounded-2xl flex flex-col justify-between shadow-3xs min-h-[100px] xl:col-span-2">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-4 rounded-xl flex flex-col justify-between shadow-sm min-h-[100px] xl:col-span-2">
               <span className="text-[10px] font-mono font-black text-slate-400 uppercase tracking-wider block">Active Staff on Duty</span>
               <div className="flex items-center gap-3 mt-1.5">
                 <strong className="text-2.5xl font-sans font-black text-slate-900 dark:text-white">{metrics.staffOnDutyCount} Staff</strong>
@@ -1755,8 +1755,8 @@ export default function ReportsAuditModule() {
           </div>
 
           {/* INTERACTIVE CHARTS & TREND DIAGRAM DISPLAY */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 rounded-3xl p-6 shadow-3xs space-y-4 graph-section" id="dashboard-graph-section">
-            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-xl p-6 shadow-sm space-y-4 graph-section" id="dashboard-graph-section">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Dashboard Chart Analytics</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Toggle between the dynamic chart overlays generated from daily operational closes.</p>
@@ -1778,8 +1778,8 @@ export default function ReportsAuditModule() {
                       onClick={() => setActiveChartTab(ct.id as any)}
                       className={`px-3 py-1.5 rounded-lg text-4xs font-mono font-bold uppercase transition block shrink-0 ${
                         activeChartTab === ct.id
-                          ? 'bg-slate-950 dark:bg-slate-850 text-white dark:text-slate-400 shadow-3xs'
-                          : 'text-slate-500 hover:text-slate-850 dark:hover:text-white'
+                          ? 'bg-slate-950 dark:bg-slate-800 text-white dark:text-slate-400 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
                       }`}
                     >
                       {ct.label}
@@ -1789,13 +1789,13 @@ export default function ReportsAuditModule() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => triggerPrint('Dashboard Charts', 'dashboard-graph-section')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Printer size={11} /> Print
                   </button>
                   <button
                     onClick={() => triggerExport('PDF', 'Dashboard Charts')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Download size={11} /> PDF
                   </button>
@@ -1924,7 +1924,7 @@ export default function ReportsAuditModule() {
       {activeTab === 'daily' && (
         <div className="space-y-6">
           {/* Advanced Period Selector Card */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h4 className="text-xs font-mono font-bold text-slate-600 dark:text-slate-400 uppercase tracking-widest text-[10px]">Workspace Query Configuration</h4>
@@ -1938,7 +1938,7 @@ export default function ReportsAuditModule() {
                   onClick={() => setDailyDateSelectionMode('single')}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition flex items-center gap-1 cursor-pointer ${
                     dailyDateSelectionMode === 'single'
-                      ? 'bg-slate-950 dark:bg-slate-800 text-white shadow-3xs'
+                      ? 'bg-slate-950 dark:bg-slate-800 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -1949,7 +1949,7 @@ export default function ReportsAuditModule() {
                   onClick={() => setDailyDateSelectionMode('range')}
                   className={`px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold uppercase transition flex items-center gap-1 cursor-pointer ${
                     dailyDateSelectionMode === 'range'
-                      ? 'bg-slate-950 dark:bg-slate-800 text-white shadow-3xs'
+                      ? 'bg-slate-950 dark:bg-slate-800 text-white shadow-sm'
                       : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
@@ -1960,7 +1960,7 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* Inputs & Quick Preset Row */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end pt-3 border-t border-slate-100 dark:border-slate-850">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end pt-3 border-t border-slate-100 dark:border-slate-800">
               {dailyDateSelectionMode === 'single' ? (
                 <>
                   <div className="md:col-span-4 space-y-1.5">
@@ -2045,7 +2045,7 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* Indicator current report context */}
-            <div className="py-2 px-3 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-150/50 dark:border-slate-900/40 flex justify-between items-center flex-wrap gap-2 text-3xs font-mono text-slate-700 dark:text-slate-400">
+            <div className="py-2 px-3 bg-slate-50/50 dark:bg-slate-950/20 rounded-xl border border-slate-200/50 dark:border-slate-900/40 flex justify-between items-center flex-wrap gap-2 text-3xs font-mono text-slate-700 dark:text-slate-400">
               <span className="flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" />
                 <span>Active query range: <strong>{dailyDateSelectionMode === 'single' ? dailySelectedDate || currentSystemDate : `${dailyStartDate || currentSystemDate} to ${dailyEndDate || currentSystemDate}`}</strong></span>
@@ -2059,7 +2059,7 @@ export default function ReportsAuditModule() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           
           {/* List of generation items */}
-          <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+          <div className="xl:col-span-1 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
             <div className="space-y-1">
               <h4 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Daily Books Generator</h4>
               <p className="text-xs text-slate-400">Scheduled daily operational books compiled on Night Audit closure.</p>
@@ -2088,7 +2088,7 @@ export default function ReportsAuditModule() {
                 placeholder="Search daily listings..."
                 value={searchDailyReport}
                 onChange={e => setSearchDailyReport(e.target.value)}
-                className="w-full text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 pl-8 pr-4 py-2 rounded-xl outline-none"
+                className="w-full text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 pl-8 pr-4 py-2 rounded-xl outline-none"
               />
             </div>
 
@@ -2103,10 +2103,10 @@ export default function ReportsAuditModule() {
                     setActiveDetailReport(rep);
                     setShowExecutiveSummary(false);
                   }}
-                  className={`w-full p-3 rounded-2xl text-left border text-xs transition block cursor-pointer ${
+                  className={`w-full p-3 rounded-xl text-left border text-xs transition block cursor-pointer ${
                     activeDetailReport?.id === rep.id && !showExecutiveSummary
                       ? 'bg-slate-600 border-slate-600 text-white shadow-xs'
-                      : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-150 dark:border-slate-850 text-slate-800 dark:text-slate-300'
+                      : 'bg-slate-50/50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-300'
                   }`}
                 >
                   <div className="flex justify-between items-center">
@@ -2129,13 +2129,13 @@ export default function ReportsAuditModule() {
                 </button>
               ))}
 
-              <div className="border-t border-slate-150 dark:border-slate-800 pt-3 mt-1.5">
+              <div className="border-t border-slate-200 dark:border-slate-800 pt-3 mt-1.5">
                 <button
                   onClick={() => {
                     setShowExecutiveSummary(true);
                     setActiveDetailReport(null);
                   }}
-                  className={`w-full p-4 rounded-3xl text-left border text-xs font-black transition cursor-pointer flex items-center justify-between bg-gradient-to-tr ${
+                  className={`w-full p-4 rounded-xl text-left border text-xs font-black transition cursor-pointer flex items-center justify-between bg-gradient-to-tr ${
                     showExecutiveSummary
                       ? 'from-slate-600 to-slate-600 border-slate-600 text-white shadow-md'
                       : 'from-slate-400/10 to-slate-400/10 dark:from-slate-400/5 dark:to-slate-400/5 border-slate-200/50 text-slate-800 dark:text-slate-400'
@@ -2152,14 +2152,14 @@ export default function ReportsAuditModule() {
           </div>
 
           {/* Report Sheet View */}
-          <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-6">
+          <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-6">
             
             {showExecutiveSummary ? (
               /* DAILY EXECUTIVE SUMMARY RENDER MODE */
               <div className="space-y-6 animate-fade-in summary-section" id="daily-exec-summary-content">
                 
                 {/* Header Action Strip */}
-                <div className="flex justify-between items-center flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center flex-wrap gap-3 pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight flex items-center gap-2">
                       <Sparkles size={16} className="text-slate-400" />
@@ -2173,19 +2173,19 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button 
                       onClick={() => triggerPrint('Executive Summary', 'daily-exec-summary-content')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button 
                       onClick={() => triggerExport('PDF', 'Executive Summary')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
                     <button 
                       onClick={() => triggerExport('Excel', 'Executive Summary')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 cursor-pointer shadow-xs"
                     >
                       <Sliders size={11} /> Excel
                     </button>
@@ -2202,9 +2202,9 @@ export default function ReportsAuditModule() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   
                   {/* Occupancy Section */}
-                  <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
+                  <div className="space-y-2 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">1. Occupancy Statistics</h4>
-                    <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
+                    <ul className="text-3xs font-mono space-y-1 text-slate-600 leading-relaxed">
                       <li className="flex justify-between"><span>Live Occupancy Percentage:</span> <strong className="text-slate-600">{selectedDailyMetrics.occupancyRate}%</strong></li>
                       <li className="flex justify-between"><span>Active Occupied Rooms:</span> <strong className="text-slate-800">{selectedDailyMetrics.occupiedRooms}</strong></li>
                       <li className="flex justify-between"><span>Clean Available Beds:</span> <strong className="text-slate-600">{formatAmount(selectedDailyMetrics.availableRooms)}</strong></li>
@@ -2213,9 +2213,9 @@ export default function ReportsAuditModule() {
                   </div>
 
                   {/* Revenue Section */}
-                  <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
+                  <div className="space-y-2 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">2. Revenue Statistics</h4>
-                    <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
+                    <ul className="text-3xs font-mono space-y-1 text-slate-600 leading-relaxed">
                       <li className="flex justify-between"><span>Aggregated Room Revenue:</span> <strong className="text-slate-600">{formatAmount(selectedDailyMetrics.roomRevenueTotal)}</strong></li>
                       <li className="flex justify-between"><span>Average Daily Rate (ADR):</span> <strong>{formatAmount(selectedDailyMetrics.adrRate)}</strong></li>
                       <li className="flex justify-between"><span>RevPAR Indexing today:</span> <strong>{formatAmount(selectedDailyMetrics.revParRate)}</strong></li>
@@ -2224,9 +2224,9 @@ export default function ReportsAuditModule() {
                   </div>
 
                   {/* Arrivals & Departures summary */}
-                  <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
+                  <div className="space-y-2 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">3. Arrival & Departure Summary</h4>
-                    <ul className="text-3xs font-mono space-y-1 text-slate-650 leading-relaxed">
+                    <ul className="text-3xs font-mono space-y-1 text-slate-600 leading-relaxed">
                       <li className="flex justify-between"><span>Scheduled arrivals:</span> <strong>{selectedDailyMetrics.arrivalsToday} guests</strong></li>
                       <li className="flex justify-between"><span>Expected departures:</span> <strong>{selectedDailyMetrics.departuresToday} guests</strong></li>
                       <li className="flex justify-between"><span>Current active stayovers:</span> <strong className="text-slate-600">{selectedDailyMetrics.stayovers}</strong></li>
@@ -2235,7 +2235,7 @@ export default function ReportsAuditModule() {
                   </div>
 
                   {/* Operational Risk section */}
-                  <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20">
+                  <div className="space-y-2 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono text-slate-500">4. Operational Risks & Warnings</h4>
                     <ul className="text-3xs font-mono space-y-1 text-slate-700 dark:text-slate-400 leading-relaxed">
                       <li className="flex justify-between"><span>Security incidents:</span> <strong>0 cases</strong></li>
@@ -2246,7 +2246,7 @@ export default function ReportsAuditModule() {
                   </div>
 
                   {/* Guest Complaints / VIP section */}
-                  <div className="space-y-2 p-4 border border-slate-150 dark:border-slate-800 rounded-2xl bg-slate-50/20 md:col-span-2">
+                  <div className="space-y-2 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20 md:col-span-2">
                     <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest border-b pb-1 font-mono">5. Guest Services & VIP movement</h4>
                     <p className="text-[10px] text-slate-450 leading-normal mb-1">
                       VIP registrations represented {selectedDailyMetrics.vipGuests} guests arriving today. Team on duty ({selectedDailyMetrics.staffOnDutyCount} members) fully assigned to support. 
@@ -2260,7 +2260,7 @@ export default function ReportsAuditModule() {
                   </div>
                 </div>
 
-                <div className="py-2.5 px-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-900 text-3xs font-mono text-slate-700 dark:text-slate-300 leading-relaxed">
+                <div className="py-2.5 px-4 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-900 text-3xs font-mono text-slate-700 dark:text-slate-300 leading-relaxed">
                   <strong>Approval Workflow Traceability certificate:</strong> No data
                 </div>
 
@@ -2271,7 +2271,7 @@ export default function ReportsAuditModule() {
                 <div className="space-y-5 animate-fade-in table-section" id="daily-table-section">
                   
                   {/* Item header */}
-                  <div className="flex justify-between items-start flex-wrap gap-3 pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-800 dark:to-slate-800 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                  <div className="flex justify-between items-start flex-wrap gap-3 pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-800 dark:to-slate-800 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                     <div>
                       <span className="text-[9px] font-mono font-black text-slate-400 uppercase tracking-widest block">{activeDetailReport.category} Daily Output</span>
                       <h3 className="text-base font-sans font-bold text-slate-950 dark:text-white uppercase tracking-tight">{activeDetailReport.name}</h3>
@@ -2281,19 +2281,19 @@ export default function ReportsAuditModule() {
                     <div className="flex gap-1">
                       <button 
                         onClick={() => triggerPrint(activeDetailReport.name, 'daily-table-section')}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
                         <Printer size={11} /> Print
                       </button>
                       <button 
                         onClick={() => triggerExport('PDF', activeDetailReport.name)}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
                         <Download size={11} /> PDF
                       </button>
                       <button 
                         onClick={() => triggerExport('Excel', activeDetailReport.name)}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
                         <SlidersHorizontal size={11} className="text-slate-500" /> Export XLS
                       </button>
@@ -2301,7 +2301,7 @@ export default function ReportsAuditModule() {
                   </div>
 
                   {/* Standardized Daily Doc layout block containing relevant data representation */}
-                  <div id="daily-detail-report-content" className="p-6 border border-slate-150 dark:border-slate-850 rounded-2xl bg-slate-50/20 dark:bg-slate-950/20 min-h-[300px] flex flex-col justify-between">
+                  <div id="daily-detail-report-content" className="p-6 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/20 dark:bg-slate-950/20 min-h-[300px] flex flex-col justify-between">
                     
                     {/* Content simulation depending on category chosen */}
                     <div className="space-y-4">
@@ -2328,7 +2328,7 @@ export default function ReportsAuditModule() {
 
                     </div>
 
-                    <div className="pt-4 border-t border-slate-150 dark:border-slate-800 text-[10px] font-mono font-bold text-slate-500 flex justify-between items-center bg-slate-100 dark:bg-slate-900/40 p-3 rounded-xl">
+                    <div className="pt-4 border-t border-slate-200 dark:border-slate-800 text-[10px] font-mono font-bold text-slate-500 flex justify-between items-center bg-slate-100 dark:bg-slate-900/40 p-3 rounded-xl">
                       <span>Status: Automated Compile</span>
                       <span>Run Date: {activeDetailReport.generatedAt}</span>
                     </div>
@@ -2350,7 +2350,7 @@ export default function ReportsAuditModule() {
           ------------------------------------------------------------- */}
       {activeTab === 'weekly' && (
         <div className="space-y-6" id="weekly-report-content">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm">
             <div>
               <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Weekly Front Office Performance Review</h3>
               <p className="text-xs text-slate-450 mt-1">Full statistical reviews comparing current week outcomes with prior week parameters.</p>
@@ -2359,19 +2359,19 @@ export default function ReportsAuditModule() {
             <div className="flex gap-2">
               <button
                 onClick={() => triggerPrint('Weekly Performance', 'weekly-report-content')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Printer size={11} /> Print
               </button>
               <button
                 onClick={() => triggerExport('PDF', 'Weekly Performance')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Download size={11} /> PDF Export
               </button>
               <button
                 onClick={() => triggerExport('Excel', 'Weekly Sales')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Sliders size={11} className="text-slate-500" /> Excel Book
               </button>
@@ -2381,8 +2381,8 @@ export default function ReportsAuditModule() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* Comparative balance list */}
-            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 table-section" id="weekly-table-section">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4 table-section" id="weekly-table-section">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                 <div>
                   <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Metrics Comparison Table</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current Week Ending: {currentSystemDate}</p>
@@ -2390,26 +2390,26 @@ export default function ReportsAuditModule() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => triggerPrint('Weekly Metrics Table', 'weekly-table-section')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Printer size={11} /> Print
                   </button>
                   <button
                     onClick={() => triggerExport('PDF', 'Weekly Metrics Table')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Download size={11} /> PDF
                   </button>
                   <button
                     onClick={() => triggerExport('Excel', 'Weekly Metrics Table')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Sliders size={11} className="text-slate-500" /> Excel
                   </button>
                 </div>
               </div>
 
-              <div className="border border-slate-150 dark:border-slate-850 rounded-2xl overflow-hidden shadow-3xs">
+              <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 dark:bg-slate-800 font-mono text-[9px] uppercase text-slate-400 border-b border-slate-200 dark:border-slate-800">
@@ -2419,9 +2419,9 @@ export default function ReportsAuditModule() {
                       <th className="py-2.5 px-4 text-right font-bold">Variance (%)</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                     {getComparativeMetrics.weekly.map((comp, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-750 dark:text-slate-350">
+                      <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-750 dark:text-slate-400">
                         <td className="py-2.5 px-4 font-sans font-bold text-slate-900 dark:text-white">{comp.metric}</td>
                         <td className="py-2.5 px-3 text-center font-mono">{comp.current}</td>
                         <td className="py-2.5 px-3 text-center font-mono text-slate-450">{comp.previous}</td>
@@ -2437,26 +2437,26 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Top Corporates & Nationalities Grid for Weekly Tab */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-150 dark:border-slate-850 animate-fade-in text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200 dark:border-slate-800 animate-fade-in text-xs">
                 {/* Top Corporates */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Weekly Top Corporates</span>
                     <TrendingUp size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Company</th>
                           <th className="py-2 px-2 text-center font-bold">Bookings</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Spend</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.weekly.corporates.slice(0, 4).map((corp, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
@@ -2470,23 +2470,23 @@ export default function ReportsAuditModule() {
 
                 {/* Top Nationalities */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Weekly Guest Demographics</span>
                     <Users size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Nationality</th>
                           <th className="py-2 px-2 text-center font-bold">Guests</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Spend Share</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.weekly.nationalities.slice(0, 4).map((nat, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
@@ -2504,8 +2504,8 @@ export default function ReportsAuditModule() {
             <div className="space-y-6">
               
               {/* 30-Day occupancy forecast */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 summary-section" id="weekly-summary-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4 summary-section" id="weekly-summary-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Forecast Summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Estimated occupancy based on active reservation bookings in current month.</p>
@@ -2513,13 +2513,13 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Weekly Forecast Summary', 'weekly-summary-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Weekly Forecast Summary')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
@@ -2538,7 +2538,7 @@ export default function ReportsAuditModule() {
                         <span className="font-mono font-bold text-slate-500 uppercase">{fc.label}</span>
                         <span className="font-mono font-black text-slate-600">{fc.rate}% Occupancy ({fc.status})</span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-50 dark:bg-slate-850 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-50 dark:bg-slate-800 rounded-full overflow-hidden">
                         <div className="h-full bg-gradient-to-r from-slate-500 to-slate-500 rounded-full" style={{ width: `${fc.rate}%` }}></div>
                       </div>
                     </div>
@@ -2547,8 +2547,8 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Pick-Up Pace Widget */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4 graph-section" id="weekly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4 graph-section" id="weekly-graph-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Weekly Pick-Up Pace Chart</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Forward bookings by day vs same day last week.</p>
@@ -2560,13 +2560,13 @@ export default function ReportsAuditModule() {
                     <div className="flex gap-1">
                       <button
                         onClick={() => triggerPrint('Weekly Pick-Up Chart', 'weekly-graph-section')}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
                         <Printer size={11} /> Print
                       </button>
                       <button
                         onClick={() => triggerExport('PDF', 'Weekly Pick-Up Chart')}
-                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                        className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                       >
                         <Download size={11} /> PDF
                       </button>
@@ -2593,7 +2593,7 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Staff productivity widget */}
-              <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-850 shadow-sm space-y-3">
+              <div className="bg-slate-900 text-white rounded-xl p-6 border border-slate-800 shadow-sm space-y-3">
                 <span className="text-[10px] font-mono font-bold text-slate-455 uppercase tracking-widest pl-0.5 block">Staff Productivity & attendance</span>
                 <p className="text-3xs text-slate-400 font-sans leading-normal">
                   No data
@@ -2620,7 +2620,7 @@ export default function ReportsAuditModule() {
       {activeTab === 'monthly' && (
         <div className="space-y-6" id="monthly-report-content">
           
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm">
             <div>
               <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Monthly Front Office Performance Book</h3>
               <p className="text-xs text-slate-450 mt-1">Multi-section managerial review, budget analysis, and ledger variances.</p>
@@ -2629,41 +2629,41 @@ export default function ReportsAuditModule() {
             <div className="flex gap-2">
               <button
                 onClick={() => triggerPrint('Monthly Performance', 'monthly-report-content')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Printer size={11} /> Print
               </button>
               <button
                 onClick={() => triggerExport('PDF', 'Monthly Performance')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Download size={11} /> PDF
               </button>
               <button
                 onClick={() => triggerExport('Excel', 'Monthly Performance')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Sliders size={11} className="text-slate-500" /> Excel
               </button>
             </div>
 
             {/* Variance comparison mode chooser */}
-            <div className="flex bg-slate-100 dark:bg-slate-950 p-0.5 rounded-xl border dark:border-slate-850 gap-1 text-3xs font-mono font-bold">
+            <div className="flex bg-slate-100 dark:bg-slate-950 p-0.5 rounded-xl border dark:border-slate-800 gap-1 text-3xs font-mono font-bold">
               <button
                 onClick={() => setMonthlyCompareBaseline('prev-month')}
-                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'prev-month' ? 'bg-white dark:bg-slate-850 text-slate-950 dark:text-white' : 'text-slate-450'}`}
+                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'prev-month' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white' : 'text-slate-450'}`}
               >
                 vs Prev Month
               </button>
               <button
                 onClick={() => setMonthlyCompareBaseline('same-month-yoy')}
-                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'same-month-yoy' ? 'bg-white dark:bg-slate-850 text-slate-950 dark:text-white' : 'text-slate-450'}`}
+                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'same-month-yoy' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white' : 'text-slate-450'}`}
               >
                 vs Same Month Last Year
               </button>
               <button
                 onClick={() => setMonthlyCompareBaseline('budget')}
-                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'budget' ? 'bg-white dark:bg-slate-850 text-slate-950 dark:text-white' : 'text-slate-450'}`}
+                className={`px-3 py-1.5 rounded-lg transition ${monthlyCompareBaseline === 'budget' ? 'bg-white dark:bg-slate-800 text-slate-950 dark:text-white' : 'text-slate-450'}`}
               >
                 Actual vs Budget
               </button>
@@ -2678,16 +2678,16 @@ export default function ReportsAuditModule() {
               { label: 'Revenue Per Room', value: '$0', detail: 'No data', positive: false },
               { label: 'Direct Bookings', value: '0%', detail: 'No data', positive: false }
             ].map((kpi, index) => (
-              <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-850 shadow-3xs space-y-1">
+              <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
                 <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
-                <strong className="text-xl font-sans font-black text-slate-905 dark:text-white block">{kpi.value}</strong>
+                <strong className="text-xl font-sans font-black text-slate-900 dark:text-white block">{kpi.value}</strong>
                 <span className="text-[10px] font-sans font-bold text-slate-400">{kpi.detail}</span>
               </div>
             ))}
           </div>
 
           {/* Monthly Pick-Up Pace Widget */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
             <div className="flex justify-between items-center">
               <div>
                 <h4 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Booking Pick-Up Pace</h4>
@@ -2719,14 +2719,14 @@ export default function ReportsAuditModule() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* Sections Content List */}
-            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-6">
+            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-6">
               <div className="flex justify-between items-center pb-2 border-b">
                 <span className="text-[11px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Generated Performance Sections</span>
                 <span className="text-3xs font-mono uppercase text-slate-600 font-black">Audit Ready</span>
               </div>
 
               <div className="space-y-4 animate-fade-in summary-section" id="monthly-summary-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Performance Summary</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Comprehensive analysis of operational metrics and performance indicators</p>
@@ -2734,13 +2734,13 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Monthly Summary', 'monthly-summary-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Monthly Summary')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
@@ -2757,22 +2757,22 @@ export default function ReportsAuditModule() {
                   }
 
                   return (
-                    <div key={i} className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl space-y-2 bg-slate-50/20">
+                    <div key={i} className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl space-y-2 bg-slate-50/20">
                       <div className="flex justify-between items-center">
                         <h4 className="text-xs font-sans font-black text-slate-955 dark:text-white uppercase tracking-tight">{sec.title}</h4>
                         <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 text-[9px] font-mono font-bold uppercase rounded border">
                           {displayedTrend}
                         </span>
                       </div>
-                      <p className="text-3xs text-slate-650 dark:text-slate-350 leading-relaxed font-sans">{sec.content}</p>
+                      <p className="text-3xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans">{sec.content}</p>
                     </div>
                   );
                 })}
               </div>
 
               {/* Monthly Metric Comparisons & Variance Table */}
-              <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 table-section" id="monthly-table-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800 table-section" id="monthly-table-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Metrics Comparison Table</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
@@ -2784,26 +2784,26 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Monthly Metrics Table', 'monthly-table-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Monthly Metrics Table')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
                     <button
                       onClick={() => triggerExport('Excel', 'Monthly Metrics Table')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Sliders size={11} className="text-slate-500" /> Excel
                     </button>
                   </div>
                 </div>
 
-                <div className="border border-slate-150 dark:border-slate-850 rounded-2xl overflow-hidden shadow-3xs">
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800 font-mono text-[9px] uppercase text-slate-440 border-b border-slate-200 dark:border-slate-805">
@@ -2817,7 +2817,7 @@ export default function ReportsAuditModule() {
                         <th className="py-2.5 px-4 text-right font-bold">Variance (%)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                       {getComparativeMetrics.monthly.map((comp, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-755 dark:text-slate-355">
                           <td className="py-2.5 px-4 font-sans font-bold text-slate-900 dark:text-white">{comp.metric}</td>
@@ -2836,8 +2836,8 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Monthly Trend Performance Area Chart */}
-              <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 graph-section" id="monthly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800 graph-section" id="monthly-graph-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Monthly Trend Performance Chart</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">No data available</p>
@@ -2845,13 +2845,13 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Monthly Trend Chart', 'monthly-graph-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Monthly Trend Chart')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
@@ -2866,7 +2866,7 @@ export default function ReportsAuditModule() {
                           <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
                         </linearGradient>
                       </defs>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-850" />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-800" />
                       <XAxis dataKey="date" stroke="#94a3b8" fontSize={9} />
                       <YAxis stroke="#94a3b8" fontSize={9} />
                       <Tooltip 
@@ -2880,26 +2880,26 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Top Monthly Corporates & Nationalities Grid for Monthly Tab */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-150 dark:border-slate-850 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200 dark:border-slate-800 text-xs">
                 {/* Top Monthly Corporates */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Monthly Corporate Leaderboard</span>
                     <TrendingUp size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Company</th>
                           <th className="py-2 px-2 text-center font-bold">Bookings</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Spend</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.monthly.corporates.slice(0, 4).map((corp, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
@@ -2913,23 +2913,23 @@ export default function ReportsAuditModule() {
 
                 {/* Top Monthly Nationalities */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Monthly Guest Demographics</span>
                     <Users size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Nationality</th>
                           <th className="py-2 px-2 text-center font-bold">Guests</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Revenue</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.monthly.nationalities.slice(0, 4).map((nat, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
@@ -2946,7 +2946,7 @@ export default function ReportsAuditModule() {
             {/* Monthly KPI Overview Card & Controls */}
             <div className="space-y-6">
               
-              <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-850 shadow-md space-y-4">
+              <div className="bg-slate-900 text-white rounded-xl p-6 border border-slate-800 shadow-md space-y-4">
                 <div>
                   <span className="text-slate-400 text-3xs font-mono font-bold uppercase tracking-widest pl-0.5 block">Estimated Monthly GOP margin</span>
                   <strong className="text-2.5xl font-sans font-black block text-slate-400 mt-1">0% GOP</strong>
@@ -2970,7 +2970,7 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Monthly Action Plan button trigger */}
-              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-3">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-3">
                 <h4 className="text-xs font-black text-slate-955 dark:text-white uppercase tracking-widest block font-mono">Monthly Manager Action Plan</h4>
                 <p className="text-3xs text-slate-450 leading-normal mb-2">
                   Dispatch the approved monthly performance report and budget variance books directly to the hotel owners and general management desk.
@@ -3000,7 +3000,7 @@ export default function ReportsAuditModule() {
        {activeTab === 'quarterly' && (
         <div className="space-y-6" id="quarterly-report-content">
 
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm">
             <div>
               <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Quarterly Business Review</h3>
               <p className="text-xs text-slate-450 mt-1">Strategic analytics, AI recommendations, and quarterly performance review.</p>
@@ -3009,19 +3009,19 @@ export default function ReportsAuditModule() {
             <div className="flex gap-2">
               <button
                 onClick={() => triggerPrint('Quarterly Review', 'quarterly-report-content')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Printer size={11} /> Print
               </button>
               <button
                 onClick={() => triggerExport('PDF', 'Quarterly Review')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Download size={11} /> PDF
               </button>
               <button
                 onClick={() => triggerExport('Excel', 'Quarterly Review')}
-                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
+                className="px-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-750 dark:text-white rounded-xl text-3xs font-mono font-bold flex items-center gap-1 transition"
               >
                 <Sliders size={11} className="text-slate-500" /> Excel
               </button>
@@ -3030,7 +3030,7 @@ export default function ReportsAuditModule() {
 
           {/* Quarterly KPI Overview Strip */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 animate-fade-in summary-section" id="quarterly-summary-section">
-            <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-4 px-4 pt-4 mb-4 rounded-t-2xl col-span-full">
               <div>
                 <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly KPI Summary</h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Key performance indicators — No data available</p>
@@ -3038,13 +3038,13 @@ export default function ReportsAuditModule() {
               <div className="flex gap-1">
                 <button
                   onClick={() => triggerPrint('Quarterly KPI Summary', 'quarterly-summary-section')}
-                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                 >
                   <Printer size={11} /> Print
                 </button>
                 <button
                   onClick={() => triggerExport('PDF', 'Quarterly KPI Summary')}
-                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                  className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                 >
                   <Download size={11} /> PDF
                 </button>
@@ -3056,9 +3056,9 @@ export default function ReportsAuditModule() {
               { label: 'Q3 Average Daily Rate', value: '$0.00', detail: 'No data available', positive: false },
               { label: 'Q3 RevPAR Output', value: '$0.00', detail: 'No data available', positive: false }
             ].map((kpi, index) => (
-              <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-850 shadow-3xs space-y-1">
+              <div key={index} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-1">
                 <span className="text-[10px] font-mono font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">{kpi.label}</span>
-                <strong className="text-xl font-sans font-black text-slate-905 dark:text-white block">{kpi.value}</strong>
+                <strong className="text-xl font-sans font-black text-slate-900 dark:text-white block">{kpi.value}</strong>
                 <span className="text-[10px] font-sans font-bold text-slate-500">{kpi.detail}</span>
               </div>
             ))}
@@ -3067,8 +3067,8 @@ export default function ReportsAuditModule() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             
             {/* Strategic analytics list */}
-            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-6 summary-section" id="quarterly-strategic-summary">
-              <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+            <div className="xl:col-span-2 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-6 summary-section" id="quarterly-strategic-summary">
+              <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                 <div>
                   <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Strategic Summary</h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Strategic market analytics, ADR growth trends, and corporate channel segment penetrations.</p>
@@ -3076,13 +3076,13 @@ export default function ReportsAuditModule() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => triggerPrint('Quarterly Strategic Summary', 'quarterly-strategic-summary')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Printer size={11} /> Print
                   </button>
                   <button
                     onClick={() => triggerExport('PDF', 'Quarterly Strategic Summary')}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                    className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                   >
                     <Download size={11} /> PDF
                   </button>
@@ -3096,7 +3096,7 @@ export default function ReportsAuditModule() {
                   { title: 'Guest Satisfaction & Customer Retention Indexing', desc: 'No data', value: '0%' },
                   { title: 'Staff Attrition & Training effectiveness', desc: 'No data', value: '0%' }
                 ].map((item, idx) => (
-                  <div key={idx} className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl flex justify-between gap-4 items-start bg-slate-50/20">
+                  <div key={idx} className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between gap-4 items-start bg-slate-50/20">
                     <div className="space-y-1">
                       <span className="font-bold text-xs text-slate-955 dark:text-white block">{item.title}</span>
                       <p className="text-3xs text-slate-450 leading-relaxed font-sans">{item.desc}</p>
@@ -3109,8 +3109,8 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Quarterly Metric Comparisons & Variance Table */}
-              <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 table-section" id="quarterly-table-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800 table-section" id="quarterly-table-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Metrics Comparison Table</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Current Q3 Performance Book</p>
@@ -3118,26 +3118,26 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Quarterly Metrics Table', 'quarterly-table-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Quarterly Metrics Table')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
                     <button
                       onClick={() => triggerExport('Excel', 'Quarterly Metrics Table')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Sliders size={11} className="text-slate-500" /> Excel
                     </button>
                   </div>
                 </div>
 
-                <div className="border border-slate-150 dark:border-slate-850 rounded-2xl overflow-hidden shadow-3xs">
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800 font-mono text-[9px] uppercase text-slate-440 border-b border-slate-200 dark:border-slate-805">
@@ -3147,7 +3147,7 @@ export default function ReportsAuditModule() {
                         <th className="py-2.5 px-4 text-right font-bold">Variance (%)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                       {getComparativeMetrics.quarterly.map((comp, idx) => (
                         <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-755 dark:text-slate-355">
                           <td className="py-2.5 px-4 font-sans font-bold text-slate-900 dark:text-white">{comp.metric}</td>
@@ -3166,8 +3166,8 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Quarterly Revenue Growth Chart */}
-              <div className="space-y-4 pt-6 border-t border-slate-150 dark:border-slate-850 graph-section" id="quarterly-graph-section">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-150 dark:border-slate-850 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
+              <div className="space-y-4 pt-6 border-t border-slate-200 dark:border-slate-800 graph-section" id="quarterly-graph-section">
+                <div className="flex justify-between items-center pb-3 border-b border-slate-200 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-slate-50 dark:from-slate-950/30 dark:to-slate-950/30 -mx-6 px-6 pt-4 mb-4 rounded-t-3xl">
                   <div>
                     <h3 className="text-sm font-sans font-black text-slate-900 dark:text-white uppercase tracking-tight">Quarterly Revenue Growth Chart</h3>
                     <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">No data available</p>
@@ -3175,13 +3175,13 @@ export default function ReportsAuditModule() {
                   <div className="flex gap-1">
                     <button
                       onClick={() => triggerPrint('Quarterly Revenue Chart', 'quarterly-graph-section')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Printer size={11} /> Print
                     </button>
                     <button
                       onClick={() => triggerExport('PDF', 'Quarterly Revenue Chart')}
-                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-850 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
+                      className="px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-white rounded-lg text-3xs font-mono font-bold flex items-center gap-1 transition shadow-xs"
                     >
                       <Download size={11} /> PDF
                     </button>
@@ -3190,7 +3190,7 @@ export default function ReportsAuditModule() {
                 <div className="h-44 w-full text-xs font-mono">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={[]} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-850" />
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-slate-100 dark:stroke-slate-800" />
                       <XAxis dataKey="quarter" stroke="#94a3b8" fontSize={9} />
                       <YAxis stroke="#94a3b8" fontSize={9} />
                       <Tooltip 
@@ -3206,26 +3206,26 @@ export default function ReportsAuditModule() {
               </div>
 
               {/* Top Quarterly Corporates & Nationalities Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-150 dark:border-slate-850 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-6 border-t border-slate-200 dark:border-slate-800 text-xs">
                 {/* Top Quarterly Corporates */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Quarterly Corporate Accounts Rank</span>
                     <TrendingUp size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Company</th>
                           <th className="py-2 px-2 text-center font-bold">Bookings</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Spend</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.quarterly.corporates.slice(0, 4).map((corp, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{corp.companyName}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.bookings}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{corp.roomNights}</td>
@@ -3239,23 +3239,23 @@ export default function ReportsAuditModule() {
 
                 {/* Top Quarterly Nationalities */}
                 <div className="space-y-3">
-                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-150 dark:border-slate-850">
+                  <div className="flex justify-between items-center bg-slate-50 dark:bg-slate-950 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
                     <span className="text-[10px] font-mono font-bold text-slate-500 uppercase tracking-wider block">Quarterly Guest Demographics</span>
                     <Users size={12} className="text-slate-500" />
                   </div>
-                  <div className="border border-slate-150 dark:border-slate-850 rounded-xl overflow-hidden shadow-3xs">
+                  <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                       <thead>
-                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-150 dark:border-slate-850">
+                        <tr className="bg-slate-50/50 dark:bg-slate-800/50 font-mono text-[9px] uppercase text-slate-450 border-b border-slate-200 dark:border-slate-800">
                           <th className="py-2 px-3 font-bold">Nationality</th>
                           <th className="py-2 px-2 text-center font-bold">Guests</th>
                           <th className="py-2 px-2 text-center font-bold">Nights</th>
                           <th className="py-2 px-3 text-right font-bold">Revenue</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                      <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                         {getTopCorporatesAndNationalities.quarterly.nationalities.slice(0, 4).map((nat, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-350">
+                          <tr key={idx} className="hover:bg-slate-50/20 dark:hover:bg-slate-800/20 text-slate-700 dark:text-slate-400">
                             <td className="py-2.5 px-3 font-sans font-bold text-slate-900 dark:text-white">{nat.nationality}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.guestCount}</td>
                             <td className="py-2.5 px-2 text-center font-mono">{nat.roomNights}</td>
@@ -3270,7 +3270,7 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* AI Generated strategic recommendations */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
               <div className="flex items-center gap-2">
                 <BrainCircuit size={16} className="text-slate-600 dark:text-slate-400" />
                 <h4 className="text-sm font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">AI Strategic Recommendations</h4>
@@ -3282,8 +3282,8 @@ export default function ReportsAuditModule() {
 
               <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1 no-scrollbar animate-fade-in text-xs">
                 {currentAiRecommendations.map((rec, i) => (
-                  <div key={i} className="p-3 border border-slate-150 dark:border-slate-800 rounded-2xl bg-gradient-to-tr from-slate-50/20 to-slate-50/20 dark:from-slate-950/20 dark:to-slate-950/10 space-y-1">
-                    <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase text-slate-650 dark:text-slate-400">
+                  <div key={i} className="p-3 border border-slate-200 dark:border-slate-800 rounded-xl bg-gradient-to-tr from-slate-50/20 to-slate-50/20 dark:from-slate-950/20 dark:to-slate-950/10 space-y-1">
+                    <div className="flex justify-between items-center text-[8px] font-mono font-black uppercase text-slate-600 dark:text-slate-400">
                       <span>{rec.category}</span>
                       <span className={`px-1.5 py-0.5 rounded ${rec.impact === 'High' ? 'bg-slate-100 text-slate-700' : 'bg-slate-100 text-slate-500 font-normal'}`}>
                         {rec.impact} Impact
@@ -3314,7 +3314,7 @@ export default function ReportsAuditModule() {
           <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
             
             {/* Automated schedulers list */}
-            <div className="xl:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+            <div className="xl:col-span-8 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
               <div className="flex justify-between items-center">
                 <div>
                   <h4 className="text-sm font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">
@@ -3333,7 +3333,7 @@ export default function ReportsAuditModule() {
 
               <div className="space-y-3">
                 {scheduledSchedules.map((sch) => (
-                  <div key={sch.id} className="p-4 border border-slate-150 dark:border-slate-800 rounded-2xl flex justify-between gap-4 items-center flex-wrap bg-slate-50/20 text-xs">
+                  <div key={sch.id} className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl flex justify-between gap-4 items-center flex-wrap bg-slate-50/20 text-xs">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <strong className="text-slate-900 dark:text-white font-bold font-sans">{sch.reportName}</strong>
@@ -3362,7 +3362,7 @@ export default function ReportsAuditModule() {
                         }}
                         className={`px-3 py-1.5 font-bold font-sans uppercase rounded-xl text-3xs transition cursor-pointer ${
                           sch.status === 'Active'
-                            ? 'bg-slate-50 text-slate-800 hover:bg-slate-100 border border-slate-150'
+                            ? 'bg-slate-50 text-slate-800 hover:bg-slate-100 border border-slate-200'
                             : 'bg-slate-100 text-slate-550 hover:bg-slate-200 border border-slate-200'
                         }`}
                       >
@@ -3375,12 +3375,12 @@ export default function ReportsAuditModule() {
             </div>
 
             {/* Email Distribution list settings */}
-            <div className="xl:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+            <div className="xl:col-span-4 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
               <div className="flex justify-between items-center">
                 <h4 className="text-xs font-black text-slate-950 dark:text-white uppercase tracking-widest font-mono">Email Subscriber Circles</h4>
                 <button 
                   onClick={() => setShowAddEmailModal(true)} 
-                  className="p-1 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-850 rounded"
+                  className="p-1 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800 rounded"
                 >
                   <Plus size={14} />
                 </button>
@@ -3392,7 +3392,7 @@ export default function ReportsAuditModule() {
 
               <div className="space-y-1.5 max-h-[300px] overflow-y-auto no-scrollbar">
                 {emailList.map((em, idx) => (
-                  <div key={idx} className="p-2.5 border border-slate-105 dark:border-slate-850 rounded-xl flex justify-between items-center bg-slate-50/20 text-3xs font-mono dark:text-slate-300">
+                  <div key={idx} className="p-2.5 border border-slate-105 dark:border-slate-800 rounded-xl flex justify-between items-center bg-slate-50/20 text-3xs font-mono dark:text-slate-300">
                     <span className="truncate pr-2 font-semibold text-slate-700 dark:text-slate-300">{em}</span>
                     <button 
                       onClick={() => setEmailList(prev => prev.filter(item => item !== em))}
@@ -3408,7 +3408,7 @@ export default function ReportsAuditModule() {
           </div>
 
           {/* Historical versions and approvals queue */}
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-4">
             <div>
               <h4 className="text-sm font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">
                 Report Approval & Generation Version history
@@ -3416,7 +3416,7 @@ export default function ReportsAuditModule() {
               <p className="text-xs text-slate-450">Track recent historical printings and dispatch statuses for accountability audits.</p>
             </div>
 
-            <div className="border border-slate-150 dark:border-slate-850 rounded-2xl overflow-hidden shadow-3xs">
+            <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-slate-800 font-mono text-[9px] uppercase text-slate-400 border-b border-slate-200 dark:border-slate-800">
@@ -3428,9 +3428,9 @@ export default function ReportsAuditModule() {
                     <th className="py-2.5 px-4 text-right font-bold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-850 bg-white dark:bg-slate-900">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                   {versionHistory.map((ver, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-750 dark:text-slate-350">
+                    <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-750 dark:text-slate-400">
                       <td className="py-3 px-4 font-bold text-slate-950 dark:text-white">{ver.reportName}</td>
                       <td className="py-3 px-3 font-mono text-slate-500">{ver.generatedBy}</td>
                       <td className="py-3 px-3 font-mono">{ver.timestamp}</td>
@@ -3460,7 +3460,7 @@ export default function ReportsAuditModule() {
                           )}
                           <button
                             onClick={() => triggerExport('PDF', ver.reportName)}
-                            className="p-1 bg-slate-50 dark:bg-slate-800 hover:bg-slate-250 hover:text-slate-600 dark:hover:bg-slate-750 text-slate-400 rounded-lg transition"
+                            className="p-1 bg-slate-50 dark:bg-slate-800 hover:bg-slate-300 hover:text-slate-600 dark:hover:bg-slate-750 text-slate-400 rounded-lg transition"
                             title="Download PDF Archive"
                           >
                             <Download size={11} />
@@ -3482,7 +3482,7 @@ export default function ReportsAuditModule() {
           ------------------------------------------------------------- */}
       {activeTab === 'alerts' && (
         <div className="space-y-6">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-850 p-6 rounded-3xl shadow-3xs space-y-2">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 p-6 rounded-xl shadow-sm space-y-2">
             <h3 className="text-base font-sans font-black text-slate-950 dark:text-white uppercase tracking-tight">Active Manager Alerts & Warning Hub</h3>
             <p className="text-xs text-slate-450">
               Evaluates critical operational thresholds. Managers automatically get notified when boundaries are violated or outstanding tickets are active.
@@ -3493,10 +3493,10 @@ export default function ReportsAuditModule() {
             {alertsEvaluated.map((alt) => (
               <div 
                 key={alt.id} 
-                className={`p-5 border rounded-2xl flex gap-4 transition duration-200 bg-white dark:bg-slate-900 shadow-3xs ${
+                className={`p-5 border rounded-xl flex gap-4 transition duration-200 bg-white dark:bg-slate-900 shadow-sm ${
                   alt.triggered
                     ? 'border-slate-500/20 bg-slate-500/5 dark:bg-slate-950/10'
-                    : 'border-slate-150 dark:border-slate-850 opacity-80'
+                    : 'border-slate-200 dark:border-slate-800 opacity-80'
                 }`}
               >
                 <div className="shrink-0">
@@ -3546,7 +3546,7 @@ export default function ReportsAuditModule() {
           </div>
 
           {auditExceptionsLog.length > 0 && (
-            <div className="border border-slate-200 dark:border-slate-900/40 rounded-2xl p-4 bg-slate-50/20 dark:bg-slate-950/10 space-y-3">
+            <div className="border border-slate-200 dark:border-slate-900/40 rounded-xl p-4 bg-slate-50/20 dark:bg-slate-950/10 space-y-3">
               <div className="flex items-center gap-2">
                 <BadgeAlert size={14} className="text-slate-600" />
                 <div>
@@ -3611,7 +3611,7 @@ export default function ReportsAuditModule() {
                 <select
                   value={newScheduleName}
                   onChange={e => setNewScheduleName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-bold outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl font-bold outline-none"
                 >
                   <option value="No data">No data</option>
                 </select>
@@ -3622,7 +3622,7 @@ export default function ReportsAuditModule() {
                 <select
                   value={newScheduleFreq}
                   onChange={e => setNewScheduleFreq(e.target.value as any)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-semibold outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl font-semibold outline-none"
                 >
                   <option value="Daily">Daily Automated</option>
                   <option value="Weekly">Weekly Digest</option>
@@ -3636,7 +3636,7 @@ export default function ReportsAuditModule() {
                 <select
                   value={newScheduleEmail}
                   onChange={e => setNewScheduleEmail(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl outline-none"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl outline-none"
                 >
                   <option value="">Select corporate circle address...</option>
                   {emailList.map((em, idx) => (
@@ -3664,7 +3664,7 @@ export default function ReportsAuditModule() {
                 placeholder="No data"
                 value={newEmailInput}
                 onChange={e => setNewEmailInput(e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-150 dark:border-slate-850 px-3 py-2.5 rounded-xl font-bold font-mono text-xs text-slate-800 dark:text-white"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-3 py-2.5 rounded-xl font-bold font-mono text-xs text-slate-800 dark:text-white"
               />
             </div>
       </ModalSystem>

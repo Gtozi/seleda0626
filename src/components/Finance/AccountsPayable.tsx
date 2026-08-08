@@ -40,7 +40,7 @@ import { ModalSystem } from '../Shared/ModalSystem';
 import { DataTable, Column } from '../Shared/DataTable';
 
 const AccountsPayable = () => {
-  const [activeTab, setActiveTab] = useState<'vendors' | 'bills' | 'payments'>('vendors');
+  const [activeTab, setActiveTab] = useState<'vendors' | 'bills' | 'payments' | 'matching' | 'scheduling'>('vendors');
   const [showNewVendor, setShowNewVendor] = useState(false);
   const [showNewBill, setShowNewBill] = useState(false);
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null);
@@ -170,37 +170,49 @@ const AccountsPayable = () => {
   const activeVendorCount = vendors.filter(v => v.status === 'Active').length;
 
   return (
-    <div className="space-y-6 bg-gradient-to-br from-slate-50 to-emerald-50 min-h-screen p-6 rounded-3xl animate-in fade-in slide-in-from-top-4 duration-500">
+    <div className="space-y-6 bg-white dark:bg-slate-800 min-h-screen p-6 rounded-lg animate-in fade-in slide-in-from-top-4 duration-500">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex bg-white dark:bg-slate-900 p-1 border border-slate-200 dark:border-slate-800 rounded-2xl w-fit shadow-sm hover:shadow-md transition-all duration-300">
+        <div className="flex bg-white dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700 rounded-lg w-fit shadow-sm hover:shadow-md transition-all duration-300">
           <button 
             onClick={() => setActiveTab('vendors')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'vendors' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'vendors' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Vendors
           </button>
           <button 
             onClick={() => setActiveTab('bills')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'bills' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'bills' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Bills
           </button>
           <button 
             onClick={() => setActiveTab('payments')}
-            className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'payments' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'payments' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
           >
             Payments
           </button>
+          <button 
+            onClick={() => setActiveTab('matching')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'matching' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            3-Way Match
+          </button>
+          <button 
+            onClick={() => setActiveTab('scheduling')}
+            className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-tight transition-all ${activeTab === 'scheduling' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            Scheduling
+          </button>
         </div>
         <div className="flex items-center gap-2">
-           <button className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition-all shadow-md hover:shadow-lg">
+           <button className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg flex items-center gap-2 text-xs transition-all shadow-md">
               <Download size={16} />
               Export
            </button>
            {activeTab === 'vendors' && (
              <button 
                onClick={() => setShowNewVendor(true)}
-               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition-all shadow-md hover:shadow-lg"
+               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg flex items-center gap-2 text-xs transition-all shadow-md"
              >
                 <Plus size={16} />
                 New Vendor
@@ -209,7 +221,7 @@ const AccountsPayable = () => {
            {activeTab === 'bills' && (
              <button 
                onClick={() => setShowNewBill(true)}
-               className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition-all shadow-md hover:shadow-lg"
+               className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 px-4 rounded-lg flex items-center gap-2 text-xs transition-all shadow-md"
              >
                 <Plus size={16} />
                 New Bill
@@ -225,8 +237,8 @@ const AccountsPayable = () => {
           { label: 'Active Vendors', value: `${activeVendorCount} Active`, sub: 'Registered suppliers', icon: Truck, color: 'text-blue-600', bg: 'bg-blue-100', border: 'border-blue-200' },
           { label: 'Pending Bills', value: `${bills.filter(b => b.status === 'Pending').length} Bills`, sub: 'Awaiting payment', icon: Calendar, color: 'text-indigo-600', bg: 'bg-indigo-100', border: 'border-indigo-200' },
         ].map((stat, i) => (
-          <div key={i} className={`bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-4 ${stat.border}`} style={{ animationDelay: `${i * 100}ms` }}>
-            <div className={`p-3 w-fit rounded-xl ${stat.bg} ${stat.color} mb-3`}>
+          <div key={i} className={`bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-6 rounded-lg shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-300 transform animate-in fade-in slide-in-from-bottom-4 ${stat.border}`} style={{ animationDelay: `${i * 100}ms` }}>
+            <div className={`p-3 w-fit rounded-lg ${stat.bg} ${stat.color} mb-3`}>
                <stat.icon size={18} />
             </div>
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
@@ -237,9 +249,10 @@ const AccountsPayable = () => {
       </div>
 
       {activeTab === 'vendors' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Vendor Registry</h3>
+        <div className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Vendor Registry</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Supplier and vendor account management</p>
           </div>
           <DataTable
             columns={[
@@ -315,15 +328,16 @@ const AccountsPayable = () => {
             filterable
             filterPlaceholder="Search vendors..."
             filterKeys={['name', 'id', 'contact', 'taxId', 'status']}
-            containerClassName="rounded-[32px]"
+            containerClassName="rounded-lg"
           />
         </div>
       )}
 
       {activeTab === 'bills' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Bills Registry</h3>
+        <div className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Bills Registry</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Vendor invoices and payable items</p>
           </div>
           <DataTable
             columns={[
@@ -357,15 +371,16 @@ const AccountsPayable = () => {
             filterable
             filterPlaceholder="Search bills..."
             filterKeys={['id', 'vendorName', 'invoiceNumber', 'status']}
-            containerClassName="rounded-[32px]"
+            containerClassName="rounded-lg"
           />
         </div>
       )}
 
       {activeTab === 'payments' && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Payments Registry</h3>
+        <div className="space-y-4">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Payments Registry</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Vendor payment history and disbursements</p>
           </div>
           <DataTable
             columns={[
@@ -387,7 +402,254 @@ const AccountsPayable = () => {
             filterable
             filterPlaceholder="Search payments..."
             filterKeys={['id', 'vendorName', 'paymentMethod', 'reference', 'status']}
-            containerClassName="rounded-[32px]"
+            containerClassName="rounded-lg"
+          />
+        </div>
+      )}
+
+      {activeTab === 'matching' && (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Three-Way Matching</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">PO, GRN, and invoice reconciliation</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Pending Matches', value: '12', count: 'Awaiting Review', color: 'text-amber-500', icon: AlertCircle },
+              { label: 'Matched Today', value: '8', count: 'Approved', color: 'text-emerald-500', icon: CheckCircle2 },
+              { label: 'Discrepancies', value: '3', count: 'Need Attention', color: 'text-rose-500', icon: ShieldCheck },
+              { label: 'Total Value', value: '$45,200', count: 'In Process', color: 'text-blue-500', icon: DollarSign },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-lg shadow-sm flex items-center gap-4">
+                <div className={`p-3 rounded-lg bg-slate-50 dark:bg-slate-700 ${stat.color}`}>
+                  <stat.icon size={20} />
+                </div>
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{stat.label}</span>
+                  <p className="text-lg font-black text-slate-900 dark:text-white leading-none">{stat.value}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">{stat.count}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DataTable
+            columns={[
+              {
+                key: 'poNumber',
+                label: 'PO #',
+                render: (m: any) => <span className="text-xs font-black text-indigo-600 uppercase tracking-tighter">{m.poNumber}</span>,
+              },
+              {
+                key: 'vendor',
+                label: 'Vendor',
+                render: (m: any) => <span className="text-xs font-bold text-slate-900 dark:text-white">{m.vendor}</span>,
+              },
+              {
+                key: 'invoiceMatch',
+                label: 'Invoice',
+                align: 'center',
+                render: (m: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.invoiceMatch === 'Matched' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {m.invoiceMatch}
+                  </span>
+                ),
+              },
+              {
+                key: 'receiptMatch',
+                label: 'Receipt',
+                align: 'center',
+                render: (m: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${m.receiptMatch === 'Matched' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+                    {m.receiptMatch}
+                  </span>
+                ),
+              },
+              {
+                key: 'poAmount',
+                label: 'PO Amount',
+                align: 'right',
+                render: (m: any) => <span className="text-xs font-black text-slate-900 dark:text-white">${m.poAmount.toLocaleString()}</span>,
+              },
+              {
+                key: 'invoiceAmount',
+                label: 'Invoice Amount',
+                align: 'right',
+                render: (m: any) => <span className="text-xs font-black text-slate-600 dark:text-slate-400">${m.invoiceAmount.toLocaleString()}</span>,
+              },
+              {
+                key: 'variance',
+                label: 'Variance',
+                align: 'right',
+                render: (m: any) => (
+                  <span className={`text-xs font-black ${Math.abs(m.variance) < 10 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    {m.variance > 0 ? '+' : ''}{m.variance.toLocaleString()}%
+                  </span>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                align: 'center',
+                render: (m: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                    m.status === 'Approved' ? 'bg-emerald-50 text-emerald-600' :
+                    m.status === 'Pending' ? 'bg-amber-50 text-amber-600' :
+                    'bg-rose-50 text-rose-600'
+                  }`}>
+                    {m.status}
+                  </span>
+                ),
+              },
+              {
+                key: 'actions',
+                label: 'Actions',
+                align: 'center',
+                sortable: false,
+                render: (m: any) => (
+                  <div className="flex justify-center gap-1">
+                    <button className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="View Details"><Eye size={14} /></button>
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 transition" title="Approve"><CheckCircle2 size={14} /></button>
+                  </div>
+                ),
+              },
+            ]}
+            data={[
+              { poNumber: 'PO-2024-089', vendor: 'Apex Cleaning Supplies', invoiceMatch: 'Matched', receiptMatch: 'Matched', poAmount: 5000, invoiceAmount: 5000, variance: 0, status: 'Approved' },
+              { poNumber: 'PO-2024-092', vendor: 'Food Provisions Ltd', invoiceMatch: 'Matched', receiptMatch: 'Pending', poAmount: 8500, invoiceAmount: 8425, variance: -0.88, status: 'Pending' },
+              { poNumber: 'PO-2024-078', vendor: 'Maintenance Services', invoiceMatch: 'Pending', receiptMatch: 'Matched', poAmount: 3200, invoiceAmount: 3500, variance: 9.38, status: 'Discrepancy' },
+              { poNumber: 'PO-2024-095', vendor: 'Office Supplies Co', invoiceMatch: 'Matched', receiptMatch: 'Matched', poAmount: 1200, invoiceAmount: 1200, variance: 0, status: 'Approved' },
+              { poNumber: 'PO-2024-082', vendor: 'Tech Equipment Inc', invoiceMatch: 'Matched', receiptMatch: 'Pending', poAmount: 15000, invoiceAmount: 14850, variance: -1, status: 'Pending' },
+            ]}
+            rowKey={(m: any) => m.poNumber}
+            sortable
+            filterable
+            filterPlaceholder="Search matches..."
+            filterKeys={['poNumber', 'vendor', 'status']}
+            emptyMessage="No three-way matches found."
+          />
+        </div>
+      )}
+
+      {activeTab === 'scheduling' && (
+        <div className="space-y-6">
+          <div className="mb-4">
+            <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Payment Scheduling</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Automated payment scheduling and approval</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Scheduled Payments', value: '15', count: 'This Week', color: 'text-blue-500', icon: Calendar },
+              { label: 'Total Scheduled', value: '$78,500', count: 'Upcoming', color: 'text-emerald-500', icon: DollarSign },
+              { label: 'Overdue Scheduled', value: '3', count: 'Missed', color: 'text-rose-500', icon: AlertCircle },
+              { label: 'Auto-Pay Enabled', value: '8', count: 'Vendors', color: 'text-indigo-500', icon: ShieldCheck },
+            ].map((stat, i) => (
+              <div key={i} className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-5 rounded-lg shadow-sm flex items-center gap-4">
+                <div className={`p-3 rounded-lg bg-slate-50 dark:bg-slate-700 ${stat.color}`}>
+                  <stat.icon size={20} />
+                </div>
+                <div>
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{stat.label}</span>
+                  <p className="text-lg font-black text-slate-900 dark:text-white leading-none">{stat.value}</p>
+                  <p className="text-[9px] font-bold text-slate-500 uppercase mt-1">{stat.count}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <DataTable
+            columns={[
+              {
+                key: 'vendor',
+                label: 'Vendor',
+                render: (s: any) => <span className="text-xs font-bold text-slate-900 dark:text-white">{s.vendor}</span>,
+              },
+              {
+                key: 'billNumber',
+                label: 'Bill #',
+                render: (s: any) => <span className="text-xs font-black text-indigo-600 uppercase tracking-tighter">{s.billNumber}</span>,
+              },
+              {
+                key: 'scheduledDate',
+                label: 'Scheduled Date',
+                render: (s: any) => <span className="text-xs font-bold text-slate-500">{s.scheduledDate}</span>,
+              },
+              {
+                key: 'amount',
+                label: 'Amount',
+                align: 'right',
+                render: (s: any) => <span className="text-xs font-black text-slate-900 dark:text-white">${s.amount.toLocaleString()}</span>,
+              },
+              {
+                key: 'paymentMethod',
+                label: 'Payment Method',
+                render: (s: any) => <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{s.paymentMethod}</span>,
+              },
+              {
+                key: 'frequency',
+                label: 'Frequency',
+                align: 'center',
+                render: (s: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                    s.frequency === 'One-time' ? 'bg-slate-50 text-slate-600' :
+                    s.frequency === 'Weekly' ? 'bg-blue-50 text-blue-600' :
+                    s.frequency === 'Monthly' ? 'bg-emerald-50 text-emerald-600' :
+                    'bg-amber-50 text-amber-600'
+                  }`}>
+                    {s.frequency}
+                  </span>
+                ),
+              },
+              {
+                key: 'autoPay',
+                label: 'Auto-Pay',
+                align: 'center',
+                render: (s: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${s.autoPay ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-50 text-slate-600'}`}>
+                    {s.autoPay ? 'Enabled' : 'Disabled'}
+                  </span>
+                ),
+              },
+              {
+                key: 'status',
+                label: 'Status',
+                align: 'center',
+                render: (s: any) => (
+                  <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
+                    s.status === 'Pending' ? 'bg-amber-50 text-amber-600' :
+                    s.status === 'Processed' ? 'bg-emerald-50 text-emerald-600' :
+                    'bg-rose-50 text-rose-600'
+                  }`}>
+                    {s.status}
+                  </span>
+                ),
+              },
+              {
+                key: 'actions',
+                label: 'Actions',
+                align: 'center',
+                sortable: false,
+                render: (s: any) => (
+                  <div className="flex justify-center gap-1">
+                    <button className="p-1.5 text-slate-400 hover:text-indigo-600 transition" title="Edit Schedule"><Calendar size={14} /></button>
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 transition" title="Process Now"><Send size={14} /></button>
+                  </div>
+                ),
+              },
+            ]}
+            data={[
+              { vendor: 'Apex Cleaning Supplies', billNumber: 'BILL-2024-089', scheduledDate: '2024-06-10', amount: 5000, paymentMethod: 'Bank Transfer', frequency: 'Monthly', autoPay: true, status: 'Pending' },
+              { vendor: 'Food Provisions Ltd', billNumber: 'BILL-2024-092', scheduledDate: '2024-06-12', amount: 8500, paymentMethod: 'Bank Transfer', frequency: 'Weekly', autoPay: true, status: 'Pending' },
+              { vendor: 'Maintenance Services', billNumber: 'BILL-2024-078', scheduledDate: '2024-06-08', amount: 3200, paymentMethod: 'Check', frequency: 'One-time', autoPay: false, status: 'Overdue' },
+              { vendor: 'Office Supplies Co', billNumber: 'BILL-2024-095', scheduledDate: '2024-06-15', amount: 1200, paymentMethod: 'Bank Transfer', frequency: 'Monthly', autoPay: true, status: 'Pending' },
+              { vendor: 'Tech Equipment Inc', billNumber: 'BILL-2024-082', scheduledDate: '2024-06-20', amount: 15000, paymentMethod: 'Wire', frequency: 'Quarterly', autoPay: false, status: 'Pending' },
+            ]}
+            rowKey={(s: any) => s.billNumber}
+            sortable
+            filterable
+            filterPlaceholder="Search schedules..."
+            filterKeys={['vendor', 'billNumber', 'status']}
+            emptyMessage="No scheduled payments found."
           />
         </div>
       )}
@@ -401,20 +663,21 @@ const AccountsPayable = () => {
         size="xl"
         showFooter={false}
       >
-            <div className="p-6 space-y-6 overflow-y-auto">
+            {selectedVendor && (
+              <div className="p-6 space-y-6 overflow-y-auto">
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Contact Email</span>
                   <div className="flex items-center gap-2">
                     <Mail size={14} className="text-slate-400" />
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor.contact}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor?.contact || '-'}</span>
                   </div>
                 </div>
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Phone</span>
                   <div className="flex items-center gap-2">
                     <Phone size={14} className="text-slate-400" />
-                    <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor.phone}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor?.phone || '-'}</span>
                   </div>
                 </div>
               </div>
@@ -423,42 +686,43 @@ const AccountsPayable = () => {
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Address</span>
                 <div className="flex items-center gap-2">
                   <MapPin size={14} className="text-slate-400" />
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor.address}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedVendor?.address || '-'}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Tax ID (TIN)</span>
-                  <span className="text-xs font-black text-slate-900 dark:text-white font-mono">{selectedVendor.taxId}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white font-mono">{selectedVendor?.taxId || '-'}</span>
                 </div>
                 <div className="space-y-2">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Withholding Rate</span>
                   <div className="flex items-center gap-2">
                     <Percent size={14} className="text-amber-600" />
-                    <span className="text-xs font-black text-amber-600">{selectedVendor.withholdingRate}%</span>
+                    <span className="text-xs font-black text-amber-600">{selectedVendor?.withholdingRate ?? 0}%</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-2xl p-4">
+              <div className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-lg p-4">
                 <div className="flex justify-between items-center">
                   <div>
                     <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest block">Outstanding Balance</span>
-                    <span className="text-2xl font-black text-indigo-600">${selectedVendor.balance.toLocaleString()}</span>
+                    <span className="text-2xl font-black text-indigo-600">${(selectedVendor?.balance || 0).toLocaleString()}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">Category</span>
-                    <span className="text-xs font-black text-slate-900 dark:text-white">{selectedVendor.category}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">{selectedVendor?.category || '-'}</span>
                   </div>
                 </div>
               </div>
             </div>
+            )}
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-950/20">
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-700/20">
               <button 
                 onClick={() => setSelectedVendor(null)}
-                className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:from-emerald-700 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
               >
                 Close
               </button>
@@ -482,7 +746,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newVendorForm.name}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, name: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Company name"
                   />
                 </div>
@@ -492,7 +756,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newVendorForm.contactName}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, contactName: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Contact person"
                   />
                 </div>
@@ -505,7 +769,7 @@ const AccountsPayable = () => {
                     type="email"
                     value={newVendorForm.email}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, email: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="email@example.com"
                   />
                 </div>
@@ -515,7 +779,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newVendorForm.phone}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="+251 911 234 567"
                   />
                 </div>
@@ -527,7 +791,7 @@ const AccountsPayable = () => {
                   type="text"
                   value={newVendorForm.address}
                   onChange={(e) => setNewVendorForm({ ...newVendorForm, address: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   placeholder="Street, City, Country"
                 />
               </div>
@@ -539,7 +803,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newVendorForm.taxId}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, taxId: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="TIN-123456789"
                   />
                 </div>
@@ -549,7 +813,7 @@ const AccountsPayable = () => {
                     type="number"
                     value={newVendorForm.withholdingRate}
                     onChange={(e) => setNewVendorForm({ ...newVendorForm, withholdingRate: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="2"
                   />
                 </div>
@@ -560,7 +824,7 @@ const AccountsPayable = () => {
                 <select
                   value={newVendorForm.category}
                   onChange={(e) => setNewVendorForm({ ...newVendorForm, category: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="Operations">Operations</option>
                   <option value="F&B">F&B</option>
@@ -572,16 +836,16 @@ const AccountsPayable = () => {
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-950/20">
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-700/20">
               <button
                 onClick={() => setShowNewVendor(false)}
-                className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md"
+                className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateVendor}
-                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Create Vendor
               </button>
@@ -603,7 +867,7 @@ const AccountsPayable = () => {
                 <select
                   value={newBillForm.vendorId}
                   onChange={(e) => setNewBillForm({ ...newBillForm, vendorId: e.target.value })}
-                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">Select vendor</option>
                   {vendors.map((v) => (
@@ -619,7 +883,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newBillForm.invoiceNumber}
                     onChange={(e) => setNewBillForm({ ...newBillForm, invoiceNumber: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="INV-2024-001"
                   />
                 </div>
@@ -629,7 +893,7 @@ const AccountsPayable = () => {
                     type="text"
                     value={newBillForm.category}
                     onChange={(e) => setNewBillForm({ ...newBillForm, category: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="Operations"
                   />
                 </div>
@@ -642,7 +906,7 @@ const AccountsPayable = () => {
                     type="date"
                     value={newBillForm.invoiceDate}
                     onChange={(e) => setNewBillForm({ ...newBillForm, invoiceDate: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
                 <div className="space-y-1">
@@ -651,7 +915,7 @@ const AccountsPayable = () => {
                     type="date"
                     value={newBillForm.dueDate}
                     onChange={(e) => setNewBillForm({ ...newBillForm, dueDate: e.target.value })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
               </div>
@@ -663,7 +927,7 @@ const AccountsPayable = () => {
                     type="number"
                     value={newBillForm.amount}
                     onChange={(e) => setNewBillForm({ ...newBillForm, amount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
@@ -673,7 +937,7 @@ const AccountsPayable = () => {
                     type="number"
                     value={newBillForm.taxAmount}
                     onChange={(e) => setNewBillForm({ ...newBillForm, taxAmount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
@@ -683,23 +947,23 @@ const AccountsPayable = () => {
                     type="number"
                     value={newBillForm.withholdingAmount}
                     onChange={(e) => setNewBillForm({ ...newBillForm, withholdingAmount: Number(e.target.value) })}
-                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     placeholder="0.00"
                   />
                 </div>
               </div>
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-950/20">
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-3 bg-slate-50/30 dark:bg-slate-700/20">
               <button
                 onClick={() => setShowNewBill(false)}
-                className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md"
+                className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md"
               >
                 Cancel
               </button>
               <button
                 onClick={handleCreateBill}
-                className="px-6 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg"
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all"
               >
                 Create Bill
               </button>
@@ -715,28 +979,30 @@ const AccountsPayable = () => {
         size="xl"
         showFooter={false}
       >
-            <div className="p-6 space-y-6 overflow-y-auto">
+            <div className="p-6 space-y-6 overflow-y-auto print-area">
+              {selectedBill && (
+              <>
               <div className="grid grid-cols-3 gap-6">
                 <div>
                   <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Vendor</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.vendorName}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.vendorName || '-'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Invoice Date</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.invoiceDate}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.invoiceDate || '-'}</span>
                 </div>
                 <div>
                   <span className="text-[10px] font-black text-slate-400 uppercase block mb-1">Due Date</span>
-                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.dueDate}</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedBill.dueDate || '-'}</span>
                 </div>
               </div>
 
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-slate-900 dark:text-white uppercase tracking-widest">Bill Lines</h4>
-                <div className="border border-slate-150 dark:border-slate-800 rounded-2xl overflow-hidden">
+                <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-50/50 dark:bg-slate-950/20">
+                      <tr className="bg-slate-50/50 dark:bg-slate-700/20">
                         <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">Description</th>
                         <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">Qty</th>
                         <th className="px-4 py-2 text-[9px] font-black text-slate-400 uppercase tracking-widest text-right">Rate</th>
@@ -757,35 +1023,38 @@ const AccountsPayable = () => {
                 </div>
               </div>
 
-              <div className="bg-slate-50 dark:bg-slate-950/40 rounded-3xl p-6 border border-slate-100 dark:border-slate-800">
+              <div className="bg-slate-50 dark:bg-slate-700/40 rounded-lg p-6 border border-slate-100 dark:border-slate-700">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
                     <span>Gross Amount</span>
-                    <span className="font-mono text-slate-900 dark:text-white">${selectedBill.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="font-mono text-slate-900 dark:text-white">${(selectedBill.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold text-slate-500 uppercase">
                     <span>VAT (15%)</span>
-                    <span className="font-mono text-slate-900 dark:text-white">${selectedBill.taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="font-mono text-slate-900 dark:text-white">${(selectedBill.taxAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="flex justify-between items-center text-xs font-bold text-amber-600 uppercase">
-                    <span>Withholding Tax ({selectedBill.withholdingAmount / selectedBill.amount * 100}%)</span>
-                    <span className="font-mono">-${selectedBill.withholdingAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span>Withholding Tax ({selectedBill.amount ? (selectedBill.withholdingAmount / selectedBill.amount * 100).toFixed(1) : 0}%)</span>
+                    <span className="font-mono">-${(selectedBill.withholdingAmount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                   <div className="h-px bg-slate-200 dark:bg-slate-800 my-2" />
                   <div className="flex justify-between items-center font-black uppercase">
                     <span className="text-xs text-slate-900 dark:text-white">Net Payable</span>
-                    <span className="text-xl text-emerald-600 font-mono">${selectedBill.netPayable.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                    <span className="text-xl text-emerald-600 font-mono">${(selectedBill.netPayable || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
                 </div>
               </div>
+              </>
+              )}
             </div>
 
-            <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/30 dark:bg-slate-950/20">
+            {selectedBill && (
+            <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-between items-center bg-slate-50/30 dark:bg-slate-700/20 no-print">
               <div className="flex gap-2">
-                {(selectedBill.status === 'Pending' || selectedBill.status === 'Overdue' || selectedBill.status === 'Partially Paid') && selectedBill.amountDue > 0 && (
+                {(selectedBill.status === 'Pending' || selectedBill.status === 'Overdue' || selectedBill.status === 'Partially Paid') && (selectedBill.amountDue || 0) > 0 && (
                   <button
                     onClick={() => handlePayBill(selectedBill)}
-                    className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md hover:shadow-lg flex items-center gap-2"
+                    className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2"
                   >
                     <ShieldCheck size={14} /> Pay Bill
                   </button>
@@ -794,18 +1063,19 @@ const AccountsPayable = () => {
               <div className="flex gap-3">
                 <button 
                   onClick={() => window.print()}
-                  className="px-6 py-2.5 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md flex items-center gap-2"
+                  className="px-6 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all hover:shadow-md flex items-center gap-2"
                 >
                   <Download size={14} /> Print
                 </button>
                 <button 
                   onClick={() => setSelectedBill(null)}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:from-emerald-700 hover:to-teal-700 transition-all shadow-md hover:shadow-lg"
+                  className="px-6 py-2.5 bg-blue-600 text-white rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 transition-all"
                 >
                   Close
                 </button>
               </div>
             </div>
+            )}
       </ModalSystem>
     </div>
   );

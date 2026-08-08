@@ -12,14 +12,14 @@ import {
   MapPin,
   Star,
   RefreshCw,
-  TrendingUp,
-  TrendingDown,
   MoreVertical,
   Building2,
   DollarSign,
-  Users,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  BarChart3,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 
 interface Competitor {
@@ -118,6 +118,18 @@ const CompetitorManagement = () => {
     { id: '2', competitorId: '1', roomType: 'Standard Room', date: '2026-07-19', rate: 105, currency: 'ETB', availability: true, collectedAt: '2026-07-19T10:00:00Z', source: 'api' },
     { id: '3', competitorId: '2', roomType: 'Deluxe Suite', date: '2026-07-19', rate: 145, currency: 'ETB', availability: true, collectedAt: '2026-07-19T09:30:00Z', source: 'api' },
     { id: '4', competitorId: '3', roomType: 'Ocean View', date: '2026-07-19', rate: 195, currency: 'ETB', availability: false, collectedAt: '2026-07-19T08:00:00Z', source: 'api' },
+  ], []);
+
+  // New competitor analysis metrics
+  const competitorAnalysis = useMemo(() => [
+    { id: 1, competitor: 'Hotel A', marketShare: 22, ratePosition: 'premium', occupancy: 78, adr: 145, revpar: 113 },
+    { id: 2, competitor: 'Hotel B', marketShare: 18, ratePosition: 'competitive', occupancy: 82, adr: 138, revpar: 113 },
+    { id: 3, competitor: 'Hotel C', marketShare: 15, ratePosition: 'luxury', occupancy: 75, adr: 152, revpar: 114 },
+  ], []);
+
+  const parityAlerts = useMemo(() => [
+    { id: 1, channel: 'Booking.com', competitor: 'Hotel A', ourRate: 150, competitorRate: 135, variance: -10, severity: 'high' },
+    { id: 2, channel: 'Expedia', competitor: 'Hotel B', ourRate: 150, competitorRate: 145, variance: -3, severity: 'medium' },
   ], []);
 
   const filteredCompetitors = useMemo(() => {
@@ -257,6 +269,34 @@ const CompetitorManagement = () => {
                 <p className="text-slate-600 dark:text-slate-400">No competitors found</p>
               </div>
             )}
+          </div>
+
+          {/* Competitor Analysis */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Competitor Analysis</h3>
+              <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                View Detailed Analysis
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {competitorAnalysis.map((analysis) => (
+                <CompetitorAnalysisCard key={analysis.id} analysis={analysis} />
+              ))}
+            </div>
+          </div>
+
+          {/* Rate Parity Alerts */}
+          <div className="bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white">Rate Parity Alerts</h3>
+              <span className="text-sm text-slate-600 dark:text-slate-400">{parityAlerts.length} active alerts</span>
+            </div>
+            <div className="space-y-3">
+              {parityAlerts.map((alert) => (
+                <ParityAlertCard key={alert.id} alert={alert} />
+              ))}
+            </div>
           </div>
 
           {/* Rate History Modal */}
@@ -608,6 +648,93 @@ const CompetitorForm: React.FC<CompetitorFormProps> = ({ mode, competitor, onCan
         >
           {mode === 'add' ? 'Add Competitor' : 'Save Changes'}
         </button>
+      </div>
+    </div>
+  );
+};
+
+interface CompetitorAnalysisCardProps {
+  analysis: {
+    id: number;
+    competitor: string;
+    marketShare: number;
+    ratePosition: string;
+    occupancy: number;
+    adr: number;
+    revpar: number;
+  };
+}
+
+const CompetitorAnalysisCard: React.FC<CompetitorAnalysisCardProps> = ({ analysis }) => {
+  const positionColors = {
+    premium: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300',
+    competitive: 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300',
+    luxury: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+  };
+
+  return (
+    <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-200 dark:border-slate-600">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-medium text-slate-900 dark:text-white">{analysis.competitor}</h4>
+        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${positionColors[analysis.ratePosition as keyof typeof positionColors]}`}>
+          {analysis.ratePosition}
+        </span>
+      </div>
+      <div className="space-y-2 text-sm">
+        <div className="flex justify-between">
+          <span className="text-slate-600 dark:text-slate-400">Market Share</span>
+          <span className="font-medium text-slate-900 dark:text-white">{analysis.marketShare}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600 dark:text-slate-400">Occupancy</span>
+          <span className="font-medium text-slate-900 dark:text-white">{analysis.occupancy}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600 dark:text-slate-400">ADR</span>
+          <span className="font-medium text-slate-900 dark:text-white">${analysis.adr}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600 dark:text-slate-400">RevPAR</span>
+          <span className="font-medium text-slate-900 dark:text-white">${analysis.revpar}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+interface ParityAlertCardProps {
+  alert: {
+    id: number;
+    channel: string;
+    competitor: string;
+    ourRate: number;
+    competitorRate: number;
+    variance: number;
+    severity: string;
+  };
+}
+
+const ParityAlertCard: React.FC<ParityAlertCardProps> = ({ alert }) => {
+  const severityColors = {
+    high: 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800',
+    medium: 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+    low: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+  };
+
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-lg border ${severityColors[alert.severity as keyof typeof severityColors]}`}>
+      <div className="flex items-center gap-3">
+        <AlertCircle className="w-5 h-5" />
+        <div>
+          <h4 className="font-medium text-slate-900 dark:text-white">{alert.channel}</h4>
+          <p className="text-sm text-slate-600 dark:text-slate-400">{alert.competitor}</p>
+        </div>
+      </div>
+      <div className="text-right">
+        <p className="text-sm text-slate-600 dark:text-slate-400">Our: ${alert.ourRate} vs Their: ${alert.competitorRate}</p>
+        <p className={`text-sm font-medium ${alert.variance < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
+          {alert.variance}% variance
+        </p>
       </div>
     </div>
   );

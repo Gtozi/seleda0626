@@ -195,7 +195,7 @@ export default function UnifiedInvoiceTemplate({
       </div>
 
       {/* 2. MAIN DOCUMENT WRAPPER */}
-      <div className={`w-full max-w-3xl bg-white text-slate-850 p-8 md:p-12 shadow-2xl relative transition-all duration-300 print:shadow-none print:p-0 print:m-0 print:rounded-none ${
+      <div className={`w-full max-w-3xl bg-white text-slate-850 p-8 md:p-12 shadow-2xl relative transition-all duration-300 print:shadow-none print:p-0 print:m-0 print:rounded-none print-area ${
         activeTemplate === 'classic' ? 'rounded-b-2xl border-x border-b border-slate-200' :
         activeTemplate === 'modern' ? 'rounded-b-2xl border-x border-b border-indigo-150' :
         activeTemplate === 'minimalist' ? 'rounded-b-2xl border-x border-b border-stone-200 font-sans' :

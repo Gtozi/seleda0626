@@ -213,7 +213,7 @@ export default function SalesRegistry() {
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
-      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+      <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
         <button onClick={() => setActiveTab('transactions')} className={`flex-1 px-4 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 ${activeTab === 'transactions' ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
           <Receipt size={14} /> Transactions
         </button>
@@ -228,7 +228,7 @@ export default function SalesRegistry() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-[24px] shadow-3xs group hover:border-emerald-500/30 transition-colors">
             <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 rounded-xl">
+              <div className="p-2 bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 rounded-lg">
                 <TrendingUp size={18} />
               </div>
               <span className="text-[10px] font-black text-emerald-500 uppercase">Gross Revenue</span>
@@ -239,7 +239,7 @@ export default function SalesRegistry() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-[24px] shadow-3xs group hover:border-indigo-500/30 transition-colors">
             <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-xl">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 rounded-lg">
                 <Banknote size={18} />
               </div>
               <span className="text-[10px] font-black text-indigo-500 uppercase">Liquid Cash</span>
@@ -250,7 +250,7 @@ export default function SalesRegistry() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-[24px] shadow-3xs group hover:border-sky-500/30 transition-colors">
             <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-sky-50 dark:bg-sky-500/10 text-sky-600 rounded-xl">
+              <div className="p-2 bg-sky-50 dark:bg-sky-500/10 text-sky-600 rounded-lg">
                 <CreditCard size={18} />
               </div>
               <span className="text-[10px] font-black text-sky-500 uppercase">Digital / Bank</span>
@@ -261,7 +261,7 @@ export default function SalesRegistry() {
 
         <div className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-5 rounded-[24px] shadow-3xs group hover:border-amber-500/30 transition-colors">
             <div className="flex justify-between items-start mb-3">
-              <div className="p-2 bg-amber-50 dark:bg-amber-500/10 text-amber-600 rounded-xl">
+              <div className="p-2 bg-amber-50 dark:bg-amber-500/10 text-amber-600 rounded-lg">
                 <Building size={18} />
               </div>
               <span className="text-[10px] font-black text-amber-500 uppercase">City Ledger</span>
@@ -279,7 +279,7 @@ export default function SalesRegistry() {
              Registry Controls
            </h3>
            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
                 <Calendar size={12} className="text-slate-400" />
                 <input 
                    type="date" 
@@ -303,13 +303,13 @@ export default function SalesRegistry() {
               <select 
                 value={filterStatus}
                 onChange={(e: any) => setFilterStatus(e.target.value)}
-                className="bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 outline-none"
+                className="bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800 text-[10px] font-bold text-slate-700 dark:text-slate-300 outline-none"
               >
                 <option value="All">All Status</option>
                 <option value="Posted">Posted to GL</option>
                 <option value="Unposted">Unposted</option>
               </select>
-              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-xl border border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-850 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Include Folio</span>
                 <button 
                   onClick={() => setShowRoomCharges(!showRoomCharges)}
@@ -698,7 +698,7 @@ export default function SalesRegistry() {
 
       {activeTab === 'allotments' && (
         <div className="space-y-4">
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-xl p-6 text-center">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg p-6 text-center">
             <Package size={48} className="mx-auto text-indigo-600 dark:text-indigo-400 mb-3" />
             <h3 className="text-sm font-bold text-indigo-900 dark:text-indigo-100 mb-2">Tour Operator Allotments</h3>
             <p className="text-xs text-indigo-700 dark:text-indigo-300 mb-4">Manage room blocks, pickup status, and release expired allotments</p>

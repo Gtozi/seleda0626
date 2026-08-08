@@ -55,7 +55,7 @@ const ReimbursementClaims = () => {
                <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Staff Reimbursement Workflow</h3>
                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Employee expense claims & verification state</p>
             </div>
-            <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
+            <button className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg text-[10px] font-black uppercase tracking-tight hover:opacity-90 transition">
                Submit Claim
             </button>
          </div>
@@ -115,7 +115,7 @@ const ReimbursementClaims = () => {
                        <span className="text-[10px] font-bold">{claim.receipts}</span>
                      </div>
                    )}
-                   <button className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-xl transition">
+                   <button className="p-2 text-slate-400 hover:text-indigo-600 bg-slate-50 dark:bg-slate-800 rounded-lg transition">
                      <ChevronRight size={16} />
                    </button>
                  </div>

@@ -18,24 +18,121 @@ interface LostFoundItem {
   id: string;
   item: string;
   room: string;
-  category: 'Electronics' | 'Clothing' | 'Valuables' | 'Others';
-  status: 'Vaulted' | 'Disposed' | 'Returned' | 'Claim Pending';
+  category: 'Electronics' | 'Clothing' | 'Valuables' | 'Documents' | 'Others';
+  status: 'Found' | 'Logged' | 'Vaulted' | 'Claim Pending' | 'Returned' | 'Disposed';
   foundDate: string;
   foundBy: string;
   location: string;
+  description?: string;
+  guestName?: string;
+  guestContact?: string;
+  custodyLog: Array<{ action: string; timestamp: string; performedBy: string }>;
+  photoUrl?: string;
+  disposalDate?: string;
 }
 
 const initialItems: LostFoundItem[] = [
-  { id: 'LF-2209', item: 'iPhone 14 Pro Max', room: '402', category: 'Electronics', status: 'Vaulted', foundDate: '2026-05-28', foundBy: 'Staff Member A', location: 'Safe A-04' },
-  { id: 'LF-2210', item: 'Woolen Scarf', room: '105', category: 'Clothing', status: 'Claim Pending', foundDate: '2026-05-29', foundBy: 'Staff Member B', location: 'Bin 12' },
-  { id: 'LF-2211', item: 'Gold Wedding Ring', room: 'Suite 2', category: 'Valuables', status: 'Vaulted', foundDate: '2026-05-27', foundBy: 'Staff Member A', location: 'Safe A-01' },
+  { 
+    id: 'LF-2209', 
+    item: 'iPhone 14 Pro Max', 
+    room: '402', 
+    category: 'Electronics', 
+    status: 'Vaulted', 
+    foundDate: '2026-05-28', 
+    foundBy: 'Staff Member A', 
+    location: 'Safe A-04',
+    description: 'Black iPhone with cracked screen, found in bedside drawer',
+    guestName: 'John Smith',
+    guestContact: '+251911123456',
+    custodyLog: [
+      { action: 'Found', timestamp: '2026-05-28 09:30', performedBy: 'Staff Member A' },
+      { action: 'Logged', timestamp: '2026-05-28 09:45', performedBy: 'Front Desk' },
+      { action: 'Vaulted', timestamp: '2026-05-28 10:00', performedBy: 'Security' }
+    ]
+  },
+  { 
+    id: 'LF-2210', 
+    item: 'Woolen Scarf', 
+    room: '105', 
+    category: 'Clothing', 
+    status: 'Claim Pending', 
+    foundDate: '2026-05-29', 
+    foundBy: 'Staff Member B', 
+    location: 'Bin 12',
+    description: 'Navy blue wool scarf, designer brand',
+    guestName: 'Jane Doe',
+    guestContact: '+251911987654',
+    custodyLog: [
+      { action: 'Found', timestamp: '2026-05-29 14:00', performedBy: 'Staff Member B' },
+      { action: 'Logged', timestamp: '2026-05-29 14:15', performedBy: 'Front Desk' }
+    ]
+  },
+  { 
+    id: 'LF-2211', 
+    item: 'Gold Wedding Ring', 
+    room: 'Suite 2', 
+    category: 'Valuables', 
+    status: 'Vaulted', 
+    foundDate: '2026-05-27', 
+    foundBy: 'Staff Member A', 
+    location: 'Safe A-01',
+    description: 'Gold band with diamond, wedding ring',
+    guestName: 'Robert Johnson',
+    guestContact: '+251911555555',
+    custodyLog: [
+      { action: 'Found', timestamp: '2026-05-27 16:30', performedBy: 'Staff Member A' },
+      { action: 'Logged', timestamp: '2026-05-27 16:45', performedBy: 'Front Desk' },
+      { action: 'Vaulted', timestamp: '2026-05-27 17:00', performedBy: 'Security' }
+    ]
+  },
+  { 
+    id: 'LF-2212', 
+    item: 'Passport', 
+    room: '301', 
+    category: 'Documents', 
+    status: 'Returned', 
+    foundDate: '2026-05-26', 
+    foundBy: 'Staff Member C', 
+    location: 'Front Desk',
+    description: 'US Passport, expired 2027',
+    guestName: 'Michael Brown',
+    guestContact: '+251911333333',
+    custodyLog: [
+      { action: 'Found', timestamp: '2026-05-26 11:00', performedBy: 'Staff Member C' },
+      { action: 'Logged', timestamp: '2026-05-26 11:15', performedBy: 'Front Desk' },
+      { action: 'Returned', timestamp: '2026-05-26 12:00', performedBy: 'Front Desk' }
+    ]
+  },
 ];
 
 export default function LostAndFoundModule() {
   const [items, setItems] = React.useState<LostFoundItem[]>(initialItems);
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<'All' | 'Found' | 'Logged' | 'Vaulted' | 'Claim Pending' | 'Returned' | 'Disposed'>('All');
 
-  const filteredItems = items.filter(i => i.item.toLowerCase().includes(searchTerm.toLowerCase()) || i.room.includes(searchTerm));
+  const filteredItems = items.filter(i => {
+    const matchesSearch = i.item.toLowerCase().includes(searchTerm.toLowerCase()) || i.room.includes(searchTerm);
+    const matchesStatus = statusFilter === 'All' || i.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const updateItemStatus = (itemId: string, newStatus: LostFoundItem['status']) => {
+    setItems(prev => prev.map(item => {
+      if (item.id === itemId) {
+        const newLog = {
+          action: newStatus,
+          timestamp: new Date().toISOString().slice(0, 16).replace('T', ' '),
+          performedBy: 'Current User'
+        };
+        return {
+          ...item,
+          status: newStatus,
+          custodyLog: [...item.custodyLog, newLog]
+        };
+      }
+      return item;
+    }));
+  };
 
   return (
     <div className="space-y-6 animate-fade-in" id="lost-found-vault">
@@ -55,6 +152,19 @@ export default function LostAndFoundModule() {
                className="pl-9 pr-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500/20 transition w-64"
              />
            </div>
+           <select 
+             value={statusFilter}
+             onChange={(e) => setStatusFilter(e.target.value as any)}
+             className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs outline-none focus:ring-2 focus:ring-rose-500/20 transition"
+           >
+             <option value="All">All Status</option>
+             <option value="Found">Found</option>
+             <option value="Logged">Logged</option>
+             <option value="Vaulted">Vaulted</option>
+             <option value="Claim Pending">Claim Pending</option>
+             <option value="Returned">Returned</option>
+             <option value="Disposed">Disposed</option>
+           </select>
            <button className="px-4 py-2 bg-slate-950 dark:bg-white text-white dark:text-slate-950 rounded-xl font-bold text-xs shadow-lg flex items-center gap-2">
              <Plus size={14} /> Intake Item
            </button>
@@ -65,11 +175,19 @@ export default function LostAndFoundModule() {
         {/* Item Grid */}
         <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-4">
            {filteredItems.map((item) => (
-             <div key={item.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-3xs flex gap-4 transition-all hover:border-rose-200 group">
+             <div key={item.id} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 rounded-3xl shadow-3xl flex gap-4 transition-all hover:border-rose-200 group">
                 <div className="w-20 h-20 bg-slate-50 dark:bg-slate-950 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-850 relative overflow-hidden">
-                   {item.category === 'Electronics' ? <Camera size={32} className="text-slate-300" /> : <Package size={32} className="text-slate-300" />}
+                   {item.category === 'Electronics' ? <Camera size={32} className="text-slate-300" /> : 
+                    item.category === 'Documents' ? <Package size={32} className="text-slate-300" /> : 
+                    <Package size={32} className="text-slate-300" />}
                    <div className="absolute top-1 right-1">
-                     <div className={`w-2 h-2 rounded-full ${item.status === 'Vaulted' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                     <div className={`w-2 h-2 rounded-full ${
+                       item.status === 'Vaulted' ? 'bg-emerald-500' : 
+                       item.status === 'Claim Pending' ? 'bg-amber-500' : 
+                       item.status === 'Returned' ? 'bg-blue-500' : 
+                       item.status === 'Disposed' ? 'bg-slate-500' : 
+                       'bg-rose-500'
+                     }`} />
                    </div>
                 </div>
 
@@ -80,6 +198,16 @@ export default function LostAndFoundModule() {
                         <span className="text-[10px] font-mono text-slate-400 uppercase">Room {item.room} • {item.id}</span>
                       </div>
                    </div>
+
+                   {item.description && (
+                     <p className="text-[9px] text-slate-500 italic">{item.description}</p>
+                   )}
+
+                   {item.guestName && (
+                     <div className="text-[9px] text-slate-600">
+                       <span className="font-bold">Guest:</span> {item.guestName}
+                     </div>
+                   )}
 
                    <div className="flex gap-2 text-[9px] font-mono">
                       <div className="flex items-center gap-1 text-slate-500">
@@ -94,11 +222,29 @@ export default function LostAndFoundModule() {
                       <span className={`text-[8px] font-black px-1.5 py-0.5 rounded uppercase ${
                         item.status === 'Vaulted' ? 'bg-emerald-50 text-emerald-700' :
                         item.status === 'Claim Pending' ? 'bg-amber-50 text-amber-700' :
-                        'bg-slate-100 text-slate-600'
+                        item.status === 'Returned' ? 'bg-blue-50 text-blue-700' :
+                        item.status === 'Disposed' ? 'bg-slate-100 text-slate-600' :
+                        item.status === 'Logged' ? 'bg-indigo-50 text-indigo-700' :
+                        'bg-rose-50 text-rose-700'
                       }`}>{item.status}</span>
-                      <button className="text-[9px] font-black flex items-center gap-1 text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                         VERIFY RETURN <ArrowRight size={10} />
-                      </button>
+                      <div className="flex gap-1">
+                        {item.status === 'Claim Pending' && (
+                          <button 
+                            onClick={() => updateItemStatus(item.id, 'Returned')}
+                            className="text-[9px] font-black flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded transition-colors"
+                          >
+                            <CheckCircle size={10} /> Return
+                          </button>
+                        )}
+                        {item.status === 'Logged' && (
+                          <button 
+                            onClick={() => updateItemStatus(item.id, 'Vaulted')}
+                            className="text-[9px] font-black flex items-center gap-1 text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded transition-colors"
+                          >
+                            Vault
+                          </button>
+                        )}
+                      </div>
                    </div>
                 </div>
              </div>

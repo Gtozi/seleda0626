@@ -71,7 +71,7 @@ const ExpenseBudgetControl = () => {
          <div className="p-8 border-b border-slate-50 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Departmental Consumption Index</h3>
             <div className="flex gap-2 text-[10px] font-black uppercase overflow-x-auto no-scrollbar">
-               <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-xl">Operational</button>
+               <button className="px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg">Operational</button>
                <button className="px-4 py-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition">Capital</button>
                <button className="px-4 py-2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition">Direct</button>
             </div>
@@ -92,7 +92,7 @@ const ExpenseBudgetControl = () => {
                                {dept.status}
                             </span>
                          </div>
-                         <div className={`p-2 rounded-xl bg-white dark:bg-slate-800 shadow-3xs ${pct > 90 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                         <div className={`p-2 rounded-lg bg-white dark:bg-slate-800 shadow-3xs ${pct > 90 ? 'text-rose-500' : 'text-emerald-500'}`}>
                             {pct > 90 ? <Lock size={16} /> : <Unlock size={16} />}
                          </div>
                       </div>

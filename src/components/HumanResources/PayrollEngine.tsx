@@ -94,13 +94,13 @@ const PayrollEngine = () => {
     {
       key: 'period',
       label: 'Period',
-      render: (r) => <span className="text-xs font-black text-slate-900 dark:text-white uppercase">{r.period}</span>,
+      render: (r) => <span className="text-sm font-semibold text-slate-900 dark:text-white">{r.period}</span>,
     },
     {
       key: 'employee_count',
       label: 'Employees',
       align: 'center',
-      render: (r) => <span className="text-[10px] font-bold text-slate-500">{r.employee_count}</span>,
+      render: (r) => <span className="text-xs font-medium text-slate-500">{r.employee_count}</span>,
     },
     {
       key: 'total_gross',
@@ -124,7 +124,7 @@ const PayrollEngine = () => {
       key: 'total_net',
       label: 'Net Pay',
       align: 'right',
-      render: (r) => <span className="text-xs font-black font-mono text-emerald-600">${fmt(Number(r.total_net) || 0)}</span>,
+      render: (r) => <span className="text-xs font-medium font-mono text-emerald-600">${fmt(Number(r.total_net) || 0)}</span>,
     },
     {
       key: 'status',
@@ -140,7 +140,7 @@ const PayrollEngine = () => {
         };
         return (
           <div className="flex justify-center">
-            <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${colors[r.status] || colors['Draft']}`}>
+            <span className={`px-2 py-0.5 rounded text-xs font-medium uppercase ${colors[r.status] || colors['Draft']}`}>
               {r.status}
             </span>
           </div>
@@ -178,8 +178,8 @@ const PayrollEngine = () => {
       label: 'Employee',
       render: (p) => (
         <div className="flex flex-col">
-          <span className="text-xs font-black text-slate-900 dark:text-white">{p.employees?.name || '—'}</span>
-          <span className="text-[9px] font-bold text-slate-400">{p.employees?.department || '—'} · {p.employees?.position || '—'}</span>
+          <span className="text-xs font-medium text-slate-900 dark:text-white">{p.employees?.name || '—'}</span>
+          <span className="text-xs font-medium text-slate-400">{p.employees?.department || '—'} · {p.employees?.position || '—'}</span>
         </div>
       ),
     },
@@ -217,7 +217,7 @@ const PayrollEngine = () => {
       key: 'net_pay',
       label: 'Net Pay',
       align: 'right',
-      render: (p) => <span className="text-xs font-black font-mono text-emerald-600">${fmt(Number(p.net_pay) || 0)}</span>,
+      render: (p) => <span className="text-xs font-medium font-mono text-emerald-600">${fmt(Number(p.net_pay) || 0)}</span>,
     },
     {
       key: 'actions',
@@ -235,30 +235,30 @@ const PayrollEngine = () => {
   ];
 
   const inputClass = "w-full px-3 py-2 text-xs font-bold border border-slate-200 dark:border-slate-800 rounded-xl bg-white dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2";
+  const labelClass = "text-xs font-medium text-slate-400 uppercase block mb-2";
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button onClick={loadData} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
+          <button onClick={loadData} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-semibold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
             <RefreshCw size={16} /> Refresh
           </button>
           {selectedRun && (
-            <button onClick={() => { setSelectedRun(null); setActiveTab('runs'); setPayslips([]); }} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
+            <button onClick={() => { setSelectedRun(null); setActiveTab('runs'); setPayslips([]); }} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white font-semibold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs hover:bg-slate-50 transition shadow-sm">
               ← Back to Runs
             </button>
           )}
         </div>
         {!selectedRun && (
-          <button onClick={() => setShowNewRun(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-2xl flex items-center gap-2 text-xs transition shadow-md shadow-indigo-200 dark:shadow-none">
+          <button onClick={() => setShowNewRun(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl flex items-center gap-2 text-xs transition shadow-md shadow-indigo-200 dark:shadow-none">
             <Plus size={16} /> New Payroll Run
           </button>
         )}
       </div>
 
       {error && (
-        <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-2xl">
+        <div className="p-4 bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-500/20 rounded-xl">
           <p className="text-xs font-bold text-rose-600 dark:text-rose-400">{error}</p>
         </div>
       )}
@@ -271,12 +271,12 @@ const PayrollEngine = () => {
             { label: 'Total Pension', value: fmt(Number(selectedRun.total_pension_employee) || 0), icon: Users, color: 'text-rose-600' },
             { label: 'Total Net', value: fmt(Number(selectedRun.total_net) || 0), icon: CheckCircle2, color: 'text-emerald-600' },
           ].map((stat, i) => (
-            <div key={i} className="bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-800 p-6 rounded-[32px] shadow-3xs">
+            <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-6 rounded-xl shadow-sm">
               <div className={`p-2 w-fit rounded-xl bg-slate-50 dark:bg-slate-950 ${stat.color} mb-3`}>
                 <stat.icon size={18} />
               </div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{stat.label}</p>
-              <h3 className={`text-xl font-black ${stat.color}`}>${stat.value}</h3>
+              <p className="text-xs font-medium text-slate-400 uppercase leading-none mb-1">{stat.label}</p>
+              <h3 className={`text-xl font-semibold ${stat.color}`}>${stat.value}</h3>
             </div>
           ))}
         </div>
@@ -330,13 +330,13 @@ const PayrollEngine = () => {
 
           <div className="border-t border-slate-100 dark:border-slate-800 pt-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">Select Employees</h4>
+              <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Select Employees</h4>
               <button onClick={() => setNewRun({ ...newRun, selectedEmployees: employees.map(e => e.id) })}
-                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-100 transition">
+                className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-medium uppercase hover:bg-indigo-100 transition">
                 Select All
               </button>
               <button onClick={() => setNewRun({ ...newRun, selectedEmployees: [] })}
-                className="px-3 py-1.5 bg-slate-50 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition ml-2">
+                className="px-3 py-1.5 bg-slate-50 text-slate-500 rounded-xl text-xs font-medium uppercase hover:bg-slate-100 transition ml-2">
                 Clear
               </button>
             </div>
@@ -345,25 +345,25 @@ const PayrollEngine = () => {
               {employees.length === 0 ? (
                 <div className="p-6 text-center text-slate-500 text-xs font-bold">No active employees found.</div>
               ) : employees.map(emp => (
-                <label key={emp.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition">
+                <label key={emp.id} className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-950 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 transition">
                   <input type="checkbox" checked={newRun.selectedEmployees.includes(emp.id)} onChange={() => toggleEmployee(emp.id)}
                     className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500" />
                   <div className="flex-1">
-                    <p className="text-xs font-black text-slate-900 dark:text-white">{emp.name}</p>
-                    <p className="text-[9px] font-bold text-slate-400">{emp.department} · {emp.position}</p>
+                    <p className="text-xs font-medium text-slate-900 dark:text-white">{emp.name}</p>
+                    <p className="text-xs font-medium text-slate-400">{emp.department} · {emp.position}</p>
                   </div>
-                  <span className="text-xs font-mono font-black text-slate-700 dark:text-slate-300">${fmt(Number(emp.basic_salary || emp.salary) || 0)}</span>
+                  <span className="text-xs font-mono font-medium text-slate-700 dark:text-slate-300">${fmt(Number(emp.basic_salary || emp.salary) || 0)}</span>
                 </label>
               ))}
             </div>
-            <p className="text-[10px] font-bold text-slate-400 mt-2">
+            <p className="text-xs font-medium text-slate-400 mt-2">
               {newRun.selectedEmployees.length === 0 ? 'All active employees will be included.' : `${newRun.selectedEmployees.length} employee(s) selected.`}
             </p>
           </div>
         </div>
         <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-slate-50 dark:bg-slate-950">
-          <button onClick={() => setShowNewRun(false)} className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition">Cancel</button>
-          <button onClick={handleCreateRun} className="px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2">
+          <button onClick={() => setShowNewRun(false)} className="px-6 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-lg text-sm font-medium uppercase hover:bg-slate-50 transition">Cancel</button>
+          <button onClick={handleCreateRun} className="px-6 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-medium uppercase hover:bg-indigo-700 transition flex items-center gap-2">
             <Calculator size={14} /> Calculate Payroll
           </button>
         </div>

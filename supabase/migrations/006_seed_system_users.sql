@@ -15,7 +15,9 @@ INSERT INTO system_users (
   ('U-107', 'HR Manager', 'hr@erp.com', 'hr', 'HR Manager', 'HR', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now()),
   ('U-108', 'Inventory Manager', 'inventory@erp.com', 'inventory', 'Stores Manager', 'IM', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now()),
   ('U-109', 'Procurement Lead', 'procurement@erp.com', 'procurement', 'Procurement Lead', 'PL', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now()),
-  ('U-110', 'System Administrator', 'admin@erp.com', 'executive', 'System Administrator', 'SA', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now())
+  ('U-110', 'System Administrator', 'admin@erp.com', 'executive', 'System Administrator', 'SA', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now()),
+  ('U-111', 'Sales Manager', 'sales@erp.com', 'sales', 'Sales Manager', 'SM', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now()),
+  ('U-112', 'Security Manager', 'security@erp.com', 'security_manager', 'Security Manager', 'SEC', 'Active', '$2b$10$hiMHxz3ZXzjNGZAVrIlWIO1lY2yoXZZ1bswVggEtOd5BaKZTrGi0.', true, now(), now())
 ON CONFLICT (email) DO NOTHING;
 
 -- Restrict System Administrator to Admin portal only

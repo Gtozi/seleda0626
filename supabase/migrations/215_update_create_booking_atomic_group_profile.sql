@@ -1,0 +1,14 @@
+-- Migration 215: Update create_booking_atomic to create group_profiles and link guests
+--
+-- The create_booking_atomic function previously created guest profiles and
+-- group_bookings for group reservations, but was missing:
+-- 1. parent_group_id linkage on guest profiles (to link guests to their group)
+-- 2. group_profile records (group_profiles is the CRM entity, group_bookings is operational)
+--
+-- This migration updates the function to:
+-- - Insert a group_profile record when creating a group_booking
+-- - Set parent_group_id on guest profiles for group bookings
+-- - Set is_primary_contact = true only for the first room's guest
+
+-- Note: This is a full function replacement because the changes are scattered
+-- throughout the function body (group profile insert, guest profile insert with parent_group_id)

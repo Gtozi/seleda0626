@@ -41,14 +41,14 @@ const PayslipViewer = ({ payslip, onClose }: { payslip: Payslip; onClose: () => 
 
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-slate-900 rounded-[32px] max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-slate-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white dark:bg-slate-900 p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between z-10">
           <div>
-            <h2 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight">Payslip</h2>
-            <p className="text-[10px] font-bold text-slate-400">{run?.period || payslip.period}</p>
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Payslip</h2>
+            <p className="text-xs font-medium text-slate-400">{run?.period || payslip.period}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={handlePrint} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-700 transition flex items-center gap-2">
+            <button onClick={handlePrint} className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-medium uppercase hover:bg-indigo-700 transition flex items-center gap-2">
               <Printer size={14} /> Print
             </button>
             <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 transition">
@@ -60,130 +60,130 @@ const PayslipViewer = ({ payslip, onClose }: { payslip: Payslip; onClose: () => 
         <div id="payslip-print-area" className="p-6 space-y-6">
           {/* Employee Info */}
           <div className="text-center">
-            <h3 className="text-lg font-black text-slate-900 dark:text-white">{emp?.name || '—'}</h3>
-            <p className="text-xs font-bold text-slate-400">{emp?.department} · {emp?.position}</p>
-            {emp?.pension_number && <p className="text-[10px] font-mono text-slate-400 mt-1">Pension #: {emp.pension_number}</p>}
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{emp?.name || '—'}</h3>
+            <p className="text-sm font-medium text-slate-400">{emp?.department} · {emp?.position}</p>
+            {emp?.pension_number && <p className="text-xs font-mono text-slate-400 mt-1">Pension #: {emp.pension_number}</p>}
           </div>
 
           {/* Summary Cards */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-2xl p-4">
+            <div className="bg-indigo-50 dark:bg-indigo-500/10 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <DollarSign size={14} className="text-indigo-500" />
-                <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Gross</span>
+                <span className="text-xs font-medium text-indigo-400 uppercase">Gross</span>
               </div>
-              <span className="text-lg font-black text-indigo-600">${fmt(Number(payslip.gross_pay) || 0)}</span>
+              <span className="text-lg font-semibold text-indigo-600">${fmt(Number(payslip.gross_pay) || 0)}</span>
             </div>
-            <div className="bg-rose-50 dark:bg-rose-500/10 rounded-2xl p-4">
+            <div className="bg-rose-50 dark:bg-rose-500/10 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <TrendingDown size={14} className="text-rose-500" />
-                <span className="text-[10px] font-black text-rose-400 uppercase tracking-widest">Deductions</span>
+                <span className="text-xs font-medium text-rose-400 uppercase">Deductions</span>
               </div>
-              <span className="text-lg font-black text-rose-600">${fmt(Number(payslip.total_deductions) || 0)}</span>
+              <span className="text-lg font-semibold text-rose-600">${fmt(Number(payslip.total_deductions) || 0)}</span>
             </div>
-            <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-2xl p-4">
+            <div className="bg-emerald-50 dark:bg-emerald-500/10 rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <Wallet size={14} className="text-emerald-500" />
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Net Pay</span>
+                <span className="text-xs font-medium text-emerald-400 uppercase">Net Pay</span>
               </div>
-              <span className="text-lg font-black text-emerald-600">${fmt(Number(payslip.net_pay) || 0)}</span>
+              <span className="text-lg font-semibold text-emerald-600">${fmt(Number(payslip.net_pay) || 0)}</span>
             </div>
           </div>
 
           {/* Earnings */}
           <div>
-            <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Earnings</h4>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase mb-3">Earnings</h4>
             <div className="space-y-2">
-              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                <span className="text-xs font-bold text-slate-500">Basic Salary</span>
-                <span className="text-xs font-mono font-black text-slate-900 dark:text-white">${fmt(Number(payslip.basic_salary) || 0)}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                <span className="text-sm font-medium text-slate-500">Basic Salary</span>
+                <span className="text-sm font-mono font-semibold text-slate-900 dark:text-white">${fmt(Number(payslip.basic_salary) || 0)}</span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                <span className="text-xs font-bold text-slate-500">Allowances</span>
-                <span className="text-xs font-mono font-black text-slate-900 dark:text-white">${fmt(Number(payslip.allowances) || 0)}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                <span className="text-sm font-medium text-slate-500">Allowances</span>
+                <span className="text-sm font-mono font-semibold text-slate-900 dark:text-white">${fmt(Number(payslip.allowances) || 0)}</span>
               </div>
               {Number(payslip.overtime) > 0 && (
-                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-xs font-bold text-slate-500">Overtime</span>
-                  <span className="text-xs font-mono font-black text-slate-900 dark:text-white">${fmt(Number(payslip.overtime) || 0)}</span>
+                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-sm font-medium text-slate-500">Overtime</span>
+                  <span className="text-sm font-mono font-semibold text-slate-900 dark:text-white">${fmt(Number(payslip.overtime) || 0)}</span>
                 </div>
               )}
-              <div className="flex justify-between p-3 border-t-2 border-slate-200 dark:border-slate-700 rounded-2xl">
-                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Gross Pay</span>
-                <span className="text-sm font-black font-mono text-indigo-600">${fmt(Number(payslip.gross_pay) || 0)}</span>
+              <div className="flex justify-between p-3 border-t-2 border-slate-200 dark:border-slate-700 rounded-xl">
+                <span className="text-sm font-semibold text-slate-900 dark:text-white uppercase">Gross Pay</span>
+                <span className="text-sm font-semibold font-mono text-indigo-600">${fmt(Number(payslip.gross_pay) || 0)}</span>
               </div>
             </div>
           </div>
 
           {/* Deductions */}
           <div>
-            <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Deductions</h4>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase mb-3">Deductions</h4>
             <div className="space-y-2">
-              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                <span className="text-xs font-bold text-slate-500">Income Tax</span>
-                <span className="text-xs font-mono font-black text-amber-600">${fmt(Number(payslip.income_tax) || 0)}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                <span className="text-sm font-medium text-slate-500">Income Tax</span>
+                <span className="text-sm font-mono font-semibold text-amber-600">${fmt(Number(payslip.income_tax) || 0)}</span>
               </div>
-              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                <span className="text-xs font-bold text-slate-500">Pension (Employee)</span>
-                <span className="text-xs font-mono font-black text-rose-600">${fmt(Number(payslip.pension_employee) || 0)}</span>
+              <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                <span className="text-sm font-medium text-slate-500">Pension (Employee)</span>
+                <span className="text-sm font-mono font-semibold text-rose-600">${fmt(Number(payslip.pension_employee) || 0)}</span>
               </div>
               {Number(payslip.loan_deduction) > 0 && (
-                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-xs font-bold text-slate-500">Loan Deduction</span>
-                  <span className="text-xs font-mono font-black text-rose-600">${fmt(Number(payslip.loan_deduction) || 0)}</span>
+                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-sm font-medium text-slate-500">Loan Deduction</span>
+                  <span className="text-sm font-mono font-semibold text-rose-600">${fmt(Number(payslip.loan_deduction) || 0)}</span>
                 </div>
               )}
               {Number(payslip.other_deductions) > 0 && (
-                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-xs font-bold text-slate-500">Other Deductions</span>
-                  <span className="text-xs font-mono font-black text-rose-600">${fmt(Number(payslip.other_deductions) || 0)}</span>
+                <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-sm font-medium text-slate-500">Other Deductions</span>
+                  <span className="text-sm font-mono font-semibold text-rose-600">${fmt(Number(payslip.other_deductions) || 0)}</span>
                 </div>
               )}
-              <div className="flex justify-between p-3 border-t-2 border-slate-200 dark:border-slate-700 rounded-2xl">
-                <span className="text-xs font-black text-slate-900 dark:text-white uppercase">Total Deductions</span>
-                <span className="text-sm font-black font-mono text-rose-600">${fmt(Number(payslip.total_deductions) || 0)}</span>
+              <div className="flex justify-between p-3 border-t-2 border-slate-200 dark:border-slate-700 rounded-xl">
+                <span className="text-sm font-semibold text-slate-900 dark:text-white uppercase">Total Deductions</span>
+                <span className="text-sm font-semibold font-mono text-rose-600">${fmt(Number(payslip.total_deductions) || 0)}</span>
               </div>
             </div>
           </div>
 
           {/* Net Pay */}
-          <div className="flex justify-between items-center p-6 bg-emerald-50 dark:bg-emerald-500/10 rounded-[24px]">
+          <div className="flex justify-between items-center p-6 bg-emerald-50 dark:bg-emerald-500/10 rounded-xl">
             <div>
-              <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest block">Net Pay</span>
-              <span className="text-[9px] font-bold text-emerald-400/70">{run?.period || payslip.period}</span>
+              <span className="text-xs font-medium text-emerald-400 uppercase block">Net Pay</span>
+              <span className="text-xs font-medium text-emerald-400/70">{run?.period || payslip.period}</span>
             </div>
-            <span className="text-2xl font-black text-emerald-600">${fmt(Number(payslip.net_pay) || 0)}</span>
+            <span className="text-2xl font-semibold text-emerald-600">${fmt(Number(payslip.net_pay) || 0)}</span>
           </div>
 
           {/* Employer Contributions */}
           <div>
-            <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Employer Contributions</h4>
-            <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-              <span className="text-xs font-bold text-slate-500">Pension (Employer)</span>
-              <span className="text-xs font-mono font-black text-slate-700 dark:text-slate-300">${fmt(Number(payslip.pension_employer) || 0)}</span>
+            <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase mb-3">Employer Contributions</h4>
+            <div className="flex justify-between p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+              <span className="text-sm font-medium text-slate-500">Pension (Employer)</span>
+              <span className="text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">${fmt(Number(payslip.pension_employer) || 0)}</span>
             </div>
           </div>
 
           {/* YTD */}
           {(Number(payslip.ytd_gross) > 0 || Number(payslip.ytd_net) > 0) && (
             <div>
-              <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight mb-3">Year-to-Date</h4>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-white uppercase mb-3">Year-to-Date</h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">YTD Gross</span>
-                  <span className="text-sm font-black font-mono text-slate-900 dark:text-white">${fmt(Number(payslip.ytd_gross) || 0)}</span>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-xs font-medium text-slate-400 uppercase block">YTD Gross</span>
+                  <span className="text-sm font-semibold font-mono text-slate-900 dark:text-white">${fmt(Number(payslip.ytd_gross) || 0)}</span>
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">YTD Tax</span>
-                  <span className="text-sm font-black font-mono text-amber-600">${fmt(Number(payslip.ytd_tax) || 0)}</span>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-xs font-medium text-slate-400 uppercase block">YTD Tax</span>
+                  <span className="text-sm font-semibold font-mono text-amber-600">${fmt(Number(payslip.ytd_tax) || 0)}</span>
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">YTD Pension</span>
-                  <span className="text-sm font-black font-mono text-rose-600">${fmt(Number(payslip.ytd_pension) || 0)}</span>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-xs font-medium text-slate-400 uppercase block">YTD Pension</span>
+                  <span className="text-sm font-semibold font-mono text-rose-600">${fmt(Number(payslip.ytd_pension) || 0)}</span>
                 </div>
-                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-2xl">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">YTD Net</span>
-                  <span className="text-sm font-black font-mono text-emerald-600">${fmt(Number(payslip.ytd_net) || 0)}</span>
+                <div className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl">
+                  <span className="text-xs font-medium text-slate-400 uppercase block">YTD Net</span>
+                  <span className="text-sm font-semibold font-mono text-emerald-600">${fmt(Number(payslip.ytd_net) || 0)}</span>
                 </div>
               </div>
             </div>
@@ -191,7 +191,7 @@ const PayslipViewer = ({ payslip, onClose }: { payslip: Payslip; onClose: () => 
 
           {/* Status */}
           <div className="flex justify-center">
-            <span className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest ${
+            <span className={`px-4 py-1.5 rounded-xl text-xs font-medium uppercase ${
               payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' :
               payslip.status === 'Approved' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600'
             }`}>
